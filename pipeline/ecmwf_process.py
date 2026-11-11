@@ -14,7 +14,39 @@ from pathlib import Path
 import numpy as np
 
 from . import config as cfg
-from .checks import CheckFailed, check_daily_differences, read_india_subset
+from .checks import (
+    CheckFailed,
+    check_daily_differences,
+    check_quantum_cap,
+    read_india_subset,
+)
+
+
+def quantum_summary(packing: dict) -> dict:
+    """Packing quantum per step, and the coarsest over the whole date.
+
+    SPEC 3.6: the negative-difference tolerance is derived from the coarsest
+    quantum, because a difference of two quantised accumulations inherits the
+    coarser of the two.
+    """
+    per_step: dict[str, float] = {}
+    for step in cfg.STEPS:
+        quanta = [
+            m["quantum"]
+            for typ in cfg.TYPES
+            for m in packing.get(f"{typ}_{step}", [])
+        ]
+        if quanta:
+            per_step[str(step)] = max(quanta)
+
+    if not per_step:
+        raise CheckFailed("no packing quantum could be read for this date")
+
+    coarsest = max(per_step.values())
+    return {
+        "per_step_mm": {k: round(v, 8) for k, v in per_step.items()},
+        "coarsest_mm": round(coarsest, 8),
+    }
 
 
 def build_india_array(date: str):
@@ -120,7 +152,13 @@ def process_date(date: str) -> dict:
     tp, packing = build_india_array(date)
     t_read = time.time()
 
-    diff_summary = check_daily_differences(tp)
+    # SPEC 3.6: tolerance comes from this date's own packing, and a date whose
+    # rounding is coarser than the cap is not trusted at all.
+    quanta = quantum_summary(packing)
+    check_quantum_cap(quanta["coarsest_mm"])
+    tolerance = cfg.tolerance_for(quanta["coarsest_mm"])
+
+    diff_summary = check_daily_differences(tp, tolerance)
 
     final = write_and_verify(date, tp)
     t_write = time.time()
@@ -144,18 +182,35 @@ def process_date(date: str) -> dict:
         "members": [min(cfg.MEMBERS), max(cfg.MEMBERS)],
         "accumulated_max_mm": round(float(tp.max()), 4),
         "daily_differences": diff_summary,
-        "packing": {"bitsPerValue": bits, "packingType": types},
+        "packing": {
+            "bitsPerValue": bits,
+            "packingType": types,
+            "quantum_per_step_mm": quanta["per_step_mm"],
+            "coarsest_quantum_mm": quanta["coarsest_mm"],
+            "quantum_cap_mm": cfg.MAX_TRUSTED_QUANTUM,
+        },
         "longitude_origin": origins,
         "seconds_read_and_check": round(t_read - t0, 2),
         "seconds_write_and_verify": round(t_write - t_read, 2),
     }
 
 
-def daily_totals(tp: np.ndarray) -> np.ndarray:
+def daily_totals(tp: np.ndarray, tolerance: float | None = None) -> np.ndarray:
     """Daily totals from the accumulated field, with the SPEC 3.6 clamp.
 
     Returns float32 shaped (5 days, 51 members, 129, 121).
+
+    Negative differences between the tolerance and 0 are packing noise and
+    become 0. If ``tolerance`` is given, anything below it raises rather than
+    being quietly clamped; callers that already ran check_daily_differences
+    can leave it out.
     """
     diffs = np.diff(tp, axis=0)
-    # From -0.1 to 0 is 16-bit packing noise and becomes 0 (SPEC 3.6).
+    if tolerance is not None:
+        worst = float(diffs.min())
+        if worst < tolerance:
+            raise CheckFailed(
+                f"daily difference of {worst:.6f} mm is below the tolerance "
+                f"of {tolerance:.6f} mm"
+            )
     return np.where(diffs < 0, 0.0, diffs).astype(np.float32)

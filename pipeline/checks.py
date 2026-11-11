@@ -28,6 +28,22 @@ def _get(handle, key, default=None):
         return default
 
 
+def message_quantum(handle) -> float:
+    """Smallest value step this message can represent, in mm.
+
+    GRIB stores values as integers scaled by two factors, so the quantum is
+    2**binaryScaleFactor / 10**decimalScaleFactor. Verified against the real
+    files on 12 November 2026: 0.003906 mm for a 16-bit May field and
+    0.125 mm for a 12-bit October field, both matching the smallest gap
+    between distinct decoded values exactly.
+    """
+    binary = _get(handle, "binaryScaleFactor")
+    decimal = _get(handle, "decimalScaleFactor")
+    if binary is None or decimal is None:
+        raise CheckFailed("message has no scale factors, cannot find quantum")
+    return (2.0 ** binary) / (10.0 ** decimal)
+
+
 def read_india_subset(path: Path, date: str, step: int, typ: str):
     """Read one GRIB file, check it, and return its India subset.
 
@@ -92,6 +108,7 @@ def read_india_subset(path: Path, date: str, step: int, typ: str):
                     "packingType": _get(h, "packingType"),
                     "longitudeOfFirstGridPoint":
                         _get(h, "longitudeOfFirstGridPointInDegrees"),
+                    "quantum": message_quantum(h),
                 })
             finally:
                 ec.codes_release(h)
@@ -173,27 +190,45 @@ def _check_message(h, date: str, step: int, typ: str) -> None:
         raise CheckFailed(str(exc)) from exc
 
 
-def check_daily_differences(tp: np.ndarray) -> dict:
+def check_quantum_cap(coarsest_quantum: float) -> None:
+    """Reject a date whose storage precision is too coarse to trust.
+
+    SPEC 3.6: above 0.5 mm the rounding is too rough relative to the 1 mm
+    threshold, so the file is not used at all.
+    """
+    if coarsest_quantum > cfg.MAX_TRUSTED_QUANTUM:
+        raise CheckFailed(
+            f"coarsest packing quantum is {coarsest_quantum:.6f} mm, above the "
+            f"{cfg.MAX_TRUSTED_QUANTUM} mm cap: too coarse to trust against "
+            "the 1 mm threshold"
+        )
+
+
+def check_daily_differences(tp: np.ndarray, tolerance: float) -> dict:
     """Difference the accumulated field and apply the SPEC 3.6 negative rule.
 
     tp is shaped (n_steps, n_members, n_lat, n_lon) and holds ACCUMULATED
-    precipitation. Returns a summary dict. Raises CheckFailed if any daily
-    difference is below the clamp threshold.
+    precipitation. ``tolerance`` is the most negative difference allowed, a
+    negative number derived from the date's packing quantum.
+
+    Differences between ``tolerance`` and 0 are packing noise and are reported
+    as values that will be set to 0. Anything below ``tolerance`` raises.
     """
     diffs = np.diff(tp, axis=0)  # (n_days, n_members, n_lat, n_lon)
     worst = float(diffs.min())
 
-    if worst < cfg.NEGATIVE_CLAMP:
-        bad = int((diffs < cfg.NEGATIVE_CLAMP).sum())
+    if worst < tolerance:
+        bad = int((diffs < tolerance).sum())
         raise CheckFailed(
-            f"daily difference of {worst:.4f} mm is below "
-            f"{cfg.NEGATIVE_CLAMP} mm ({bad} values affected)"
+            f"daily difference of {worst:.6f} mm is below the tolerance of "
+            f"{tolerance:.6f} mm ({bad} values affected)"
         )
 
-    n_clamped = int(((diffs < 0) & (diffs >= cfg.NEGATIVE_CLAMP)).sum())
+    n_clamped = int(((diffs < 0) & (diffs >= tolerance)).sum())
     return {
+        "tolerance_mm": round(tolerance, 6),
         "most_negative_difference_mm": round(worst, 6),
-        "values_clamped_to_zero": n_clamped,
+        "values_set_to_zero": n_clamped,
         "max_daily_total_mm": round(float(diffs.max()), 4),
         "shape": list(diffs.shape),
     }

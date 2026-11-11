@@ -82,8 +82,21 @@ DATES_IN_FLIGHT = 3          # keeps the 8-connection pool busy across dates
 MIN_FREE_GB = 15             # SPEC 2.6, stop cleanly below this
 
 # ----------------------------------------- negative differences, SPEC 3.6
-NEGATIVE_CLAMP = -0.1  # from -0.1 to 0 is packing noise and becomes 0
-# Below NEGATIVE_CLAMP: live run stops, Pile A fails that date only.
+# The tolerance is not a fixed number. It is derived from the packing quantum
+# of the date being processed, because ECMWF dropped storage precision from
+# 16 to 12 bits around 20 October 2026 and a fixed -0.1 mm is finer than the
+# new quantum. Differencing two values each quantised with step q can produce
+# a spurious negative of up to about q, so twice q is a safe floor.
+QUANTUM_TOLERANCE_FACTOR = 2.0
+
+# Above this quantum a file is not trusted at all: rounding that coarse is too
+# rough for the 1 mm threshold. Such a date fails; a live run stops.
+MAX_TRUSTED_QUANTUM = 0.5
+
+
+def tolerance_for(coarsest_quantum: float) -> float:
+    """The most negative daily difference tolerated for this date, in mm."""
+    return -QUANTUM_TOLERANCE_FACTOR * coarsest_quantum
 
 
 class GridLayoutError(ValueError):

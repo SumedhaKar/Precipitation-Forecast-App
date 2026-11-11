@@ -60,11 +60,26 @@ def main() -> int:
     if not np.isfinite(tp).all():
         problems.append("tp contains non-finite values")
 
-    # Accumulated totals must never decrease with step (SPEC 2.1).
-    decreasing = int((np.diff(tp, axis=0) < cfg.NEGATIVE_CLAMP).sum())
+    # Accumulated totals must never decrease with step (SPEC 2.1), beyond the
+    # packing noise allowed for this date. The tolerance is read back from the
+    # date's own done record rather than assumed.
+    done = cfg.done_path(date)
+    if done.exists():
+        import json
+        record = json.loads(done.read_text(encoding="utf-8"))
+        tolerance = record["daily_differences"]["tolerance_mm"]
+        coarsest = record["packing"]["coarsest_quantum_mm"]
+        print(f"     packing quantum, coarsest {coarsest} mm")
+        print(f"     tolerance from the done record {tolerance} mm")
+        print()
+    else:
+        tolerance = -cfg.QUANTUM_TOLERANCE_FACTOR * cfg.MAX_TRUSTED_QUANTUM
+        print(f"     no done record, using the cap-derived {tolerance} mm\n")
+
+    decreasing = int((np.diff(tp, axis=0) < tolerance).sum())
     if decreasing:
         problems.append(f"{decreasing} accumulations decrease by more than "
-                        f"{cfg.NEGATIVE_CLAMP} mm")
+                        f"{tolerance} mm")
 
     if problems:
         for p in problems:

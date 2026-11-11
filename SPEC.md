@@ -148,6 +148,13 @@ comparing them. Both are **[verified]** from the real files.
 | `longitudeOfFirstGridPointInDegrees` | 0.0 | 180.0 |
 | `longitudeOfLastGridPointInDegrees` | 359.75 | 179.75 |
 | File size, `pf` step 24 | 42 MB | 21.6 MB |
+| Raw bytes for the whole date | 301 MB | 153 MB |
+
+**[open] — the exact changeover dates.** The two changes are confirmed on
+13 May and 25 October, but the first date carrying each is not yet known. When
+the full Pile A run finishes, the first date with `bitsPerValue` 12 and the
+first date with longitude origin 180 are to be read from the done records and
+written in here. They may not be the same date.
 
 **Storage precision dropped from 16 to 12 bits.** This is recorded for every
 date and never causes a failure. It does affect the negative-difference rule;
@@ -304,10 +311,22 @@ attempt at 25 October and what this check caught.
 - no bitmap is present, so no values are missing
 - every value is finite: no NaN, no infinity
 
+**Packing**
+
+- `bitsPerValue`, `packingType` and the quantum are recorded for every message
+  and are **never** a failure reason on their own
+- the one exception is the cap: a coarsest quantum above 0.5 mm fails the date
+  (section 3.6)
+
 **Recorded, never a failure reason**
 
-- `bitsPerValue` and `packingType` for every message
 - `longitudeOfFirstGridPointInDegrees` for every message
+
+**Applies to every GRIB we read**
+
+The longitude origin is taken from the file in hand, every time, with no
+exceptions: forecast files, the land-sea mask, and the live pipeline. No code
+path is allowed to assume an origin of 0 or of 180.
 
 Every downloaded IMERG file is checked for its declared units and grid shape.
 
@@ -527,12 +546,32 @@ Daily totals are differences of accumulated fields. GRIB packing is 16-bit
 **[verified]**, so tiny negative differences can appear where true accumulation
 is flat.
 
-**[open] — the -0.1 mm figure no longer works for data after about
-20 October 2026 and needs your decision. Evidence and options are at the end of
-this section. Everything below describes the rule as currently written.**
+The tolerance is **not a fixed number**. It is derived from the packing of the
+date being processed, because ECMWF's storage precision changed around
+20 October 2026 (section 2.1) and a fixed figure cannot survive that.
 
-- A difference from -0.1 to 0 mm is set to 0.
-- A difference below -0.1 mm is an error, handled differently by pile:
+```
+coarsest_quantum = the largest packing quantum across all 6 steps of the date
+tolerance        = -2 x coarsest_quantum
+```
+
+The quantum of one GRIB message is `2**binaryScaleFactor / 10**decimalScaleFactor`.
+Differencing two accumulations each rounded to a step of q can produce a
+spurious negative of about q, so twice q is a safe floor.
+
+Worked from the real files **[verified]**:
+
+| Date | bits | Coarsest quantum | Tolerance | Worst difference seen | Verdict |
+|---|---|---|---|---|---|
+| 13 May 2026 | 16 | 0.015625 mm | -0.03125 mm | -0.015625 mm | passes |
+| 25 Oct 2026 | 12 | 0.25 mm | -0.5 mm | -0.125 mm | passes |
+
+Note this is **stricter** than the old fixed -0.1 mm on the 16-bit data.
+
+Then:
+
+- A difference from the tolerance to 0 mm is set to 0.
+- A difference below the tolerance is an error, handled differently by pile:
 
 | Pile | Behaviour on a difference below -0.1 mm |
 |---|---|
@@ -544,44 +583,42 @@ while Pile A is a long batch where one bad date must not destroy 177 good ones.
 Failed Pile A dates are excluded from the track record and their count is
 published alongside it.
 
-#### Why -0.1 mm no longer works: the evidence
+#### The 0.5 mm cap
 
-Measured from the real files on 12 November 2026 **[verified]**:
+If a date's coarsest quantum is **above 0.5 mm**, the date fails outright and
+a live run stops. Rounding that coarse is too rough to judge against the 1 mm
+threshold, so the file is not trusted at all.
 
-| | 13 May 2026 | 25 October 2026 |
-|---|---|---|
-| `bitsPerValue` | 16 | 12 |
-| Coarsest packing quantum across the 6 steps | 0.015625 mm | 0.250 mm |
-| Most negative daily difference found | -0.015625 mm | -0.125 mm |
-| Most negative, as a multiple of the coarsest quantum | 1.0 | 0.5 |
-| Verdict under the -0.1 mm rule | passes | **fails, 10,126 values** |
+25 October, at 0.25 mm, is inside the cap and is used.
 
-The -0.125 mm on 25 October is exactly one packing step of that file. It is
-not bad data; it is the storage precision ECMWF now uses. The rule rejects it
-only because -0.1 mm is finer than the new quantum.
+#### Recorded per date
 
-Left unchanged, this rule fails **every** date after the packing change, which
-is roughly 18 of the 178 Pile A dates and all future live runs.
+Every done record carries:
 
-On both dates the most negative difference was at most one coarsest quantum,
-which is what differencing two quantised accumulations should produce.
+- the packing quantum at each of the 6 steps
+- the coarsest quantum and the cap it was tested against
+- the tolerance that was used
+- how many daily differences were set to 0 by it
 
-#### Options
+So the rule that was applied to any date can always be read back, rather than
+inferred from the code as it stands later.
 
-1. **Tolerance derived from the file's own packing.** Allow differences down
-   to minus twice the coarsest quantum of the date, computed per date from
-   `binaryScaleFactor` and `decimalScaleFactor`. That is -0.031 mm for 13 May
-   and -0.5 mm for 25 October. It tracks whatever ECMWF does next without
-   further edits, and it is *stricter* than -0.1 mm on the older 16-bit data.
-2. **A fixed larger number**, such as -0.3 mm or -0.5 mm. Simple and easy to
-   state, but arbitrary, and it would have to be revisited if ECMWF changes
-   precision again.
-3. **Leave -0.1 mm** and accept that post-20-October dates fail. Not
-   recommended: it discards the most recent and most relevant 18 dates.
+#### Limitation: precision after about 20 October 2026
 
-Option 1 is recommended. It is the only one that stays correct if the packing
-changes again, and it makes the check tighter rather than looser on the data
-we already have.
+From the packing change onwards, daily totals are only accurate to about
+plus or minus 0.25 mm. Before it they were accurate to about 0.016 mm.
+
+**The 1 mm threshold is the one most affected.** A member whose true daily
+total sits within about a quarter of a millimetre of 1 mm may be counted on
+either side of it, purely because of how the number was stored. The 10 mm and
+50 mm thresholds are far enough above the quantum for this to be negligible.
+
+HC6, which compares our counts against ECMWF's own published probabilities,
+may therefore show small gaps near thresholds for dates after the change.
+Those gaps are a storage-precision artefact, not a disagreement about the
+weather, and must be reported as such rather than explained away.
+
+This limitation is published on the site alongside the track record.
 
 ---
 
