@@ -135,6 +135,34 @@ dissemination. The 0.25 degree grid is therefore a presentation grid, not the
 model's native resolution. The site must never imply detail finer than about
 31 km.
 
+#### Two things ECMWF changed around 20 October 2026
+
+Both were found on 12 November 2026 by processing 13 May and 25 October and
+comparing them. Both are **[verified]** from the real files.
+
+| Key | 13 May 2026 | 25 October 2026 |
+|---|---|---|
+| `bitsPerValue` | 16 | 12 |
+| Packing quantum at step 24 | 0.0039 mm | 0.125 mm |
+| Coarsest quantum across the 6 steps | 0.0156 mm | 0.250 mm |
+| `longitudeOfFirstGridPointInDegrees` | 0.0 | 180.0 |
+| `longitudeOfLastGridPointInDegrees` | 359.75 | 179.75 |
+| File size, `pf` step 24 | 42 MB | 21.6 MB |
+
+**Storage precision dropped from 16 to 12 bits.** This is recorded for every
+date and never causes a failure. It does affect the negative-difference rule;
+see section 3.6.
+
+**The longitude origin moved from 0 to 180.** The grid is still 1440 columns
+at 0.25 degrees, but column 0 now holds longitude 180 instead of 0. India at
+68-98 E is contiguous under both conventions, at column 272 under the old
+origin and column 992 under the new one.
+
+The code therefore computes the India window from each file's own
+`longitudeOfFirstGridPointInDegrees` and never assumes an origin. It also
+rejects any origin that would make India wrap around the end of the array,
+rather than silently returning the wrong part of the world.
+
 #### Model version
 
 AIFS ENS v2 went operational on the 12 May 2026 06 UTC run. The first 00 UTC
@@ -155,7 +183,7 @@ Google on 12 November 2026, 183 days later. **[verified]**
 |---|---|---|
 | Pile A, historical | `google` | holds the full archive; worked first time |
 | Pile A, fallback | `aws` | AWS throttled us in earlier practice, so backup only |
-| Pile C, live | `ecmwf` | fastest for fresh runs, which are inside the 4-day window |
+| Pile C, live | `ecmwf` | fastest for fresh runs, which are inside the 12-run (2-3 day) window |
 
 Valid source values in the client are `ecmwf`, `aws`, `azure`, `google` and
 `ecmwf-testdata`. Google resolves to
@@ -231,13 +259,55 @@ date is computed from what IMERG actually has, not assumed.
 
 ### 2.5 Unit checking
 
-Every downloaded forecast file is checked before use:
+Every downloaded forecast file is checked before use.
+
+**Units and grid**
 
 - `shortName` is `tp`
 - `units` is `kg m**-2`
 - `stepType` is `accum`
 - `Ni` is 1440 and `Nj` is 721
 - both direction increments are 0.25
+- `gridType` is `regular_ll`
+
+**Identity: the file is what we asked for**
+
+- `dataDate` equals the requested date
+- `dataTime` is the 00 UTC run
+- `endStep` equals the requested step
+- `startStep` is 0, because tp accumulates from the forecast start
+
+**Orientation**
+
+- `jScansPositively` is 0, so latitude descends
+- `iScansNegatively` is 0, so longitude ascends
+- the first latitude is 90
+- the first longitude is on the 0.25 grid, and the India window computed from
+  it does not wrap past the end of the array
+
+The first longitude is deliberately **not** required to be 0, because ECMWF
+changed it to 180 around 20 October 2026 (section 2.1). The orientation keys
+are checked rather than assumed: a silent change here would have read India
+from the wrong half of the world, which is exactly what happened on the first
+attempt at 25 October and what this check caught.
+
+**Members**
+
+- `cf` files contain exactly one message, `perturbationNumber` 0
+- `pf` files contain exactly 50 messages, `perturbationNumber` 1 to 50, each
+  once
+- combined, every step has members 0 to 50, each exactly once
+- members are indexed by `perturbationNumber`, never by file order
+
+**Values**
+
+- no bitmap is present, so no values are missing
+- every value is finite: no NaN, no infinity
+
+**Recorded, never a failure reason**
+
+- `bitsPerValue` and `packingType` for every message
+- `longitudeOfFirstGridPointInDegrees` for every message
 
 Every downloaded IMERG file is checked for its declared units and grid shape.
 
@@ -279,6 +349,55 @@ every month covered:
 A sequential order would leave a half-finished Pile A covering only May to
 August, which would make the track record seasonally biased. The spread order
 means any prefix of the work is a roughly even sample of the whole period.
+
+#### One date is one unit of work
+
+A date is only "done" when all of these have happened, in this order:
+
+1. all 12 files downloaded, 2 types by 6 steps
+2. every check in section 2.5 passed
+3. the India subset written to a `.part` file
+4. the `.part` file reopened from disk and checked against what was written
+5. the `.part` file renamed to its final name
+6. the daily-difference check of section 3.6 passed
+7. the raw GRIB deleted and the deletion logged
+
+Anything less leaves no done record, so a rerun simply redoes the date. There
+is no half-done state.
+
+The saved file holds **accumulated** tp for 51 members at 6 steps, shaped
+`(6, 51, 129, 121)` as float32, about 19 MB per date. Daily differences are
+computed from it rather than stored, so the original ECMWF quantity is what is
+archived and nothing is baked in.
+
+Alongside `tp` the file stores `steps`, `members`, `lat` and `lon`, so it is
+readable without reference to this document.
+
+#### Download timeouts
+
+`ecmwf-opendata` calls `multiurl.download()` without a `timeout`, so a stalled
+connection blocks forever rather than failing. This was not theoretical: on
+12 November 2026 a download stopped at 27 MB and sat there indefinitely.
+
+The pipeline therefore wraps the client's HTTP session so a `None` timeout
+becomes a real one: 30 s to connect, 120 s per read. `multiurl` already treats
+a read timeout as retryable, so the `maximum_retries` policy then applies and
+the run moves on. Without this, the unattended background run could freeze
+silently and produce nothing overnight.
+
+#### Failure handling
+
+- A file that fails after 3 retries fails its date. The run continues with
+  other dates.
+- A failed date gets `data/logs/failures/<date>.json` with the error, the
+  traceback and the time taken, and **its raw files are kept** for inspection.
+- A successful date gets `data/logs/done/<date>.json` with sizes, every check
+  result, the packing, the longitude origin and the time taken.
+- Dates with a done record are skipped on a rerun, so rerunning simply
+  continues.
+- Leftover `.part` files from an interrupted run are deleted and that date is
+  redone from the start.
+- The run stops cleanly if free disk space falls below 15 GB.
 
 #### Raw-file retention
 
@@ -408,6 +527,10 @@ Daily totals are differences of accumulated fields. GRIB packing is 16-bit
 **[verified]**, so tiny negative differences can appear where true accumulation
 is flat.
 
+**[open] — the -0.1 mm figure no longer works for data after about
+20 October 2026 and needs your decision. Evidence and options are at the end of
+this section. Everything below describes the rule as currently written.**
+
 - A difference from -0.1 to 0 mm is set to 0.
 - A difference below -0.1 mm is an error, handled differently by pile:
 
@@ -420,6 +543,45 @@ The difference exists because a live run is a single publishable artefact,
 while Pile A is a long batch where one bad date must not destroy 177 good ones.
 Failed Pile A dates are excluded from the track record and their count is
 published alongside it.
+
+#### Why -0.1 mm no longer works: the evidence
+
+Measured from the real files on 12 November 2026 **[verified]**:
+
+| | 13 May 2026 | 25 October 2026 |
+|---|---|---|
+| `bitsPerValue` | 16 | 12 |
+| Coarsest packing quantum across the 6 steps | 0.015625 mm | 0.250 mm |
+| Most negative daily difference found | -0.015625 mm | -0.125 mm |
+| Most negative, as a multiple of the coarsest quantum | 1.0 | 0.5 |
+| Verdict under the -0.1 mm rule | passes | **fails, 10,126 values** |
+
+The -0.125 mm on 25 October is exactly one packing step of that file. It is
+not bad data; it is the storage precision ECMWF now uses. The rule rejects it
+only because -0.1 mm is finer than the new quantum.
+
+Left unchanged, this rule fails **every** date after the packing change, which
+is roughly 18 of the 178 Pile A dates and all future live runs.
+
+On both dates the most negative difference was at most one coarsest quantum,
+which is what differencing two quantised accumulations should produce.
+
+#### Options
+
+1. **Tolerance derived from the file's own packing.** Allow differences down
+   to minus twice the coarsest quantum of the date, computed per date from
+   `binaryScaleFactor` and `decimalScaleFactor`. That is -0.031 mm for 13 May
+   and -0.5 mm for 25 October. It tracks whatever ECMWF does next without
+   further edits, and it is *stricter* than -0.1 mm on the older 16-bit data.
+2. **A fixed larger number**, such as -0.3 mm or -0.5 mm. Simple and easy to
+   state, but arbitrary, and it would have to be revisited if ECMWF changes
+   precision again.
+3. **Leave -0.1 mm** and accept that post-20-October dates fail. Not
+   recommended: it discards the most recent and most relevant 18 dates.
+
+Option 1 is recommended. It is the only one that stays correct if the packing
+changes again, and it makes the check tighter rather than looser on the data
+we already have.
 
 ---
 
