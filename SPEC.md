@@ -292,8 +292,21 @@ results, logs and the probe files are never deleted automatically.
 After subsetting, a date occupies about 16 MB instead of about 300 MB, so the
 full Pile A India archive is about 2.9 GB.
 
-The four probe files in `data/raw/` from the 12 November 2026 checks are kept
-until hand check HC1 is complete, then deleted.
+The six probe files in `data/raw/` from the 12 November 2026 checks, 126 MB in
+total, are kept until hand check HC1 is complete, then deleted:
+
+| File | Size | What it proved |
+|---|---|---|
+| `probe_cf_20260513_s24.grib2` | 0.9 MB | tp units, accumulation, 0.25 grid, member 0 |
+| `probe_pf_20260513_s48.grib2` | 46.8 MB | 50 perturbed members; single-connection speed |
+| `probe_pf_20260513_s144.grib2` | 53.4 MB | step 144 exists; members out of file order |
+| `probe_lsm_aifs-ens.grib2` | 0.18 MB | land-sea mask on the identical grid |
+| `probe_lsm_ifs.grib2` | 0.19 MB | IFS land-sea mask, kept for comparison |
+| `3B-DAY-L...20260514...V07C.nc4` | 30.7 MB | HC4, the IMERG structure in section 2.3 |
+
+The files downloaded by the 4-connection and 8-connection throughput tests were
+written to a temporary folder and removed by the test itself. They were never
+inside `data/`.
 
 ---
 
