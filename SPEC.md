@@ -430,17 +430,26 @@ results, logs and the probe files are never deleted automatically.
 After subsetting, a date occupies about 16 MB instead of about 300 MB, so the
 full Pile A India archive is about 2.9 GB.
 
-The six probe files in `data/raw/` from the 12 November 2026 checks, 126 MB in
-total, are kept until hand check HC1 is complete, then deleted:
+Six probe files in `data/raw/` came out of the 12 November 2026 checks, 126 MB
+in total. Five were deleted on 12 November 2026 once the HC1 to HC3 output had
+been saved to `handchecks/results/`. One is kept permanently.
 
-| File | Size | What it proved |
-|---|---|---|
-| `probe_cf_20260513_s24.grib2` | 0.9 MB | tp units, accumulation, 0.25 grid, member 0 |
-| `probe_pf_20260513_s48.grib2` | 46.8 MB | 50 perturbed members; single-connection speed |
-| `probe_pf_20260513_s144.grib2` | 53.4 MB | step 144 exists; members out of file order |
-| `probe_lsm_aifs-ens.grib2` | 0.18 MB | land-sea mask on the identical grid |
-| `probe_lsm_ifs.grib2` | 0.19 MB | IFS land-sea mask, kept for comparison |
-| `3B-DAY-L...20260514...V07C.nc4` | 30.7 MB | HC4, the IMERG structure in section 2.3 |
+| File | Size | What it proved | Status |
+|---|---|---|---|
+| `probe_cf_20260513_s24.grib2` | 0.9 MB | tp units, accumulation, 0.25 grid, member 0 | deleted 12 Nov 2026 |
+| `probe_pf_20260513_s48.grib2` | 46.8 MB | 50 perturbed members; single-connection speed | deleted 12 Nov 2026 |
+| `probe_pf_20260513_s144.grib2` | 53.4 MB | step 144 exists; members out of file order | deleted 12 Nov 2026 |
+| `probe_lsm_ifs.grib2` | 0.19 MB | IFS land-sea mask, kept for comparison | deleted 12 Nov 2026 |
+| `3B-DAY-L...20260514...V07C.nc4` | 30.7 MB | HC4, the IMERG structure in section 2.3 | deleted 12 Nov 2026 |
+| `probe_lsm_aifs-ens.grib2` | 0.18 MB | land-sea mask on the identical grid | **kept**, the India mask needs it |
+
+The standalone HC4 IMERG file was deleted only after its SHA256 was confirmed
+byte-identical to the copy Pile B downloaded into `data/raw/imerg/`, so nothing
+unique was lost. Hash
+`760e95127ce5d058bd4c298b9ae8ba5792f178dea1b65fe69770643f6c8797d6`.
+
+Every deletion is recorded in `data/logs/done/probe_cleanup.json` with each
+file's size and SHA256 as it was at the moment of deletion.
 
 The files downloaded by the 4-connection and 8-connection throughput tests were
 written to a temporary folder and removed by the test itself. They were never
@@ -539,6 +548,58 @@ unnecessary." It is credited in CREDITS.md anyway.
 
 The outline decides only which grid squares count as India. The published map
 does not draw national borders.
+
+#### Coastal squares
+
+A square is **coastal** when it is an India square and at least one of its 8
+neighbours has `lsm` below 0.5.
+
+The test is on the neighbour's land-sea mask, not on whether the neighbour is
+in India. A square on the border with another country therefore does not read
+as coastline.
+
+Squares on the edge of the India box are judged against their real neighbours
+from the global field, using a one-square border read outside the box, rather
+than being judged against nothing.
+
+#### What the mask comes out as
+
+Built 12 November 2026 **[verified]**:
+
+| | Count |
+|---|---|
+| Squares in the 129 x 121 box | 15,609 |
+| Centre inside or on the outline | 4,636 |
+| India, after `lsm >= 0.5` | **4,613** |
+| of which coastal | 215 |
+| of which inland | 4,398 |
+
+So the `lsm >= 0.5` rule removes 23 squares whose centres are inside India's
+outline.
+
+Eight named places were checked. Delhi, Srinagar, Gilgit and Aksai Chin are
+India; Colombo, Kathmandu, Dhaka and Lahore are not. Gilgit and Lahore sit at
+the same longitude of 74.25, and only the point-of-view edition separates them.
+
+#### Island groups: what the rule costs
+
+Reported, not corrected. The rule stands as written.
+
+| Group | Centres inside the outline | Surviving `lsm >= 0.5` | Highest `lsm` nearby |
+|---|---|---|---|
+| Andaman & Nicobar | 8 | 3 | 0.7578 |
+| Lakshadweep | 0 | 0 | 0.0312 |
+
+Andaman & Nicobar keeps 3 of its 8 squares; 5 are lost to the land-sea cut.
+
+**Lakshadweep disappears entirely, and not because of the `lsm` rule.** No
+0.25 degree grid centre falls inside its outline at all, so it is already gone
+before the land-sea mask is applied. The islands are far smaller than one grid
+square. The highest `lsm` anywhere in that box is 0.03, so no threshold short
+of abandoning the land test would recover them.
+
+This is a limitation of forecasting on a 0.25 degree grid, not a mistake in
+the mask, and it is stated on the site rather than glossed over.
 
 ### 3.6 Negative differences
 
