@@ -38,10 +38,26 @@ _print_lock = threading.Lock()
 _stop = threading.Event()
 
 
+LOG_FILE = cfg.LOGS / "pile_a.log"
+
+
 def log(message: str) -> None:
+    """Print, and append to pile_a.log.
+
+    The file is opened in append mode on purpose. A detached restart would
+    otherwise truncate the log and lose the history of what happened before
+    the interruption, which is exactly what we need to inspect afterwards.
+    """
     stamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"{stamp}  {message}"
     with _print_lock:
-        print(f"{stamp}  {message}", flush=True)
+        print(line, flush=True)
+        try:
+            LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+            with open(LOG_FILE, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except OSError:
+            pass  # logging must never bring down the run
 
 
 # --------------------------------------------------------------- date list
