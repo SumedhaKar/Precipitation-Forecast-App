@@ -1,0 +1,18 @@
+HC2  date 20261025, member 0
+     square row 85 col 75, lat 16.75 lon 86.75
+
+     accumulated to step 24 :     3.750000 mm
+     accumulated to step 48 :   138.625000 mm
+     by hand, 48 minus 24   :   134.875000 mm
+     from daily_totals()    :   134.875000 mm
+     difference             :    0.000e+00 mm
+
+     all five days at this square:
+        day     window   accum from     accum to   daily mm
+          1      24-48     3.750000   138.625000 134.875000
+          2      48-72   138.625000   174.125000  35.500000
+          3      72-96   174.125000   174.750000   0.625000
+          4     96-120   174.750000   176.625000   1.875000
+          5    120-144   176.625000   178.500000   1.875000
+
+HC2 PASSED: hand calculation matches the code

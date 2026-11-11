@@ -64,17 +64,25 @@ def main() -> int:
     # packing noise allowed for this date. The tolerance is read back from the
     # date's own done record rather than assumed.
     done = cfg.done_path(date)
+    tolerance = None
     if done.exists():
         import json
         record = json.loads(done.read_text(encoding="utf-8"))
-        tolerance = record["daily_differences"]["tolerance_mm"]
-        coarsest = record["packing"]["coarsest_quantum_mm"]
-        print(f"     packing quantum, coarsest {coarsest} mm")
-        print(f"     tolerance from the done record {tolerance} mm")
+        tolerance = record.get("daily_differences", {}).get("tolerance_mm")
+        coarsest = record.get("packing", {}).get("coarsest_quantum_mm")
+        if tolerance is not None:
+            print(f"     packing quantum, coarsest {coarsest} mm")
+            print(f"     tolerance from the done record {tolerance} mm")
+        else:
+            print("     NOTE: this done record predates the quantum-derived")
+            print("     tolerance of SPEC 3.6, so it carries no tolerance_mm")
+            print("     or per-step quantum. The saved tp data is unaffected,")
+            print("     but the record is not in the current format.")
         print()
-    else:
+
+    if tolerance is None:
         tolerance = -cfg.QUANTUM_TOLERANCE_FACTOR * cfg.MAX_TRUSTED_QUANTUM
-        print(f"     no done record, using the cap-derived {tolerance} mm\n")
+        print(f"     falling back to the cap-derived {tolerance} mm\n")
 
     decreasing = int((np.diff(tp, axis=0) < tolerance).sum())
     if decreasing:
