@@ -1758,13 +1758,17 @@ to be the whole of it, so section 8 is publishing and the data contract the
 site reads from the store. The React and MapLibre pages and the `api/`
 functions move to section 11, display rules. Nothing else is renumbered.
 
-Three things are added to the fixed structure in CLAUDE.md:
+Two things are added to the fixed structure in CLAUDE.md:
 
 | Added | Why |
 |---|---|
 | `scripts/publish/` with `package.json`, `package-lock.json`, `blob.mjs` | the only Node in the project, kept in one folder so it cannot be mistaken for the website's own `web/` dependencies |
-| `.github/workflows/live.yml` | already in the fixed structure as `forecast.yml`; the live schedule is a different thing from a backfill, so it gets its own file and `forecast.yml` stays for section 9 |
 | `data/publish/<run_id>/` | the exact bytes that were uploaded, kept locally for comparison. Never committed, like the rest of `data/` |
+
+The workflow is `.github/workflows/forecast.yml`, the file the fixed structure
+already names. **There is no backfill in Actions.** Pile A and Pile B run on
+this laptop, against the Google archive and Earthdata, so the only scheduled
+job there is ever the live one and it does not need a file of its own.
 
 ### 8.2 The store, the library and the pinned versions
 
@@ -1806,14 +1810,36 @@ Pinned for the workflow, all checked on 12 November 2026:
 | `actions/setup-python` | v7.1.0 | |
 | `actions/setup-node` | v7.1.0 | |
 
+The three action tags were confirmed to exist twice on 12 November 2026:
+`api.github.com/repos/<owner>/<repo>/releases/latest` named them as the latest
+release (checkout v7.0.1 of 20 July 2026, setup-python v7.1.0 of 22 October
+2026, setup-node v7.1.0 of 8 October 2026), and `git ls-remote --tags` against
+each repository returned the tag with its commit:
+
+| Action | Tag | Commit the tag pointed at |
+|---|---|---|
+| `actions/checkout` | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| `actions/setup-python` | v7.1.0 | `6d4fd22b20465ccc0f7354476588e8df7c9ca0e0` |
+| `actions/setup-node` | v7.1.0 | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+
+The workflow uses the tags, not the commits, because a tag is readable. The
+commits are recorded here so that a tag moved under us can be noticed.
+
 ### 8.3 What is published and what is not
 
 | Published | Not published |
 |---|---|
-| the count out of 51 for each of 3 thresholds and 5 days, per square | the 51 member millimetre totals (8.13) |
-| per square, the counts and the four dot category totals | the raw GRIB, 149 MB a run |
-| the day labels and windows | anything else in `data/` |
-| the run's own checks and download summary | the IMERG observations and the verification archive |
+| the count out of 51 for each of 3 thresholds and 5 days, per square | the raw GRIB, 149 MB a run |
+| per square, the counts and the four dot category totals | the accumulated `tp` at each step, which the daily totals are made from |
+| per square, **all 51 members' five daily totals**, as integers (8.4) | anything else in `data/` |
+| the day labels and windows | the IMERG observations and the verification archive |
+| the run's own checks and download summary | |
+
+The member totals are published so that the place panel can show what each of
+the 51 model runs actually said, which is what section 4.3 asks of it, and not
+only which category each one fell in. They are **displayed as whole
+millimetres**; the stored value keeps more than that, so the display rule
+belongs to section 11 and can change without republishing anything.
 
 ### 8.4 The layout in the store
 
@@ -1827,10 +1853,15 @@ Sizes are the real ones from run `20261112T00Z`.
 | `runs/<run_id>/days.json` | 1,571 | 2,592,000 s | per lead day: steps, the window in UTC and IST, the label |
 | `runs/<run_id>/india.u8` | 15,609 | 2,592,000 s | 1 for an India square, 0 otherwise |
 | `runs/<run_id>/counts/ge1mm_day1.u8` ... `ge50mm_day5.u8` | 15,609 each, 15 files | 2,592,000 s | the count out of 51, one byte a square |
-| `runs/<run_id>/tiles/<lat>_<lon>.json` | 616,134 over 38 files | 2,592,000 s | per-square counts and dots |
+| `runs/<run_id>/tiles/<lat>_<lon>.json` | 3,202,461 over 38 files | 2,592,000 s | per-square counts, dots and all 51 member totals |
 
-**57 blobs and about 0.87 MB a run**, so the eight runs of 8.7 are about
-7 MB and 456 blobs.
+**57 blobs and about 3.46 MB a run**, plus the one manifest, so the eight runs
+of 8.7 are about 28 MB and 457 blobs.
+
+The member totals are what made it that size: they are 1,176,315 numbers a
+run, against 23,065 for the counts and the dots together. The largest tile is
+172.5 KB and the median is 81.0 KB, fetched once when a square in it is
+clicked and then cached for a month.
 
 #### Why raw bytes for the grids
 
@@ -1864,18 +1895,68 @@ at least one India square exist, and `manifest.json` lists which, so the site
 never asks for one that is not there.
 
 One square's record, the real numbers for the HC6 rainy square on run
-`20261112T00Z`:
+`20261112T00Z`, with `m` shortened to its first eight members of day 1 and
+day 5 for printing:
 
 ```json
 {"lat": 34.25, "lon": 73.5,
  "c": [[51,40,0],[41,3,0],[9,1,0],[0,0,0],[0,0,0]],
- "d": [[0,11,40,0],[10,38,3,0],[42,8,1,0],[51,0,0,0],[51,0,0,0]]}
+ "d": [[0,11,40,0],[10,38,3,0],[42,8,1,0],[51,0,0,0],[51,0,0,0]],
+ "m": [[44,203,211,171,179,263,605,374, ...],
+       ...,
+       [0,0,0,0,2,0,0,0, ...]]}
 ```
 
 `c` is five days of three counts, at 1, 10 and 50 mm. `d` is five days of the
-four dot categories, in the order of section 4.3. The four identities of
-section 4.6 are asserted again on the published numbers, not assumed: a tile
-whose `c` and `d` disagree stops the publish.
+four dot categories, in the order of section 4.3. `m` is five days of 51
+member totals, in member order 0 to 50, as integers.
+
+The four identities of section 4.6 are asserted again on the published
+numbers, not assumed: a tile whose `c` and `d` disagree stops the publish. So
+does a tile whose `m` does not reproduce its own `c` and `d`.
+
+#### The member totals are integers, in steps of 0.0625 mm
+
+A member total is stored as **the number of 0.0625 mm steps in it, rounded
+down**: 12.6875 mm is 203. That is an unsigned 16-bit value, 0 to 65,535, so
+the largest total it can carry is 4,095.9 mm against the 101.75 mm highest
+member total over India on this run. The step is written in `grid.json`, so a
+reader multiplies rather than guesses.
+
+Three reasons for that step and for rounding down rather than to the nearest:
+
+1. **0.0625 mm is the finest quantum the data has.** GRIB packs each message
+   with its own scale factors (section 2.1), so the step a member's total can
+   land on varies by member and by forecast step. Measured on all 1,176,315
+   India member-day totals of run `20261112T00Z`: every one is an exact
+   multiple of 0.0625, while 32,942 of them are **not** multiples of 0.125 and
+   144,954 are not multiples of 0.25. At 0.0625 the published integer times
+   the step gives the stored total back exactly, with nothing lost.
+2. **Rounding down cannot move a member across a threshold.** 1, 10 and 50 mm
+   are all whole multiples of 0.0625, so `x >= T` and
+   `floor(x / step) * step >= T` are the same statement. The counts and the
+   dot categories computed from the published integers are therefore
+   identical to ours, for every member, every day and every square. Checked
+   on run `20261112T00Z` by rebuilding `counts` and `dots` from the integers
+   with the same two functions the run itself used: both came back identical,
+   array for array.
+3. **Rounding to the nearest could not promise that.** A total of 9.9375 mm
+   would become 10.0 at a 0.125 step, and the panel would show a member at
+   the 10 mm line that our count does not count. Rounding down can only ever
+   understate a member, never promote one.
+
+A future run with an even finer quantum than 0.0625 mm would be rounded down
+by less than one step, which still cannot change a count or a dot category,
+and can change the whole-millimetre display by at most 1 mm in the rare case
+where the true value sits just above a half. The publish asserts that the
+integers reproduce the counts and the dots exactly, so a run where that stops
+being true fails instead of publishing numbers that disagree.
+
+The integers live in the tile JSON rather than in a separate binary file next
+to it. Measured both ways on the real run: JSON is 3,202,461 bytes against
+2,352,630 for raw 16-bit binary, 36% more, in exchange for the place panel
+needing **one** fetch for a tile instead of two and the contract in 8.11
+staying three requests long.
 
 ### 8.5 The order of writing, and why the manifest is last
 
@@ -1906,26 +1987,46 @@ never bite: every run would look unbuilt, and the same forecast could be
 published twice a day. In Actions the "already built" value comes from the
 store instead.
 
-| # | Step |
-|---|---|
-| 1 | read `manifest.json` from the store and take its `run_id` |
-| 2 | `run_live --published <that run id>`, so the section 4.6 rules apply unchanged |
-| 3 | if a run was built, publish it; if not, exit 0 and leave the store alone |
+| # | Step | Token |
+|---|---|---|
+| 1 | `list` the store for `manifest.json`, fetch it, and take its `run_id` | **yes** |
+| 2 | `run_live --published <that run id>`, so the section 4.6 rules apply unchanged | no |
+| 3 | if a run was built, publish it; if not, exit 0 and leave the store alone | **yes** |
 
 The manifest is read through the SDK's `list` and the URL it returns, not
 through a hostname written into the repository. The store id is not a secret,
 it appears in every public URL, but hard-coding it would mean editing the
 repository if the store were ever recreated. With `list`, the token is the
-only thing that has to exist.
+only thing that has to exist, which is why step 1 needs it as much as step 3
+does. Step 2 needs no credential of any kind (section 4.6).
 
-An empty store, before the first publish, gives no manifest. That is not an
-error: `published` is then `None` and the newest complete run is built and
-published.
+The fetch of the manifest in step 1 uses the same cache-busting query as the
+read-back in 8.10. Without it the CDN could hand back the manifest from
+before the last publish, for up to the 60 s of 8.4, and run selection would
+then be deciding against a run id that is already out of date.
+
+#### An empty store and a broken store are not the same thing
+
+| What happened | Treated as | Exit |
+|---|---|---|
+| `list` succeeded and found no `manifest.json` | an empty store, before the first publish. `published` is `None`, the newest complete run is built and published | 0 |
+| `list` failed: no token, wrong token, store gone, suspended, rate limited, network error | **a failure** | **1** |
+| `list` succeeded, the manifest's URL could not be fetched, or did not return 200 | **a failure** | **1** |
+| the manifest was fetched but is not JSON, or has no `run_id`, or its `run_id` is not a valid 12-character run id | **a failure** | **1** |
+
+This distinction is the whole of it. If any of the lower three rows were
+quietly treated as "no manifest, so the store is empty", a token that had
+expired would make the run selection of section 4.6 believe nothing had ever
+been published, and the same forecast would be published again, every day,
+with the retention of 8.7 counting runs that were already there. Failing
+loudly leaves the previous forecast up and sends a red workflow, which is the
+correct outcome: a publishing problem is not a forecast.
 
 #### Exit codes
 
 | Situation | `run_live` | `publish` | Workflow | What the site shows |
 |---|---|---|---|---|
+| the store could not be listed, or its manifest could not be fetched or parsed | not run | **1** | **failure** | the previous run |
 | nothing new | 0 | 0, "nothing to publish" | success | the previous run, correctly |
 | the newest run is incomplete | 0 | 0 | success | the previous run |
 | a check failed | **1** | not run | **failure** | the previous run |
@@ -1955,7 +2056,15 @@ copy, not a record.
 
 ### 8.8 The workflow
 
-`.github/workflows/live.yml`.
+`.github/workflows/forecast.yml`, one job, five steps:
+
+| # | Step | Token on it |
+|---|---|---|
+| 1 | checkout, Python 3.13.4, Node 24.22.3, `pip install -r requirements.txt`, `npm ci` in `scripts/publish` | no |
+| 2 | read the store's current run id (8.6) | **yes** |
+| 3 | `python -m pipeline.run_live --published <run id>` | **no** |
+| 4 | `python -m pipeline.publish` if step 3 built a run: upload, manifest last, retention, read back | **yes** |
+| 5 | upload the run log as an artefact, on success or failure | no |
 
 | Setting | Value | Why |
 |---|---|---|
@@ -1987,7 +2096,8 @@ delayed when load is high, and load clusters at the start of an hour, so
 | Question | Answer |
 |---|---|
 | Where it lives | a GitHub Actions secret named `BLOB_READ_WRITE_TOKEN`, and Vercel's own project environment |
-| How the code gets it | `env: BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}` on the publish step only, read by the SDK from `process.env` |
+| How the code gets it | `env: BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}` on **the two steps that talk to the store and no others**: step 2, which reads the manifest with `list`, and step 4, which publishes. The SDK reads it from `process.env` |
+| Which step does **not** get it | step 3, `run_live`. It downloads from ECMWF open data, which needs no credential, and it must stay that way: a step that cannot see the token cannot leak it |
 | What the repository holds | the name, and nothing else. `.env.example` gains the name with an empty value |
 | What this laptop can do | read public URLs. It cannot list, upload or delete, and it has no token |
 | Never | printed, echoed, written to a file, passed on a command line, or put in a `.env` here |
@@ -2020,12 +2130,18 @@ JSON request on standard input, one JSON reply on standard output, three
 verbs: `put`, `list`, `delete`. It holds no logic about runs, tiles or
 retention.
 
+`python -m pipeline.publish remote-run-id` is the step 2 of 8.8: it runs
+`list`, fetches the manifest with the cache-busting query, and prints the
+`run_id` for the workflow to pass to `run_live`. It prints an empty line and
+exits 0 **only** when `list` itself succeeded and returned no manifest.
+Everything else in that path, listed in 8.6, exits 1 and prints why.
+
 #### Reading it back
 
 After the manifest is written, `publish.py` fetches every published file from
 its **public URL with no token** and compares the sha256 against the
 manifest. A file that cannot be read back is a failure even though the bytes
-are in the store, because the site reads those same URLs. It costs 0.87 MB of
+are in the store, because the site reads those same URLs. It costs 3.46 MB of
 download a run.
 
 The manifest itself is fetched with a cache-busting query, because the CDN
@@ -2040,11 +2156,19 @@ The whole contract, in three requests:
 |---|---|---|
 | 1 | `manifest.json` | the current run id, the day labels, the tile list, the thresholds |
 | 2 | `runs/<run_id>/counts/ge<T>mm_day<d>.u8` | the map, 15,609 bytes, 255 outside India |
-| 3 | `runs/<run_id>/tiles/<lat>_<lon>.json` | the place panel, on a square click |
+| 3 | `runs/<run_id>/tiles/<lat>_<lon>.json` | the place panel, on a square click: the counts, the four dot categories and all 51 member totals for that square |
 
-No server, no database, no key. `api/health` and `api/place` stay in the
-fixed structure for section 11, but with this contract the site can read the
-store directly and `api/place` is a convenience rather than a requirement.
+A member total arrives as an integer. The panel multiplies it by the step in
+`grid.json`, 0.0625 mm, and shows **whole millimetres**. It never shows more
+precision than that: a sixteenth of a millimetre is an artefact of how GRIB
+packs numbers, not a distinction a five-day forecast can support.
+
+No server, no database, no key: the pages can read the store directly.
+`api/health` and `api/place` are built as well, in section 11, because the
+fixed structure names them and `tests/test_api_consistency.py` exists to
+prove that what `api/place` answers for a square is the same as what the tile
+says for that square. The API is a second route to the same published bytes,
+not a second source of numbers.
 
 A reader who loads the page within 60 s of a publish may be served the
 previous manifest. The page always shows the run id and the run time in IST,
@@ -2063,6 +2187,7 @@ being touched until it stops.
 | `RUN_FILE_MAX_AGE` | 2,592,000 s |
 | `TILE_DEGREES` | 4.0 |
 | `NOT_INDIA` | 255 |
+| `MEMBER_STEP` | 0.0625 mm |
 
 ### 8.13 Tests
 
@@ -2074,7 +2199,11 @@ being touched until it stops.
 | an older local run never replaces a newer published one, and nothing at all is written | 8.6 |
 | the same run is never republished, and nothing at all is written | 8.6 |
 | a local run with no manifest, or already marked published, is not published | 8.1 |
-| an empty store publishes the first run | 8.6 |
+| a `list` that succeeds and finds no manifest publishes the first run | 8.6 |
+| a `list` that fails exits 1, publishes nothing, and is never read as an empty store | 8.6 |
+| a manifest whose fetch returns 404 or 500 exits 1 | 8.6 |
+| a manifest that is not JSON, has no `run_id`, or has a `run_id` that is not a valid run id, exits 1 | 8.6 |
+| the manifest fetch during run selection carries the cache-busting query | 8.6 |
 | retention keeps the newest eight prefixes and deletes the rest, blob by blob | 8.7 |
 | retention never deletes the run the manifest points at, even when that run is the ninth newest | 8.7 |
 | retention leaves a prefix that is not a valid run id, and logs it | 8.7 |
@@ -2083,6 +2212,10 @@ being touched until it stops.
 | counts files are 15,609 bytes, 0 to 51 on India squares, 255 everywhere else | 8.4 |
 | every India square is in exactly one tile, and in the tile the formula names | 8.4 |
 | the four identities of 4.6 hold in the published tiles | 8.4 |
+| every square's 51 member integers rebuild that square's own `c` and `d` exactly | 8.4 |
+| member integers round **down**: a total of 9.9375 mm never becomes 10 mm, at any step | 8.4 |
+| a member total that is an exact multiple of 0.0625 mm survives the round trip exactly | 8.4 |
+| a member integer above 65,535, or a negative one, fails the publish | 8.4 |
 | the cache ages are 60 s on the manifest and 2,592,000 s on every run file | 8.4 |
 
 #### HC7
@@ -2094,15 +2227,23 @@ that square's numbers in `data/live/<run_id>/squares.npz`, with the index
 arithmetic written out longhand. Saved to
 `handchecks/results/hc7_published.csv`.
 
-### 8.14 Still open
+### 8.14 Settled, and what is still open
+
+Four of the five questions in the first draft of this section were decided on
+review, 12 November 2026:
+
+| Question | Decision |
+|---|---|
+| each member's millimetre value in the place panel | **published now**, as integers in the tiles (8.4), displayed as whole millimetres |
+| whether `api/place` is built at all | **built**, in section 11, with `tests/test_api_consistency.py` holding it to the published tiles (8.11) |
+| a Python-only publisher | **not taken.** `@vercel/blob` 2.9.0 in Node stays, with the decision rules and the tests in Python (8.10) |
+| `robots.txt` in the store | **no action.** Nothing on the site links to a store URL as a page, and a crawler reading a count file costs a few kilobytes |
+
+One thing is still open:
 
 | # | Open | Note |
 |---|---|---|
-| 1 | each member's millimetre value in the place panel | the tiles carry the four dot category totals, which is enough to draw 51 correctly coloured dots, but not what each run actually said in mm. Section 4.3 wants the dots; whether the panel should also show the values is a section 11 decision. It would need member totals per tile, about 2.4 MB a run as 16-bit integers in 0.25 mm steps, or one file per square |
-| 2 | the store name and id | created by hand in the dashboard. Nothing in the repository depends on either |
-| 3 | whether `api/place` is built at all | 8.11 |
-| 4 | a Python-only publisher | `vercel-blob` 0.5.1 has a synchronous API with the same four operations and would remove Node, npm and `package-lock.json` from the project. Not taken because the brief asked for `@vercel/blob`; recorded so the choice can be reopened |
-| 5 | `robots.txt` in the store | Blob serves none by default, so the data files can be indexed if they are ever linked from a page |
+| 1 | the store name and its id | created by hand in the dashboard. Nothing in the repository depends on either: the id is never written down, because the manifest is found with `list` (8.6) |
 
 ---
 

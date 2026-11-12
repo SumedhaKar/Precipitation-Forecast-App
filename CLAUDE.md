@@ -47,6 +47,7 @@ pipeline/            config, ecmwf_download, nasa_download, ecmwf_process,
                      nasa_process, india_mask, checks, verify, labels,
                      publish, run_live
 scripts/             run_pile_a, run_pile_b, build_report_card, freeze
+scripts/publish/     package.json, package-lock.json, blob.mjs
 tests/               sample/, test_lead_days, test_ecmwf_process, test_remap,
                      test_counts_dots, test_verify, test_labels, test_publish,
                      test_run_selection, test_api_consistency
@@ -55,5 +56,5 @@ api/                 health, place
 web/                 React + Vite + MapLibre
 results/             frozen verification output
 data/                never committed: raw/, india/ecmwf/, india/nasa/,
-                     logs/done/, logs/failures/
+                     live/, publish/, logs/done/, logs/failures/
 ```
