@@ -1850,7 +1850,9 @@ Sizes are the real ones from run `20261112T00Z`.
 
 | Pathname | Bytes | Cache max age | Contents |
 |---|---|---|---|
-| `manifest.json` | about 10 KB, 57 files with a sha256 each | **60 s** | the only blob that is ever rewritten: which `run_id` is current, the list of that run's files with a sha256 each, the day labels, the thresholds, the dot category names, and the last retention result |
+| `manifest.json` | 10,588, 57 files with a sha256 each | **60 s** | the only blob that is ever rewritten: which `run_id` is current, the list of that run's files with a sha256 each, the day labels, the thresholds, the dot category names, and the last retention result |
+| `published/<run_id>.json` | 549 | 2,592,000 s | the marker of 8.5, written last. Immutable, and the pathname carries the run id, which is what run selection reads (8.6) |
+| `runs/<run_id>/manifest.json` | 10,588 | 2,592,000 s | byte for byte the same as `manifest.json`, on a pathname that is never overwritten, so the current manifest's bytes can be read back and hashed (8.10) |
 | `runs/<run_id>/run.json` | about 3 KB | 2,592,000 s | the run's section 4.6 manifest: every check result, the download summary, the India maxima |
 | `runs/<run_id>/grid.json` | about 3 KB | 2,592,000 s | the 129 latitudes, the 121 longitudes, the array order, the thresholds, the dot categories, the tile rule |
 | `runs/<run_id>/days.json` | 1,571 | 2,592,000 s | per lead day: steps, the window in UTC and IST, the label |
@@ -1858,8 +1860,15 @@ Sizes are the real ones from run `20261112T00Z`.
 | `runs/<run_id>/counts/ge1mm_day1.u8` ... `ge50mm_day5.u8` | 15,609 each, 15 files | 2,592,000 s | the count out of 51, one byte a square |
 | `runs/<run_id>/tiles/<lat>_<lon>.json` | 3,202,461 over 38 files | 2,592,000 s | per-square counts, dots and all 51 member totals |
 
-**57 blobs and about 3.46 MB a run**, plus the one manifest, so the eight runs
-of 8.7 are about 28 MB and 457 blobs.
+**59 blobs and 3,474,829 bytes a run** — the 57 run files, the immutable copy
+of the manifest and the marker — plus the one shared `manifest.json`, so the
+eight runs of 8.7 are **27.8 MB and 473 blobs**. One publish writes 60 blobs
+and 3,485,479 bytes, the manifest twice.
+
+The manifest lists the 57 run files and not the two extras. The copy cannot
+list itself, and the marker is written after the manifest exists; the marker
+carries the manifest's `sha256` and `ETag` instead, which is what ties the
+three together.
 
 The member totals are what made it that size: they are 1,176,315 numbers a
 run, against 23,065 for the counts and the dots together. The largest tile is
@@ -1994,16 +2003,42 @@ to it. Measured both ways on the real run: JSON is 3,202,461 bytes against
 needing **one** fetch for a tile instead of two and the contract in 8.11
 staying three requests long.
 
-### 8.5 The order of writing, and why the manifest is last
+### 8.5 The order of writing, the manifest, and the marker last
 
-Run files first, in any order, because none of them refers to another. Then
-`manifest.json`.
+| # | Write | What it means |
+|---|---|---|
+| 1 | the 57 run files, in any order | nothing refers to anything else, and the store still describes the **previous** run throughout |
+| 2 | `runs/<run_id>/manifest.json` | the bytes that are about to become current, on a pathname that will never be overwritten |
+| 3 | `manifest.json` | **the site now shows this run.** One small write, the only mutable blob in the store |
+| 4 | retention, then the read-back of 8.10 | — |
+| 5 | `published/<run_id>.json` | **the publisher now says this run is published.** The last write of all |
 
-Until the manifest is rewritten, the store still describes the **previous**
-run and the site still shows it, however many of the new run's files are
-already uploaded. The manifest moving is the one moment the published
-forecast changes, and it is a single small write. This is the same rule as
-on disk in section 4.6, for the same reason.
+Until the manifest is rewritten, the store still describes the previous run
+and the site still shows it, however many of the new run's files are already
+uploaded. The manifest moving is the one moment the published forecast
+changes. This is the same rule as on disk in section 4.6, for the same
+reason.
+
+#### Why there is a marker at all
+
+`manifest.json` is rewritten every publish, so it is the one blob a CDN can
+be wrong about, and Vercel's own documentation says an overwrite "may take up
+to 60 seconds to propagate through our cache". A marker is the opposite kind
+of object: **one immutable blob a run, whose pathname carries the run id**.
+That has three consequences, and they are the whole reason for it:
+
+- run selection can read what is published from `list` alone, with no fetch
+  and therefore no cache (8.6),
+- it cannot be stale, because nothing is ever written to that pathname twice,
+- its presence means a publish **finished**. It is written after the manifest
+  and after the read-back, so a publish that died halfway leaves no marker
+  and is retried by the next run rather than remembered as done. Retrying
+  writes the same bytes to the same pathnames, which is safe.
+
+Vercel's own advice, in the same documentation, is to "treat blobs as
+immutable" and give anything mutable a short cache age. The manifest stays
+because the site needs one address that always names the current run; the
+marker is how the publisher stops depending on it.
 
 Run files are written with `allowOverwrite: true` even though a run id is
 immutable. A publish that dies halfway has to be retryable, and the default
@@ -2025,29 +2060,78 @@ store instead.
 
 | # | Step | Token |
 |---|---|---|
-| 1 | `list` the store for `manifest.json`, fetch it, and take its `run_id` | **yes** |
+| 1 | `list` the store under `published/` and take the **newest marker's run id** | **yes** |
 | 2 | `run_live --published <that run id>`, so the section 4.6 rules apply unchanged | no |
 | 3 | if a run was built, publish it; if not, exit 0 and leave the store alone | **yes** |
 
-The manifest is read through the SDK's `list` and the URL it returns, not
-through a hostname written into the repository. The store id is not a secret,
-it appears in every public URL, but hard-coding it would mean editing the
-repository if the store were ever recreated. With `list`, the token is the
-only thing that has to exist, which is why step 1 needs it as much as step 3
-does. Step 2 needs no credential of any kind (section 4.6).
+Step 1 reads pathnames and nothing else. `published/20261112T00Z.json` says
+which run is published in its own name, run ids sort chronologically as text,
+so the newest marker is `max()` of the list — **no body is fetched, and no
+JSON is parsed.** `list` is an API call, answered by the store and not by the
+CDN, so there is nothing in this path a cache can be wrong about.
 
-The fetch of the manifest in step 1 uses the same cache-busting query as the
-read-back in 8.10. Without it the CDN could hand back the manifest from
-before the last publish, for up to the 60 s of 8.4, and run selection would
-then be deciding against a run id that is already out of date.
+The store is reached through the SDK's `list` rather than a hostname written
+into the repository. The store id is not a secret, it appears in every public
+URL, but hard-coding it would mean editing the repository if the store were
+ever recreated. With `list`, the token is the only thing that has to exist,
+which is why step 1 needs it as much as step 3 does. Step 2 needs no
+credential of any kind (section 4.6).
+
+#### Why not the manifest, which is what this section used to say
+
+This section originally had step 1 fetch `manifest.json` from its public URL
+with a cache-busting query, "so the CDN cannot hand back the manifest from
+before the last publish". **Measured on the real store on 12 November 2026,
+that does not work:**
+
+| Request | Answer |
+|---|---|
+| `GET manifest.json` | `200`, `Cache-Control: public, max-age=60`, `Age: 582`, `X-Vercel-Cache: HIT` |
+| `GET manifest.json?cb=<nonce>` | `200`, `Age: 583`, `X-Vercel-Cache: HIT`, the **same** `ETag` |
+| `GET` with `Cache-Control: no-cache` | `Age: 606`, still `HIT` |
+| `GET` with `Pragma: no-cache` | `Age: 606`, still `HIT` |
+
+The query string is not part of the cache key, so the nonce changes nothing,
+and no request header a client can send forces a fresh copy. Vercel's
+documentation does recommend "add a unique query parameter to the blob URL",
+but reading it again: that paragraph is about **browsers** continuing to
+serve their own cached version, not about their CDN. The claim in this
+section was wrong, and the code that implemented it has been removed rather
+than left in place looking like a safeguard.
+
+What is left is a rule: **nothing that decides anything is read from a public
+URL.** `list` decides what is published; a public `fetch` is used only to
+check bytes on pathnames that are never overwritten (8.10).
+
+#### A store published before markers existed
+
+Run `20261112T00Z` was published on 12 November 2026 by the code this section
+describes, before markers existed, so the real store holds a manifest and no
+marker. That state is handled explicitly and once:
+
+| What `list` finds | Treated as |
+|---|---|
+| one or more markers | the newest marker's run id. No fetch |
+| no marker, but `manifest.json` exists | the manifest is fetched, **once**, and its `run_id` is taken. The next publish writes the marker that run never had: `published/<run_id>.json` with `adopted_from: manifest.json`, the sha256 of the body that was read, and a note saying so |
+| no marker and no manifest | an empty store, before the first publish |
+
+Adoption is an **addition and nothing else**. It writes one new blob, it
+overwrites nothing, it deletes nothing, and the run it names is not
+republished: the selection rules below still see `20261112T00Z` as published
+and still refuse to publish it again. After that one write the store is
+consistent and the manifest body is never read again.
+
+A pathname under `published/` that is not a valid `<run_id>.json` is logged
+and left alone, by the same rule as 8.7's stray prefixes.
 
 #### An empty store and a broken store are not the same thing
 
 | What happened | Treated as | Exit |
 |---|---|---|
-| `list` succeeded and found no `manifest.json` | an empty store, before the first publish. `published` is `None`, the newest complete run is built and published | 0 |
+| `list` succeeded and found no marker and no `manifest.json` | an empty store, before the first publish. `published` is `None`, the newest complete run is built and published | 0 |
 | `list` failed: no token, wrong token, store gone, suspended, rate limited, network error | **a failure** | **1** |
-| `list` succeeded, the manifest's URL could not be fetched, or did not return 200 | **a failure** | **1** |
+| `list` found a marker | the published run id, from its pathname. Nothing else can fail here | 0 |
+| `list` found no marker, and the manifest's URL could not be fetched, or did not return 200 | **a failure** | **1** |
 | the manifest was fetched but is not JSON, or has no `run_id`, or its `run_id` is not a valid 12-character run id | **a failure** | **1** |
 
 This distinction is the whole of it. If any of the lower three rows were
@@ -2080,6 +2164,8 @@ Deciding not to publish is never a failure. Failing a check always is.
 | 3 | Run prefixes sort as plain text, which is chronological for a run id, so the newest eight are kept and anything older is deleted |
 | 4 | Every deletion is logged with its pathname, its bytes and the run it belonged to, and the totals go into the next manifest's `retention` block |
 | 5 | A prefix under `runs/` that is not a valid 12-character run id is logged and **left alone**, so a stray hand-uploaded file cannot be destroyed by a cron |
+| 6 | A dropped run loses its `published/<run_id>.json` marker with the rest of it, in the same delete. Markers for runs that no longer exist would otherwise accumulate for ever, and the newest-marker rule of 8.6 would start naming a run whose files are gone |
+| 7 | The marker of the run being published does not exist when the plan is made, so retention cannot name it at all, let alone delete it |
 
 Eight is about a week of daily runs: enough to show the site's recent history
 and to re-check a published forecast against the bytes that were published,
@@ -2156,7 +2242,8 @@ delayed when load is high, and load clusters at the start of an hour, so
 
 | Question | Answer |
 |---|---|
-| Where it lives | a GitHub Actions secret named `BLOB_READ_WRITE_TOKEN`, and Vercel's own project environment |
+| Where it lives | **one place: a GitHub Actions secret named `BLOB_READ_WRITE_TOKEN`.** Nowhere else |
+| Why Vercel does not need it | the site and `api/` read **public URLs only** (section 11.4), and a public URL needs no credential. So the Blob store is deliberately **not connected to the Vercel project**: connecting it would add `BLOB_STORE_ID` and a rotating `VERCEL_OIDC_TOKEN` to every deployment, which is write access the website has no use for. The only writer is Actions |
 | How the code gets it | `env: BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}` on **the two steps that talk to the store and no others**: step 2, which reads the manifest with `list`, and step 4, which publishes. The SDK reads it from `process.env` |
 | Which step does **not** get it | step 3, `run_live`. It downloads from ECMWF open data, which needs no credential, and it must stay that way: a step that cannot see the token cannot leak it |
 | What the repository holds | the name, and nothing else. `.env.example` gains the name with an empty value |
@@ -2192,22 +2279,35 @@ verbs: `put`, `list`, `delete`. It holds no logic about runs, tiles or
 retention.
 
 `python -m pipeline.publish remote-run-id` is the step 2 of 8.8: it runs
-`list`, fetches the manifest with the cache-busting query, and prints the
-`run_id` for the workflow to pass to `run_live`. It prints an empty line and
-exits 0 **only** when `list` itself succeeded and returned no manifest.
+`list` under `published/` and prints the newest marker's `run_id` for the
+workflow to pass to `run_live`. It prints an empty line and exits 0 **only**
+when `list` itself succeeded and found neither a marker nor a manifest.
 Everything else in that path, listed in 8.6, exits 1 and prints why.
 
 #### Reading it back
 
-After the manifest is written, `publish.py` fetches every published file from
-its **public URL with no token** and compares the sha256 against the
-manifest. A file that cannot be read back is a failure even though the bytes
-are in the store, because the site reads those same URLs. It costs 3.46 MB of
-download a run.
+Two different questions, answered two different ways, because one of them
+cannot be answered from a public URL at all.
 
-The manifest itself is fetched with a cache-busting query, because the CDN
-may serve the previous manifest for up to the 60 s of 8.4. The run files are
-new pathnames that were never cached, so they need no such trick.
+| What | How | A difference means |
+|---|---|---|
+| the 57 run files and the immutable copy of the manifest | fetched from their **public URLs with no token**, sha256 compared against the bytes that were sent | **failure.** These pathnames are written once and never overwritten, so no cache can be holding an older version: a wrong byte is wrong |
+| `manifest.json` | the `ETag` that `put` returned, compared with the `ETag` that `list` returns afterwards | **failure.** Both come from the API, neither from the CDN, so disagreement means something else overwrote the manifest between the two calls |
+
+The read-back costs 3.47 MB of download a run.
+
+**The mutable manifest is never judged by its bytes.** Its public body is
+fetched as well, and if it differs the publish **logs** that the edge is
+still serving the previous manifest and carries on, because Vercel documents
+up to 60 seconds for an overwrite to propagate and the ETags have already
+confirmed the write. Failing there would mean failing a publish that was
+entirely correct, every time a run was published within a minute of a read.
+The manifest's bytes are still checked to the last byte — through
+`runs/<run_id>/manifest.json`, which holds the same bytes on a pathname that
+has never been served before (8.5).
+
+A store that returns no `ETag` at all is a failure: there would then be
+nothing left to confirm the write with except a cached body.
 
 ### 8.11 What the website reads
 
@@ -2252,6 +2352,9 @@ being touched until it stops.
 | `TILE_DEGREES` | 4.0 |
 | `NOT_INDIA` | 255 |
 | `MEMBER_STEP` | 0.0625 mm |
+| `MANIFEST` | `manifest.json` |
+| `MARKERS` | `published/` |
+| `RUNS` | `runs/` |
 
 ### 8.13 Tests
 
@@ -2259,15 +2362,28 @@ being touched until it stops.
 
 | Test | Covers |
 |---|---|
-| the manifest is the last write, and every file it names was written before it | 8.5 |
+| every file the manifest names was written before the manifest, and the immutable copy holds the same bytes | 8.5 |
+| the **marker is the very last write of all**, after the manifest and after the read-back, and carries the manifest's sha256 and ETag | 8.5 |
 | an older local run never replaces a newer published one, and nothing at all is written | 8.6 |
 | the same run is never republished, and nothing at all is written | 8.6 |
 | a local run with no manifest, or already marked published, is not published | 8.1 |
-| a `list` that succeeds and finds no manifest publishes the first run | 8.6 |
+| the published run comes from the marker **with no fetch at all** | 8.6 |
+| the newest marker wins when there are several | 8.6 |
+| **a stale public manifest cannot change the published run**: the edge serves yesterday's `run_id`, the marker still decides, and today's run is not republished | 8.6 |
+| a `list` that succeeds and finds no marker and no manifest publishes the first run | 8.6 |
 | a `list` that fails exits 1, publishes nothing, and is never read as an empty store | 8.6 |
-| a manifest whose fetch returns 404 or 500 exits 1 | 8.6 |
+| a manifest whose fetch returns 404 or 500 exits 1, on the legacy path | 8.6 |
 | a manifest that is not JSON, has no `run_id`, or has a `run_id` that is not a valid run id, exits 1 | 8.6 |
-| the manifest fetch during run selection carries the cache-busting query | 8.6 |
+| a stray file under `published/` is left alone and does not break selection | 8.6 |
+| a store with a manifest and no marker is **adopted**: one new blob, nothing overwritten, nothing deleted, the run not republished, and the manifest body never read again afterwards | 8.6 |
+| adoption does not stop a newer run being published, and the adopted run's files survive | 8.6 |
+| **a stale edge does not fail a correct publish**: the public manifest is still the previous one, the ETags agree, the publish succeeds and the marker is written | 8.10 |
+| a manifest whose stored ETag no longer matches the one `put` returned is a failure | 8.10 |
+| a store that returns no ETag for the manifest is a failure | 8.10 |
+| the read-back refuses to byte-verify `manifest.json` at all | 8.10 |
+| the read-back notices a single changed byte on an immutable pathname | 8.10 |
+| retention deletes a dropped run's marker with the rest of it | 8.7 |
+| retention never deletes the current run's marker | 8.7 |
 | retention keeps the newest eight prefixes and deletes the rest, blob by blob | 8.7 |
 | retention never deletes the run the manifest points at, even when that run is the ninth newest | 8.7 |
 | retention leaves a prefix that is not a valid run id, and logs it | 8.7 |
@@ -2376,17 +2492,22 @@ against the public URLs of run `20261112T00Z`.
 Two of these are uncomfortable and are written down rather than smoothed
 over.
 
-**The cache-busting in 8.6 and 8.10 does not do what it says.** Those
-paragraphs claim that `?cb=<nonce>` stops the CDN serving a stale run id.
-Measured, the query string is ignored for caching, so a manifest read can be
-minutes old, and no request header changes that. For run selection the
-practical risk is small, because runs are a day apart, but the claim is
-wrong and the read-back of 8.10 has a sharper version of the same problem:
-the **second** publish overwrites `manifest.json`, and if the edge still
-holds the previous copy then `read_back` compares a stale body against the
-bytes just sent and fails the job after a correct publish. It is listed as
-open question 1 of 11.11, with the fix named, because section 8 is approved
-and this draft does not change it.
+**The cache-busting that used to be in 8.6 and 8.10 did not do what it
+said**, and this is how it was found. Those paragraphs claimed that
+`?cb=<nonce>` stopped the CDN serving a stale run id. Measured, the query
+string is ignored for caching and no request header changes that, so a
+manifest read could be minutes old; and the read-back had a sharper version
+of the same problem, because the **second** publish overwrites
+`manifest.json` and would then have compared a stale body against the bytes
+just sent, failing the job after a correct publish.
+
+**Fixed on 12 November 2026, before any of this section was built.** What is
+published is now decided from `list` and an immutable `published/<run_id>`
+marker, and the manifest is confirmed by its `ETag`: 8.5, 8.6 and 8.10. The
+consequence for this section is that **the page cannot force a fresh read
+either**, so `api/health` may report a run id up to about a minute behind a
+publish that is happening while someone is reading. Nobody can perceive that
+in a daily forecast, and the 36 hour staleness rule of 11.8 is unaffected.
 
 **A browser cannot ask for one byte.** The `Range` header is not on the CORS
 safe list, so a ranged `fetch` preflights, and the preflight answers 405.
@@ -2526,6 +2647,12 @@ pointed at a different store without a commit, and so the test can point at
 `.env.example` gains `STORE_BASE_URL=` alongside the empty
 `BLOB_READ_WRITE_TOKEN=` line of 8.9. Neither carries a value.
 
+**Vercel is given no store credential at all.** A public URL needs none, so
+the Blob store is deliberately **not connected** to the Vercel project: a
+connection would put `BLOB_STORE_ID` and a rotating `VERCEL_OIDC_TOKEN` into
+every deployment and give the website write access to the store it only ever
+reads. The only writer is GitHub Actions (8.9).
+
 **This adds `config/store.json` to the fixed structure**, which needs your
 approval under rule 5. Nothing else in the structure changes: `vercel.json`,
 `api/health`, `api/place`, `web/` and `tests/test_api_consistency` are all
@@ -2582,8 +2709,32 @@ check the arithmetic by hand the way HC7 does.
 |---|---|
 | a square inside the India mask | **200** |
 | outside the box, or unparseable | **400** |
-| inside the box, but not in the India mask | **404**, with `nearest_in_tile`: the nearest square the tile does hold, in degrees, and the sentence "that square is sea or outside India". The tile already holds every India square in its 4 degrees, so the suggestion costs no extra request. When the tile holds none, the answer says so instead of guessing |
+| inside the box, but not in the India mask, and an India square lies **within one square** of it | **200**, for that neighbour, with `moved` naming both squares. The same rule as the city list: the nearest India square, one square at most |
+| inside the box, not in the India mask, and no India square within one square | **404**, "outside the forecast area", with `nearest_in_tile` if the tile holds anything at all |
 | store unreachable | **503** |
+
+#### A typed latitude and longitude snaps by the same rule as a city
+
+A city in the list of 11.8 whose own square is sea is shown at the nearest
+India square, and three of the twenty are. A typed latitude and longitude
+gets exactly the same treatment, because there is no honest reason for
+Mumbai to work from the list and fail from the box:
+
+| Step | Rule |
+|---|---|
+| 1 | snap to the nearest 0.25 degree square |
+| 2 | if that square is in the India mask, use it |
+| 3 | otherwise look one square out, the eight neighbours, and take the nearest India square among them, ties broken north first then west |
+| 4 | if none of the nine is in India, answer **"outside the forecast area"** and stop. No second ring, no searching across a tile boundary |
+
+Whenever the square used is not the square asked for, **the page says so**:
+"19.08 N 72.88 E is sea on this 0.25 degree grid. Showing 19.25 N 73.00 E,
+one square north." The square actually used is always on the page anyway
+(11.8), so the move is visible rather than silent.
+
+One square is 0.25 degrees, about 28 km north to south. Moving a forecast
+further than that without saying so would be a different place; stopping at
+one square and naming it is the honest version of being helpful.
 
 `Cache-Control: public, max-age=60`. One square's answer is small and
 identical for every reader, so the edge may keep it for a minute; a new run
@@ -2714,9 +2865,9 @@ Open:
 
 | # | Open | Note |
 |---|---|---|
-| 1 | **the stale-cache problem of 11.1** | `?cb=` does not bust the CDN cache, so 8.6 and 8.10 claim something untrue, and tomorrow's publish may fail its own read-back on `manifest.json` after publishing correctly. The fix is to stop trusting a public fetch for freshness: compare the fetched `ETag` against the `etag` that `put` and `list` return from the API, retry briefly, and treat only a mismatch that persists as a failure. It is a change to section 8, which is approved, so it needs your word. It should happen before the 06:17 UTC run on 13 November |
-| 2 | adding `config/store.json` to the fixed structure | rule 5 (11.5) |
-| 3 | whether the repository is already connected to a Vercel project | the Blob store exists and the token is set, but a connected Git project is a separate step, and G2 cannot deploy without it |
+| 1 | ~~the stale-cache problem of 11.1~~ | **fixed on 12 November 2026, before any section 11 code.** What is published is now decided from `list` and an immutable marker, and the mutable manifest is confirmed by ETag rather than by bytes. See 8.5, 8.6 and 8.10 |
+| 2 | ~~adding `config/store.json` to the fixed structure~~ | approved |
+| 3 | whether the repository is already connected to a Vercel project | the Blob store exists and the token is set, but a connected Git project is a separate step, and G2 cannot deploy without it. The Blob store must **not** be connected to that project (8.9) |
 | 4 | the Node version in Project Settings | 24.x recommended, to match the publisher of 8.2. Harmless either way, since the functions use only built-ins |
 
 ---

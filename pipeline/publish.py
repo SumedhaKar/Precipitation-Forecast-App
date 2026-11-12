@@ -12,9 +12,14 @@ Three things this module is careful about:
    the environment by the Node SDK, inside Actions, on the two steps that
    talk to the store. Nothing here reads it, prints it or passes it on.
 3. **An empty store and a broken store are not the same thing** (SPEC 8.6).
-   Only a `list` that succeeds and finds no manifest means "nothing has been
-   published yet". A failed list, or a manifest that cannot be fetched or
-   parsed, is a failure and publishes nothing.
+   Only a `list` that succeeds and finds nothing published means "nothing has
+   been published yet". A failed list is a failure and publishes nothing.
+4. **Nothing is decided from a CDN-served body** (SPEC 8.5, 8.6). What is
+   published is read from `list`, which is an API call and is never cached,
+   by taking the newest immutable marker under `published/`. A public `fetch`
+   can be up to 60 seconds behind an overwrite by Vercel's own documentation,
+   and was measured serving a 60 second manifest at `Age: 583`, so it is used
+   only to check bytes on pathnames that are never overwritten.
 
 Usage
   python -m pipeline.publish                  publish the newest built run
@@ -30,7 +35,6 @@ import json
 import math
 import subprocess
 import sys
-import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -65,6 +69,8 @@ MEMBER_MAX_CODE = 65_535         # what an unsigned 16-bit value holds
 STEPS_PER_MM = 16                # 1 mm / MEMBER_STEP, exactly
 
 MANIFEST = "manifest.json"
+MARKERS = "published/"           # SPEC 8.5, one immutable marker a run
+RUNS = "runs/"
 PUBLISH = cfg.DATA / "publish"
 NODE_SCRIPT = cfg.ROOT / "scripts" / "publish" / "blob.mjs"
 
@@ -170,10 +176,17 @@ class BlobStore:
                         "pathnames": pathnames[start:start + 1000]})
 
     def fetch(self, url: str) -> bytes:
-        """Read a public URL. No token: this is what the website does."""
+        """Read a public URL. No token: this is what the website does.
+
+        There is no cache-busting here any more, because there is no cache
+        busting to be had: measured on the real store, `?cb=<nonce>` and a
+        `Cache-Control: no-cache` request header both came back
+        `X-Vercel-Cache: HIT` with the same `Age` and the same `ETag`. The
+        query-parameter trick in Vercel's own documentation is for defeating
+        a **browser** cache, not theirs (SPEC 8.10).
+        """
         request = urllib.request.Request(url, headers={
             "User-Agent": "precipitation-forecast/publish",
-            "Cache-Control": "no-cache",
         })
         try:
             with urllib.request.urlopen(request, timeout=60) as response:
@@ -201,12 +214,22 @@ class FakeStore:
     calls: list[tuple] = field(default_factory=list)
     list_error: str | None = None
     fetch_status: dict[str, int] = field(default_factory=dict)
+    # SPEC 8.10: what the edge is still serving, pathname -> bytes. `data` is
+    # the store itself, which `list` reads; `stale` is what a public `fetch`
+    # of that pathname answers instead. This is how a CDN that is up to 60
+    # seconds behind an overwrite is reproduced without a network.
+    stale: dict[str, bytes] = field(default_factory=dict)
+    stale_etag: dict[str, str] = field(default_factory=dict)
 
     def url_for(self, pathname: str) -> str:
         return f"{self.base}/{pathname}"
 
     def _pathname_of(self, url: str) -> str:
         return url.split("?", 1)[0][len(self.base) + 1:]
+
+    @staticmethod
+    def etag_of(data: bytes) -> str:
+        return hashlib.md5(data, usedforsecurity=False).hexdigest()
 
     def put_many(self, uploads: list[Upload]) -> list[dict]:
         results = []
@@ -221,7 +244,8 @@ class FakeStore:
             }
             results.append({"pathname": upload.pathname,
                             "url": self.url_for(upload.pathname),
-                            "size": upload.size})
+                            "size": upload.size,
+                            "etag": self.etag_of(upload.data)})
         return results
 
     def list(self, prefix: str = "") -> list[dict]:
@@ -230,6 +254,7 @@ class FakeStore:
             raise PublishError(f"list failed: {self.list_error}")
         return [{"pathname": p, "url": self.url_for(p),
                  "size": len(self.data[p]),
+                 "etag": self.stale_etag.get(p, self.etag_of(self.data[p])),
                  "uploadedAt": self.meta.get(p, {}).get("uploadedAt", "")}
                 for p in sorted(self.data) if p.startswith(prefix)]
 
@@ -245,16 +270,11 @@ class FakeStore:
         status = self.fetch_status.get(pathname)
         if status is not None and status != 200:
             raise PublishError(f"{url} returned {status}")
+        if pathname in self.stale:
+            return self.stale[pathname]
         if pathname not in self.data:
             raise PublishError(f"{url} returned 404")
         return self.data[pathname]
-
-
-def cache_busted(url: str, nonce: str | None = None) -> str:
-    """SPEC 8.6 and 8.10: never read a manifest the CDN has been holding."""
-    nonce = nonce or str(time.time_ns())
-    separator = "&" if "?" in url else "?"
-    return f"{url}{separator}cb={nonce}"
 
 
 # ------------------------------------------------------------------ the local run
@@ -560,23 +580,137 @@ def manifest_upload(core: dict, uploads: list[Upload], retention: dict,
     return Upload(MANIFEST, as_json(manifest), JSON_TYPE, MANIFEST_MAX_AGE)
 
 
+def immutable_manifest_upload(run_id: str, manifest: Upload) -> Upload:
+    """The same bytes as `manifest.json`, on a pathname never overwritten.
+
+    SPEC 8.10: the bytes of the current manifest can then be read back and
+    hashed like everything else, because nothing has ever been served from
+    this pathname before.
+    """
+    return Upload(f"{RUNS}{run_id}/{MANIFEST}", manifest.data,
+                  JSON_TYPE, RUN_FILE_MAX_AGE)
+
+
+def marker_upload(run_id: str, manifest: Upload, manifest_etag: str | None,
+                  uploads: list[Upload], retention: dict,
+                  adopted: dict | None = None) -> Upload:
+    """SPEC 8.5: the last write of a publish, and the only one that counts.
+
+    It is immutable, so `list` can be trusted about it forever, and its
+    pathname carries the run id, so run selection needs no body at all.
+    """
+    marker = {
+        "run_id": run_id,
+        "published_at_ist": dt.datetime.now(IST).isoformat(timespec="seconds"),
+        "manifest_sha256": manifest.sha256,
+        "manifest_etag": manifest_etag,
+        "manifest_copy": f"{RUNS}{run_id}/{MANIFEST}",
+        "files": len(uploads) + 2,
+        "bytes_total": sum(u.size for u in uploads) + manifest.size * 2,
+        "retention": retention,
+        "note": "written last, after the manifest and after the read-back. "
+                "Its presence means this publish finished.",
+    }
+    if adopted is not None:
+        marker.update(adopted)
+    return Upload(marker_name(run_id), as_json(marker), JSON_TYPE,
+                  RUN_FILE_MAX_AGE)
+
+
+def adoption_marker(published: dict) -> Upload:
+    """SPEC 8.6: the marker a pre-marker publish never wrote.
+
+    Written when `list` finds a manifest and no marker at all. It records
+    what the store itself says, claims nothing about bytes this job did not
+    write, and deletes and republishes nothing.
+    """
+    run_id = published["run_id"]
+    marker = {
+        "run_id": run_id,
+        "published_at_ist": None,
+        "adopted_at_ist": dt.datetime.now(IST).isoformat(timespec="seconds"),
+        "adopted_from": MANIFEST,
+        "manifest_sha256": published.get("manifest_sha256"),
+        "manifest_etag": None,
+        "note": "This run was published before publish.py wrote markers, so "
+                "no marker existed for it. This one was written from the "
+                "store's own manifest.json, which named this run. Nothing "
+                "was republished and nothing was deleted.",
+    }
+    return Upload(marker_name(run_id), as_json(marker), JSON_TYPE,
+                  RUN_FILE_MAX_AGE)
+
+
 # ------------------------------------------------------------------ the store side
 
-def read_remote_manifest(store: Store) -> tuple[dict | None, str]:
-    """SPEC 8.6. Returns (manifest or None, reason).
+def marker_name(run_id: str) -> str:
+    return f"{MARKERS}{run_id}.json"
 
-    None only when `list` succeeded and there is no manifest. Every other
-    way this can go wrong raises.
+
+def run_id_of_marker(pathname: str) -> str | None:
+    """`published/20261112T00Z.json` -> `20261112T00Z`, or None."""
+    if not pathname.startswith(MARKERS) or not pathname.endswith(".json"):
+        return None
+    name = pathname[len(MARKERS):-len(".json")]
+    if "/" in name:
+        return None
+    try:
+        parse_run_id(name)
+    except Exception:                                       # noqa: BLE001
+        return None
+    return name
+
+
+def read_published(store: Store) -> dict:
+    """SPEC 8.6: what the store publishes, decided from `list` alone.
+
+    `list` is an API call. It is not served by the CDN, it cannot be stale,
+    and a marker pathname carries its own run id, so in the normal case this
+    answers without fetching anything at all.
+
+    Returns a dict with `run_id` (None for an empty store), `source`
+    (`marker`, `manifest` or `empty`), `legacy` and `reason`. Only a `list`
+    that succeeds and finds neither a marker nor a manifest is an empty
+    store; every other failure raises.
     """
-    blobs = store.list(MANIFEST)
-    exact = [b for b in blobs if b.get("pathname") == MANIFEST]
+    blobs = store.list(MARKERS)
+    markers, strays = [], []
+    for blob in blobs:
+        pathname = blob.get("pathname", "")
+        run_id = run_id_of_marker(pathname)
+        if run_id is None:
+            strays.append(pathname)
+        else:
+            markers.append(run_id)
+
+    if markers:
+        run_id = max(markers)
+        return {
+            "run_id": run_id,
+            "source": "marker",
+            "legacy": False,
+            "strays": sorted(strays),
+            "reason": (f"the store publishes {run_id}, from "
+                       f"{marker_name(run_id)} of {len(markers)} marker(s)"),
+        }
+
+    # No marker. Either the store is empty, or it was published by the code
+    # that existed before markers did, in which case manifest.json is the
+    # only record of it. This branch is the one place a CDN-served body is
+    # believed, and it is believed once: the next publish writes the marker
+    # that was missing (SPEC 8.6).
+    listed = store.list(MANIFEST)
+    exact = [b for b in listed if b.get("pathname") == MANIFEST]
     if not exact:
-        return None, "the store has no manifest.json; nothing is published yet"
+        return {"run_id": None, "source": "empty", "legacy": False,
+                "strays": sorted(strays),
+                "reason": "the store has no marker and no manifest.json; "
+                          "nothing is published yet"}
 
     url = exact[0].get("url")
     if not url:
         raise PublishError("the store listed manifest.json with no URL")
-    raw = store.fetch(cache_busted(url))
+    raw = store.fetch(url)
     try:
         manifest = json.loads(raw.decode("utf-8"))
     except (ValueError, UnicodeDecodeError) as exc:
@@ -593,15 +727,33 @@ def read_remote_manifest(store: Store) -> tuple[dict | None, str]:
         raise PublishError(
             f"the store's manifest.json has run_id {run_id!r}, which is not "
             f"a run id: {exc}") from exc
-    return manifest, f"the store currently publishes {run_id} at {url}"
+    return {
+        "run_id": run_id,
+        "source": "manifest",
+        "legacy": True,
+        "strays": sorted(strays),
+        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+        "reason": (f"the store publishes {run_id}, from manifest.json at "
+                   f"{url}, with no marker: published before markers existed"),
+    }
 
 
 def retention_plan(listing: list[dict], current: str,
                    keep: int = KEEP_RUNS) -> dict:
-    """SPEC 8.7. Which run prefixes to keep, which blobs to delete."""
+    """SPEC 8.7. Which run prefixes to keep, which blobs to delete.
+
+    The listing may hold both `runs/<run_id>/...` files and the
+    `published/<run_id>.json` markers of 8.5. A run that is dropped loses
+    both; a marker whose run has already gone is dropped with it, so markers
+    cannot pile up for runs that no longer exist.
+    """
     by_run: dict[str, list[dict]] = {}
     for blob in listing:
         pathname = blob.get("pathname", "")
+        marker_run = run_id_of_marker(pathname)
+        if marker_run is not None:
+            by_run.setdefault(marker_run, []).append(blob)
+            continue
         parts = pathname.split("/")
         if len(parts) < 3 or parts[0] != "runs":
             continue
@@ -628,7 +780,7 @@ def retention_plan(listing: list[dict], current: str,
     dropped = [r for r in ordered if r not in kept]
 
     deleted = [{"pathname": b["pathname"], "bytes": int(b.get("size", 0)),
-                "run_id": b["pathname"].split("/")[1]}
+                "run_id": run_id}
                for run_id in dropped for b in by_run[run_id]]
     deleted.sort(key=lambda d: d["pathname"])
     return {
@@ -642,23 +794,73 @@ def retention_plan(listing: list[dict], current: str,
     }
 
 
-def read_back(store: Store, uploads: list[Upload], results: dict[str, str],
-              manifest: Upload) -> dict:
-    """SPEC 8.10: fetch every published file from its public URL, no token."""
+def read_back(store: Store, uploads: list[Upload],
+              results: dict[str, str]) -> dict:
+    """SPEC 8.10: fetch every immutable file from its public URL, no token.
+
+    Every pathname here is written once and never overwritten, so the CDN
+    cannot be holding an older version of it: a byte that comes back wrong
+    is wrong. `manifest.json` is **not** in this list, because it is the one
+    blob that is rewritten and the edge may legitimately serve the previous
+    copy for up to 60 seconds. It is checked by its ETag instead, in
+    `verify_manifest`.
+    """
     checked = 0
-    for upload in [*uploads, manifest]:
+    for upload in uploads:
+        if upload.pathname == MANIFEST:
+            raise PublishError("manifest.json cannot be byte-verified from a "
+                               "public URL; see verify_manifest")
         url = results.get(upload.pathname)
         if not url:
             raise PublishError(f"{upload.pathname} came back with no URL")
-        if upload.pathname == MANIFEST:
-            url = cache_busted(url)
         got = store.fetch(url)
         if hashlib.sha256(got).hexdigest() != upload.sha256:
             raise PublishError(
                 f"{upload.pathname} read back different from what was sent")
         checked += 1
-    return {"files": checked,
-            "bytes": sum(u.size for u in [*uploads, manifest])}
+    return {"files": checked, "bytes": sum(u.size for u in uploads)}
+
+
+def verify_manifest(store: Store, manifest: Upload,
+                    put_result: dict) -> dict:
+    """SPEC 8.10: did the manifest write land? Decided by ETag, not by bytes.
+
+    `put` returns the ETag the store recorded and `list` returns the ETag the
+    store holds now. Both come from the API, neither is served by the CDN, so
+    agreement between them means the write landed, whatever the edge is still
+    handing out. The public body is fetched too, but a difference there is
+    **logged and not failed**: by Vercel's documentation an overwrite takes
+    up to 60 seconds to propagate, and failing a publish for that would mean
+    failing a publish that was entirely correct.
+    """
+    put_etag = put_result.get("etag")
+    listed = [b for b in store.list(MANIFEST)
+              if b.get("pathname") == MANIFEST]
+    if not listed:
+        raise PublishError(
+            "manifest.json is not in the store after being written")
+    list_etag = listed[0].get("etag")
+    if not put_etag or not list_etag:
+        raise PublishError(
+            "the store returned no ETag for manifest.json, so there is no "
+            "way to confirm the write without trusting a cached body")
+    if put_etag != list_etag:
+        raise PublishError(
+            f"manifest.json was written with ETag {put_etag} but the store "
+            f"now holds {list_etag}: another publish overwrote it")
+
+    stale = False
+    url = put_result.get("url") or listed[0].get("url")
+    if url:
+        try:
+            got = store.fetch(url)
+        except PublishError as exc:
+            log(f"manifest.json could not be read from its public URL "
+                f"({exc}); the ETags agree, so the write landed")
+        else:
+            stale = hashlib.sha256(got).hexdigest() != manifest.sha256
+    return {"put_etag": put_etag, "list_etag": list_etag,
+            "etags_agree": True, "edge_stale": stale}
 
 
 # ------------------------------------------------------------------ the publish
@@ -666,9 +868,21 @@ def read_back(store: Store, uploads: list[Upload], results: dict[str, str],
 def publish(store: Store, run_id: str | None = None,
             work_dir: Path | None = None, mark: bool = True) -> dict:
     """Publish one run. SPEC 8.5 to 8.10, in that order."""
-    remote, reason = read_remote_manifest(store)
-    log(f"store: {reason}")
-    published = remote.get("run_id") if remote else None
+    remote = read_published(store)
+    log(f"store: {remote['reason']}")
+    for stray in remote["strays"]:
+        log(f"store: {stray!r} under {MARKERS} is not a marker; left alone")
+    published = remote["run_id"]
+
+    # SPEC 8.6. A store published before markers existed gets the marker it
+    # never had, written from its own manifest. This is an addition and
+    # nothing else: no file is overwritten, nothing is deleted, and the run
+    # it names is not republished.
+    if remote["legacy"]:
+        marker = adoption_marker(remote)
+        store.put_many([marker])
+        log(f"store: wrote the missing marker {marker.pathname} for "
+            f"{published}, which was published before markers existed")
 
     if run_id is None:
         run_id, local_reason = newest_publishable()
@@ -692,18 +906,25 @@ def publish(store: Store, run_id: str | None = None,
         f"{sum(u.size for u in uploads) / 1e6:.2f} MB, "
         f"{len(core['tiles'])} tiles")
 
-    listing = store.list("runs/")
+    listing = store.list(RUNS) + store.list(MARKERS)
     plan = retention_plan(listing, run_id)
     manifest = manifest_upload(core, uploads, plan, published)
+    copy = immutable_manifest_upload(run_id, manifest)
 
     if work_dir is not None:
-        write_locally(work_dir, [*uploads, manifest])
+        write_locally(work_dir, [*uploads, copy, manifest])
 
-    results = {r["pathname"]: r["url"] for r in store.put_many(uploads)}
-    log(f"{run_id}: run files uploaded, manifest not yet moved")
-    results.update({r["pathname"]: r["url"]
-                    for r in store.put_many([manifest])})
-    log(f"{run_id}: manifest written last; the site now shows this run")
+    # 1. The run's own files, then the immutable copy of the manifest. The
+    #    store still describes the previous run throughout.
+    results = {r["pathname"]: r["url"]
+               for r in store.put_many([*uploads, copy])}
+    log(f"{run_id}: {len(uploads) + 1} run files uploaded, including the "
+        f"immutable copy of the manifest; manifest not yet moved")
+
+    # 2. The one mutable blob. This is the moment the site changes.
+    manifest_result = store.put_many([manifest])[0]
+    results[MANIFEST] = manifest_result["url"]
+    log(f"{run_id}: manifest written; the site now shows this run")
     # The public address of the manifest, logged because the store id is
     # nowhere in the repository (SPEC 8.14) and the site and HC7 both need
     # it. It is a read-only public URL and not a credential.
@@ -717,15 +938,36 @@ def publish(store: Store, run_id: str | None = None,
         log(f"retention: left alone, {run!r} is not a run id")
     verify_retention(store, plan)
 
-    checked = read_back(store, uploads, results, manifest)
-    log(f"{run_id}: read back {checked['files']} files from their public "
-        f"URLs, {checked['bytes'] / 1e6:.2f} MB, every sha256 matched")
+    checked = read_back(store, [*uploads, copy], results)
+    log(f"{run_id}: read back {checked['files']} immutable files from their "
+        f"public URLs, {checked['bytes'] / 1e6:.2f} MB, every sha256 matched")
+
+    manifest_check = verify_manifest(store, manifest, manifest_result)
+    log(f"{run_id}: manifest confirmed by ETag {manifest_check['put_etag']}, "
+        f"the same one list returns")
+    if manifest_check["edge_stale"]:
+        log("note: the public manifest.json is still the previous one. "
+            "Vercel documents up to 60 s for an overwrite to propagate, the "
+            "ETags agree, and the immutable copy read back exactly, so this "
+            "is not a failure")
+
+    # 3. The marker, last of all, because it means "this publish finished".
+    #    A publish that died before here is retried by the next run rather
+    #    than remembered as done.
+    marker = marker_upload(run_id, manifest, manifest_check["put_etag"],
+                           uploads, plan)
+    if work_dir is not None:
+        write_locally(work_dir, [marker])
+    store.put_many([marker])
+    log(f"{run_id}: {marker.pathname} written last; the store now says this "
+        f"run is published")
 
     if mark:
         mark_published(run_id)
-    return {"published": True, "run_id": run_id, "files": len(uploads) + 1,
-            "bytes": sum(u.size for u in [*uploads, manifest]),
+    return {"published": True, "run_id": run_id, "files": len(uploads) + 3,
+            "bytes": sum(u.size for u in [*uploads, copy, manifest, marker]),
             "retention": plan, "read_back": checked,
+            "manifest": manifest_check, "marker": marker.pathname,
             "reason": f"{run_id} published"}
 
 
@@ -792,12 +1034,12 @@ def main(argv: list[str] | None = None) -> int:
         global LOG_STREAM
         LOG_STREAM = sys.stderr
         try:
-            remote, reason = read_remote_manifest(BlobStore(PUBLISH))
+            remote = read_published(BlobStore(PUBLISH))
         except PublishError as exc:
-            log(f"FAILED reading the store's manifest: {exc}")
+            log(f"FAILED reading what the store publishes: {exc}")
             return 1
-        print(remote["run_id"] if remote else "")
-        log(reason)
+        print(remote["run_id"] or "")
+        log(remote["reason"])
         return 0
 
     dry_run = "--dry-run" in argv

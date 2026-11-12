@@ -115,13 +115,22 @@ def india(monkeypatch):
 
 
 def seed_store(store: FakeStore, run_id: str, runs: list[str] | None = None,
-               manifest: dict | None = None) -> FakeStore:
-    """A store that already publishes `run_id`, with blobs for `runs`."""
+               manifest: dict | None = None, markers: bool = True,
+               marked: list[str] | None = None) -> FakeStore:
+    """A store that already publishes `run_id`, with blobs for `runs`.
+
+    `markers=False` seeds the store the old code left behind: a manifest and
+    no marker at all, which is the legacy state of SPEC 8.6.
+    """
     for old in runs if runs is not None else [run_id]:
         for name in ("days.json", "grid.json"):
             store.data[f"runs/{old}/{name}"] = f"{old} {name}".encode()
     body = manifest if manifest is not None else {"run_id": run_id}
     store.data[MANIFEST] = json.dumps(body).encode()
+    if markers:
+        for marked_run in marked if marked is not None else [run_id]:
+            store.data[publish.marker_name(marked_run)] = json.dumps(
+                {"run_id": marked_run}).encode()
     store.calls.clear()
     return store
 
@@ -141,20 +150,50 @@ def published_tiles(store: FakeStore, run_id: str) -> list[dict]:
 
 # ------------------------------------------------------------------ order
 
-def test_the_manifest_is_the_last_write(run_root, india):
+def test_the_manifest_is_written_after_every_run_file(run_root, india):
     write_run(run_root, "20261112T00Z", india)
     store = FakeStore()
     result = publish.publish(store, "20261112T00Z", mark=False)
 
     assert result["published"] is True
     written = puts(store)
-    assert written[-1] == MANIFEST
     assert written.count(MANIFEST) == 1
 
     manifest = json.loads(store.data[MANIFEST].decode())
     order = {pathname: i for i, pathname in enumerate(written)}
     for pathname in manifest["files"]:
         assert order[pathname] < order[MANIFEST], pathname
+    # The immutable copy carries the same bytes and goes up first, so the
+    # manifest's bytes are on a never-overwritten pathname before the
+    # mutable one moves (SPEC 8.5).
+    copy = "runs/20261112T00Z/manifest.json"
+    assert order[copy] < order[MANIFEST]
+    assert store.data[copy] == store.data[MANIFEST]
+
+
+def test_the_marker_is_the_very_last_write(run_root, india):
+    write_run(run_root, "20261112T00Z", india)
+    store = FakeStore()
+    result = publish.publish(store, "20261112T00Z", mark=False)
+
+    written = puts(store)
+    marker = publish.marker_name("20261112T00Z")
+    assert written[-1] == marker
+    assert result["marker"] == marker
+    assert written.index(MANIFEST) < written.index(marker)
+
+    # It is written after the read-back, so a publish that cannot be read
+    # back leaves no marker and is retried rather than remembered as done.
+    kinds = [c[0] for c in store.calls]
+    assert kinds.index("fetch") < len(kinds) - 1
+    assert store.calls[-1] == ("put", marker)
+
+    body = json.loads(store.data[marker].decode())
+    assert body["run_id"] == "20261112T00Z"
+    assert body["manifest_sha256"] == hashlib.sha256(
+        store.data[MANIFEST]).hexdigest()
+    assert body["manifest_etag"] == store.etag_of(store.data[MANIFEST])
+    assert store.meta[marker]["max_age"] == RUN_FILE_MAX_AGE
 
 
 def test_no_deletion_happens_before_the_manifest_write(run_root, india):
@@ -220,11 +259,65 @@ def test_an_empty_store_publishes_the_first_run(run_root, india):
     write_run(run_root, "20261112T00Z", india)
     store = FakeStore()
 
-    remote, reason = publish.read_remote_manifest(store)
-    assert remote is None
-    assert "nothing is published yet" in reason
+    remote = publish.read_published(store)
+    assert remote["run_id"] is None
+    assert remote["source"] == "empty"
+    assert "nothing is published yet" in remote["reason"]
 
     assert publish.publish(store, "20261112T00Z", mark=False)["published"]
+
+
+# ------------------------------------------- what is published, from list only
+
+def test_the_published_run_comes_from_the_marker_without_any_fetch():
+    store = seed_store(FakeStore(), "20261112T00Z")
+
+    remote = publish.read_published(store)
+
+    assert remote["run_id"] == "20261112T00Z"
+    assert remote["source"] == "marker"
+    assert remote["legacy"] is False
+    # The whole point: no public URL was read, so nothing a CDN holds can
+    # change this answer (SPEC 8.6).
+    assert [c for c in store.calls if c[0] == "fetch"] == []
+
+
+def test_the_newest_marker_wins_when_there_are_several():
+    runs = ["20261105T00Z", "20261112T00Z", "20261031T00Z"]
+    store = seed_store(FakeStore(), "20261112T00Z", runs=runs, marked=runs)
+
+    assert publish.read_published(store)["run_id"] == "20261112T00Z"
+
+
+def test_a_stale_public_manifest_cannot_change_the_published_run(run_root,
+                                                                india):
+    """The edge is serving yesterday's manifest. The marker still rules."""
+    store = seed_store(FakeStore(), "20261112T00Z",
+                       runs=["20261111T00Z", "20261112T00Z"],
+                       marked=["20261111T00Z", "20261112T00Z"])
+    store.stale[MANIFEST] = json.dumps({"run_id": "20261111T00Z"}).encode()
+
+    assert publish.read_published(store)["run_id"] == "20261112T00Z"
+
+    # And the same run is therefore not republished, which is what a stale
+    # body would otherwise have caused.
+    write_run(run_root, "20261112T00Z", india)
+    result = publish.publish(store, "20261112T00Z", mark=False)
+    assert result["published"] is False
+    assert "already published" in result["reason"]
+
+
+def test_a_stray_file_under_published_is_left_alone():
+    store = seed_store(FakeStore(), "20261112T00Z")
+    store.data["published/README.txt"] = b"notes by hand"
+    store.data["published/old/20261101T00Z.json"] = b"{}"
+
+    remote = publish.read_published(store)
+
+    assert remote["run_id"] == "20261112T00Z"
+    assert remote["strays"] == ["published/README.txt",
+                               "published/old/20261101T00Z.json"]
+    assert [c for c in store.calls if c[0] == "delete"] == []
 
 
 # ------------------------------------------------------------------ a broken store
@@ -234,7 +327,7 @@ def test_a_failed_list_is_a_failure_and_not_an_empty_store(run_root, india):
     store = FakeStore(list_error="403 from the store")
 
     with pytest.raises(PublishError, match="list failed"):
-        publish.read_remote_manifest(store)
+        publish.read_published(store)
     with pytest.raises(PublishError):
         publish.publish(store, "20261112T00Z", mark=False)
     assert puts(store) == []
@@ -242,11 +335,12 @@ def test_a_failed_list_is_a_failure_and_not_an_empty_store(run_root, india):
 
 @pytest.mark.parametrize("status", [404, 500])
 def test_a_manifest_that_cannot_be_fetched_is_a_failure(status):
-    store = seed_store(FakeStore(), "20261112T00Z")
+    """Only reachable on the legacy path, which is the one that fetches."""
+    store = seed_store(FakeStore(), "20261112T00Z", markers=False)
     store.fetch_status[MANIFEST] = status
 
     with pytest.raises(PublishError, match=str(status)):
-        publish.read_remote_manifest(store)
+        publish.read_published(store)
 
 
 @pytest.mark.parametrize("body, complaint", [
@@ -262,32 +356,126 @@ def test_a_manifest_that_cannot_be_trusted_is_a_failure(body, complaint):
     store.data[MANIFEST] = body
 
     with pytest.raises(PublishError, match=complaint):
-        publish.read_remote_manifest(store)
+        publish.read_published(store)
 
 
-def test_the_run_selection_fetch_is_cache_busted():
-    store = seed_store(FakeStore(), "20261112T00Z")
-    publish.read_remote_manifest(store)
+# ------------------------------------------- a store published before markers
 
-    fetches = [c[1] for c in store.calls if c[0] == "fetch"]
-    assert len(fetches) == 1
-    assert "?cb=" in fetches[0]
-    assert fetches[0].split("?")[0].endswith(MANIFEST)
+def test_a_store_with_no_marker_is_adopted_and_not_republished(run_root,
+                                                               india):
+    """SPEC 8.6: the real store on 12 November 2026, before this change."""
+    write_run(run_root, "20261112T00Z", india)
+    store = seed_store(FakeStore(), "20261112T00Z", markers=False)
+    before = dict(store.data)
 
+    remote = publish.read_published(store)
+    assert remote["run_id"] == "20261112T00Z"
+    assert remote["source"] == "manifest"
+    assert remote["legacy"] is True
+
+    result = publish.publish(store, "20261112T00Z", mark=False)
+
+    assert result["published"] is False
+    assert "already published" in result["reason"]
+    marker = publish.marker_name("20261112T00Z")
+    assert puts(store) == [marker], "the marker is the only write"
+    assert [c for c in store.calls if c[0] == "delete"] == []
+    for pathname, data in before.items():
+        assert store.data[pathname] == data, f"{pathname} was changed"
+
+    body = json.loads(store.data[marker].decode())
+    assert body["adopted_from"] == MANIFEST
+    assert body["published_at_ist"] is None
+    assert body["manifest_sha256"] == hashlib.sha256(
+        store.data[MANIFEST]).hexdigest()
+
+    # Once adopted, selection never looks at the manifest body again.
+    store.calls.clear()
+    again = publish.read_published(store)
+    assert again["source"] == "marker"
+    assert [c for c in store.calls if c[0] == "fetch"] == []
+
+
+def test_adoption_does_not_stop_a_newer_run_being_published(run_root, india):
+    write_run(run_root, "20261113T00Z", india)
+    store = seed_store(FakeStore(), "20261112T00Z", markers=False)
+
+    result = publish.publish(store, "20261113T00Z", mark=False)
+
+    assert result["published"] is True
+    assert publish.marker_name("20261112T00Z") in store.data
+    assert publish.marker_name("20261113T00Z") in store.data
+    assert [c for c in store.calls if c[0] == "delete"] == []
+    assert store.data["runs/20261112T00Z/days.json"] == b"20261112T00Z days.json"
+    assert publish.read_published(store)["run_id"] == "20261113T00Z"
+
+
+# ------------------------------------------------------------------ read-back
 
 def test_the_read_back_notices_a_difference(run_root, india):
     write_run(run_root, "20261112T00Z", india)
     store = FakeStore()
     publish.publish(store, "20261112T00Z", mark=False)
 
-    uploads, core = publish.build_payload("20261112T00Z")
-    manifest = publish.manifest_upload(core, uploads, {"deleted": []}, None)
-    urls = {u.pathname: store.url_for(u.pathname) for u in [*uploads, manifest]}
+    uploads, _ = publish.build_payload("20261112T00Z")
+    urls = {u.pathname: store.url_for(u.pathname) for u in uploads}
     tampered = uploads[0]
     store.data[tampered.pathname] = store.data[tampered.pathname] + b" "
 
     with pytest.raises(PublishError, match="read back different"):
-        publish.read_back(store, uploads, urls, manifest)
+        publish.read_back(store, uploads, urls)
+
+
+def test_the_read_back_refuses_to_judge_the_mutable_manifest(run_root, india):
+    write_run(run_root, "20261112T00Z", india)
+    uploads, core = publish.build_payload("20261112T00Z")
+    manifest = publish.manifest_upload(core, uploads, {"deleted": []}, None)
+    store = FakeStore()
+
+    with pytest.raises(PublishError, match="cannot be byte-verified"):
+        publish.read_back(store, [manifest], {MANIFEST: store.url_for(MANIFEST)})
+
+
+def test_a_stale_edge_does_not_fail_a_correct_publish(run_root, india):
+    """The edge still serves yesterday's manifest. Documented: up to 60 s."""
+    write_run(run_root, "20261112T00Z", india)
+    store = seed_store(FakeStore(), "20261111T00Z",
+                       runs=["20261111T00Z"], marked=["20261111T00Z"])
+    store.stale[MANIFEST] = json.dumps({"run_id": "20261111T00Z"}).encode()
+
+    result = publish.publish(store, "20261112T00Z", mark=False)
+
+    assert result["published"] is True
+    assert result["manifest"]["edge_stale"] is True
+    assert result["manifest"]["etags_agree"] is True
+    assert publish.marker_name("20261112T00Z") in store.data
+    # The bytes really are in the store, whatever the edge is saying.
+    assert json.loads(store.data[MANIFEST].decode())["run_id"] == "20261112T00Z"
+    assert publish.read_published(store)["run_id"] == "20261112T00Z"
+
+
+def test_a_manifest_overwritten_by_someone_else_is_a_failure(run_root, india):
+    write_run(run_root, "20261112T00Z", india)
+    uploads, core = publish.build_payload("20261112T00Z")
+    manifest = publish.manifest_upload(core, uploads, {"deleted": []}, None)
+    store = FakeStore()
+    result = store.put_many([manifest])[0]
+    store.stale_etag[MANIFEST] = "something-else-entirely"
+
+    with pytest.raises(PublishError, match="another publish overwrote it"):
+        publish.verify_manifest(store, manifest, result)
+
+
+def test_a_store_that_returns_no_etag_cannot_confirm_the_manifest(run_root,
+                                                                 india):
+    write_run(run_root, "20261112T00Z", india)
+    uploads, core = publish.build_payload("20261112T00Z")
+    manifest = publish.manifest_upload(core, uploads, {"deleted": []}, None)
+    store = FakeStore()
+    store.put_many([manifest])
+
+    with pytest.raises(PublishError, match="no ETag"):
+        publish.verify_manifest(store, manifest, {"etag": None})
 
 
 # ------------------------------------------------------------------ retention
@@ -339,6 +527,42 @@ def test_retention_deletes_nothing_when_there_are_few_runs():
                           "20261112T00Z")
     assert plan["deleted"] == []
     assert plan["deleted_runs"] == []
+
+
+def test_retention_takes_a_dropped_runs_marker_with_it():
+    old = [f"202611{day:02d}T00Z" for day in range(1, 12)]     # 01 to 11
+    listing = listing_for(
+        old, extra=[publish.marker_name(run) for run in old])
+
+    plan = retention_plan(listing, "20261112T00Z")
+
+    dropped = set(plan["deleted_runs"])
+    assert dropped == {"20261104T00Z", "20261103T00Z",
+                       "20261102T00Z", "20261101T00Z"}
+    deleted = {d["pathname"] for d in plan["deleted"]}
+    for run in dropped:
+        assert publish.marker_name(run) in deleted
+        assert f"runs/{run}/days.json" in deleted
+    for run in plan["kept"]:
+        assert publish.marker_name(run) not in deleted
+    # The marker of the run being published does not exist yet, so retention
+    # cannot name it, let alone delete it.
+    assert publish.marker_name("20261112T00Z") not in deleted
+    for entry in plan["deleted"]:
+        assert entry["run_id"] in dropped
+
+
+def test_retention_never_deletes_the_current_runs_marker():
+    runs = [f"202611{day:02d}T00Z" for day in range(4, 13)]    # 04 to 12
+    current = "20261104T00Z"                                   # the ninth
+    listing = listing_for(
+        runs, extra=[publish.marker_name(run) for run in runs])
+
+    plan = retention_plan(listing, current)
+
+    deleted = {d["pathname"] for d in plan["deleted"]}
+    assert publish.marker_name(current) not in deleted
+    assert f"runs/{current}/days.json" not in deleted
 
 
 # ------------------------------------------------------------------ the bytes
