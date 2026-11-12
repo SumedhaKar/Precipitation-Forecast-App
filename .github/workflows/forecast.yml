@@ -7,12 +7,18 @@
 name: forecast
 
 on:
-  schedule:
-    # Twelve attempts, 06:17 to 11:47 UTC, which is 11:47 to 17:17 IST.
-    # ECMWF documents the 00 UTC deterministic AIFS at 05:45 UTC and our own
-    # first live run found 20261112T00Z complete at about 07:06 UTC. Minutes
-    # 17 and 47 because scheduled jobs are delayed most at the top of an hour.
-    - cron: '17,47 6-11 * * *'
+  # The schedule is commented out on purpose, from 12 November 2026, until the
+  # first manual publish and HC7 have both passed. A cron that fires before
+  # anyone has watched this job work would only produce red runs, and a red
+  # run a day is how a real failure gets ignored. Restore it by deleting the
+  # two comment markers below; nothing else changes.
+  #
+  # schedule:
+  #   # Twelve attempts, 06:17 to 11:47 UTC, which is 11:47 to 17:17 IST.
+  #   # ECMWF documents the 00 UTC deterministic AIFS at 05:45 UTC and our own
+  #   # first live run found 20261112T00Z complete at about 07:06 UTC. Minutes
+  #   # 17 and 47 because scheduled jobs are delayed most at the top of an hour.
+  #   - cron: '17,47 6-11 * * *'
   workflow_dispatch:
 
 concurrency:

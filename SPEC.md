@@ -2112,16 +2112,25 @@ anyway.
 Step 8 runs whether or not step 7 built anything: with nothing new on the
 disk it prints "nothing to publish" and exits 0.
 
-**The schedule is live from the moment this file is on `main`.** Until the
-secret of 8.9 exists, every scheduled attempt fails at step 6 with a missing
-token, which costs one runner minute, downloads nothing and publishes
-nothing. That is the right failure: the alternative, skipping quietly when
-the secret is absent, would make a store that had stopped answering look the
-same as a store nobody had set up yet.
+**The schedule is commented out**, since 12 November 2026, and the job runs
+only when it is started by hand. It is restored by deleting two comment
+markers in `forecast.yml`, once the first manual publish and HC7 have both
+passed.
+
+The reason is not the cron itself but what a cron does before anyone has
+watched the job work. A schedule becomes live the moment the file is on
+`main`, and until the secret of 8.9 exists every attempt fails at step 6 with
+a missing token: one runner minute, nothing downloaded, nothing published.
+The failure is correct, and the alternative of skipping quietly when the
+secret is absent would make a store that had stopped answering look the same
+as a store nobody had set up yet. What it is not is **informative**, and a
+job that goes red every day at the same time is how a real failure comes to
+be ignored. So the schedule waits until there is a successful publish to
+compare a failure against.
 
 | Setting | Value | Why |
 |---|---|---|
-| Triggers | `schedule` and `workflow_dispatch` | the dispatch is for the first publish and after a failure |
+| Triggers | `workflow_dispatch` now, `schedule` commented out until the first manual publish and HC7 both pass | the dispatch is for the first publish and after a failure |
 | Concurrency | group `live`, `cancel-in-progress: false` | two overlapping publishes could interleave uploads; a queued second attempt simply finds nothing new |
 | Permissions | `contents: read` | the workflow writes nothing back to the repository |
 | Timeout | 30 minutes | the first real run took 2 min 26 s |
