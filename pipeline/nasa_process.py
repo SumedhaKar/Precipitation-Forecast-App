@@ -35,29 +35,30 @@ from . import config as cfg
 from .nasa_download import existing_file, imerg_dir
 
 # ----------------------------------------------------------------- numbers
-# These live here rather than in pipeline/config.py only because Pile A was
-# running when this module was written and config.py must not be touched
-# while a run imports it (SPEC 3.7). They belong in config.py and move there
-# the next time Pile A is stopped.
+# The numbers themselves live in pipeline/config.py (SPEC 3.7), where they
+# moved on 12 November 2026 once Pile A had stopped importing it. The names
+# stay here as aliases, because the hand checks and the tests import them
+# from this module and those files are evidence: rewriting them to prove a
+# constant moved would be the wrong trade.
 
-PIXEL = 0.1                     # IMERG grid spacing, degrees
-N_PIX_LON = 3600
-N_PIX_LAT = 1800
-FILL_VALUE = -9999.9            # IMERG precipitation _FillValue
-FILL_TOLERANCE = 0.01           # the value is stored as float32
-COMPLETE_CNT = 48               # all 48 half-hourly fields contributed
-MIN_COMPLETE_FRACTION = 0.90    # SPEC 3.4; exactly 0.90 passes
-FRACTION_EPSILON = 1e-12        # guards the >= 0.90 test against float dust
+PIXEL = cfg.IMERG_PIXEL
+N_PIX_LON = cfg.IMERG_N_PIX_LON
+N_PIX_LAT = cfg.IMERG_N_PIX_LAT
+FILL_VALUE = cfg.IMERG_FILL_VALUE
+FILL_TOLERANCE = cfg.IMERG_FILL_TOLERANCE
+COMPLETE_CNT = cfg.IMERG_COMPLETE_CNT
+MIN_COMPLETE_FRACTION = cfg.IMERG_MIN_COMPLETE_FRACTION
+FRACTION_EPSILON = cfg.IMERG_FRACTION_EPSILON
 
-COORD_TOLERANCE = 1e-4          # lon is stored as float32
-AREA_TOLERANCE = 1e-9           # relative, for the weights-sum-to-area check
+COORD_TOLERANCE = cfg.IMERG_COORD_TOLERANCE
+AREA_TOLERANCE = cfg.IMERG_AREA_TOLERANCE
 
-REQUIRED_FILE_VERSION = "V07C"
-REQUIRED_DOI = "10.5067/GPM/IMERGDL/DAY/07"
-TITLE_MUST_CONTAIN = ("Late", "1 day", "0.1 degree")
-EXPECT_UNITS = "mm/day"
+REQUIRED_FILE_VERSION = cfg.IMERG_REQUIRED_FILE_VERSION
+REQUIRED_DOI = cfg.IMERG_REQUIRED_DOI
+TITLE_MUST_CONTAIN = cfg.IMERG_TITLE_MUST_CONTAIN
+EXPECT_UNITS = cfg.IMERG_EXPECT_UNITS
 
-N_LEAD_DAYS = len(cfg.STEPS) - 1    # 6 steps give 5 daily totals
+N_LEAD_DAYS = cfg.N_LEAD_DAYS
 
 NASA_DIR = cfg.INDIA_NASA
 

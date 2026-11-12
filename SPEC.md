@@ -809,7 +809,8 @@ This limitation is published on the site alongside the track record.
 
 `pipeline/nasa_process.py`. One IMERG file is one date. Written and run on
 12 November 2026 while Pile A was still downloading, so `pipeline/config.py`
-was not touched; see "Where the numbers live" below.
+was not touched until Pile A finished later the same day; see "Where the
+numbers live" below.
 
 ```
 python -m pipeline.nasa_process --all        process every Pile B date
@@ -937,10 +938,31 @@ GRIB only.
 
 #### Where the numbers live
 
-The IMERG constants (0.1 degree, 3600 by 1800, the fill value, 48, 0.90) are
-in `pipeline/nasa_process.py` rather than in `pipeline/config.py`, because
-Pile A was running and imports `config.py`. They belong in `config.py` and
-move there the next time Pile A is stopped.
+The IMERG constants (0.1 degree, 3600 by 1800, the fill value, 48, 0.90)
+were in `pipeline/nasa_process.py` while Pile A was running, because Pile A
+imports `config.py` and a running download must not have the module under it
+edited. **Pile A finished on 12 November 2026, and they moved to
+`config.py`** the same day, with an `IMERG_` prefix:
+
+| In `config.py` | Value |
+|---|---|
+| `IMERG_PIXEL` | 0.1 degrees |
+| `IMERG_N_PIX_LON`, `IMERG_N_PIX_LAT` | 3600, 1800 |
+| `IMERG_FILL_VALUE`, `IMERG_FILL_TOLERANCE` | -9999.9, 0.01 |
+| `IMERG_COMPLETE_CNT` | 48 |
+| `IMERG_MIN_COMPLETE_FRACTION`, `IMERG_FRACTION_EPSILON` | 0.90, 1e-12 |
+| `IMERG_COORD_TOLERANCE`, `IMERG_AREA_TOLERANCE` | 1e-4, 1e-9 |
+| `IMERG_REQUIRED_FILE_VERSION`, `IMERG_REQUIRED_DOI` | `V07C`, `10.5067/GPM/IMERGDL/DAY/07` |
+| `IMERG_TITLE_MUST_CONTAIN`, `IMERG_EXPECT_UNITS` | `("Late", "1 day", "0.1 degree")`, `mm/day` |
+| `N_LEAD_DAYS` | `N_DAYS`, which is 5 |
+
+`nasa_process.py` keeps the short names as **aliases** of those
+(`PIXEL = cfg.IMERG_PIXEL`, and so on). The value exists in one place; the
+name stays where the callers already look for it. That is deliberate: the
+hand checks in `handchecks/` import `FILL_VALUE`, `COMPLETE_CNT` and
+`MIN_COMPLETE_FRACTION` from this module, and those files are evidence of
+what was checked and when. Rewriting evidence to prove that a constant had
+moved would be the wrong trade.
 
 #### What the first full run found
 
@@ -2444,21 +2466,28 @@ so which forecast is on screen is never ambiguous.
 
 ### 8.12 Where the numbers live
 
-In `pipeline/publish.py`, not `config.py`, for the same reason as section
-3.7: `config.py` is imported by Pile A, which is still running, and it is not
-being touched until it stops.
+**In `config.py`, since 12 November 2026.** They were in
+`pipeline/publish.py` while Pile A was running, for the reason given in 3.7,
+and moved to `config.py` the same day Pile A finished. `publish.py` keeps the
+short names as aliases, so the tests and the module itself are unchanged.
 
-| Name | Value |
-|---|---|
-| `KEEP_RUNS` | 8 |
-| `MANIFEST_MAX_AGE` | 60 s |
-| `RUN_FILE_MAX_AGE` | 2,592,000 s |
-| `TILE_DEGREES` | 4.0 |
-| `NOT_INDIA` | 255 |
-| `MEMBER_STEP` | 0.0625 mm |
-| `MANIFEST` | `manifest.json` |
-| `MARKERS` | `published/` |
-| `RUNS` | `runs/` |
+| In `config.py` | Alias in `publish.py` | Value |
+|---|---|---|
+| `KEEP_RUNS` | `KEEP_RUNS` | 8 |
+| `MANIFEST_MAX_AGE` | `MANIFEST_MAX_AGE` | 60 s |
+| `RUN_FILE_MAX_AGE` | `RUN_FILE_MAX_AGE` | 2,592,000 s |
+| `TILE_DEGREES` | `TILE_DEGREES` | 4.0 |
+| `NOT_INDIA` | `NOT_INDIA` | 255 |
+| `MEMBER_STEP` | `MEMBER_STEP` | 0.0625 mm |
+| `MEMBER_MAX_CODE` | `MEMBER_MAX_CODE` | 65,535 |
+| `STEPS_PER_MM` | `STEPS_PER_MM` | 16 |
+| `MANIFEST_NAME` | `MANIFEST` | `manifest.json` |
+| `MARKERS_PREFIX` | `MARKERS` | `published/` |
+| `RUNS_PREFIX` | `RUNS` | `runs/` |
+| `PUBLISH_DIR` | `PUBLISH` | `data/publish` |
+
+`NODE_SCRIPT` stays in `publish.py`: it is the path of the uploader that
+module runs, and nothing else has any business with it.
 
 ### 8.13 Tests
 

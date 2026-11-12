@@ -85,14 +85,58 @@ MIN_FREE_GB = 15             # SPEC 2.6, stop cleanly below this
 # ----------------------------------------- negative differences, SPEC 3.6
 # The tolerance is not a fixed number. It is derived from the packing quantum
 # of the date being processed, because ECMWF dropped storage precision from
-# 16 to 12 bits around 20 October 2026 and a fixed -0.1 mm is finer than the
-# new quantum. Differencing two values each quantised with step q can produce
-# a spurious negative of up to about q, so twice q is a safe floor.
+# 16 to 12 bits on 21 October 2026 (SPEC 2.1, measured) and a fixed -0.1 mm
+# is finer than the new quantum. Differencing two values each quantised with
+# step q can produce a spurious negative of up to about q, so twice q is a
+# safe floor.
 QUANTUM_TOLERANCE_FACTOR = 2.0
 
 # Above this quantum a file is not trusted at all: rounding that coarse is too
 # rough for the 1 mm threshold. Such a date fails; a live run stops.
 MAX_TRUSTED_QUANTUM = 0.5
+
+
+# ------------------------------------------------------- IMERG, SPEC 3.7
+# Moved here from pipeline/nasa_process.py on 12 November 2026, once Pile A
+# had finished and config.py was safe to touch again. nasa_process.py still
+# carries the names, as aliases of these, so every caller and hand check
+# reads the same numbers without being rewritten.
+
+IMERG_PIXEL = 0.1                   # IMERG grid spacing, degrees
+IMERG_N_PIX_LON = 3600
+IMERG_N_PIX_LAT = 1800
+IMERG_FILL_VALUE = -9999.9          # IMERG precipitation _FillValue
+IMERG_FILL_TOLERANCE = 0.01         # the value is stored as float32
+IMERG_COMPLETE_CNT = 48             # all 48 half-hourly fields contributed
+IMERG_MIN_COMPLETE_FRACTION = 0.90  # SPEC 3.4; exactly 0.90 passes
+IMERG_FRACTION_EPSILON = 1e-12      # guards the >= 0.90 test against float dust
+IMERG_COORD_TOLERANCE = 1e-4        # lon is stored as float32
+IMERG_AREA_TOLERANCE = 1e-9         # relative, for the weights-sum-to-area check
+
+IMERG_REQUIRED_FILE_VERSION = "V07C"
+IMERG_REQUIRED_DOI = "10.5067/GPM/IMERGDL/DAY/07"
+IMERG_TITLE_MUST_CONTAIN = ("Late", "1 day", "0.1 degree")
+IMERG_EXPECT_UNITS = "mm/day"
+
+N_LEAD_DAYS = N_DAYS                # 6 steps give 5 daily totals
+
+# -------------------------------------------------- publishing, SPEC 8.12
+# Moved here from pipeline/publish.py on 12 November 2026, for the same
+# reason and in the same way: publish.py keeps the names as aliases.
+
+KEEP_RUNS = 8                       # SPEC 8.7
+MANIFEST_MAX_AGE = 60               # SPEC 8.4, the documented minimum
+RUN_FILE_MAX_AGE = 2_592_000        # SPEC 8.4, one month
+TILE_DEGREES = 4.0                  # SPEC 8.4
+NOT_INDIA = 255                     # SPEC 8.4
+MEMBER_STEP = 0.0625                # SPEC 8.4, mm per stored integer
+MEMBER_MAX_CODE = 65_535            # what an unsigned 16-bit value holds
+STEPS_PER_MM = 16                   # 1 mm / MEMBER_STEP, exactly
+
+MANIFEST_NAME = "manifest.json"     # the one blob that is ever rewritten
+MARKERS_PREFIX = "published/"       # SPEC 8.5, one immutable marker a run
+RUNS_PREFIX = "runs/"
+PUBLISH_DIR = DATA / "publish"
 
 
 def tolerance_for(coarsest_quantum: float) -> float:
@@ -127,9 +171,11 @@ def india_cols_for(first_lon: float) -> slice:
     """Columns covering India, given the file's own first longitude.
 
     Column k holds longitude (first_lon + 0.25 * k) modulo 360. ECMWF used a
-    first longitude of 0 until about 20 October 2026 and 180 afterwards, so
-    this offset is computed per file and never assumed. India at 68-98 E is
-    contiguous under both conventions, which is checked rather than trusted.
+    first longitude of 0 on 13 May 2026 and 180 from 14 May 2026 onward, the
+    only two conventions the archive contains (SPEC 2.1, measured over all
+    177 dates), so this offset is computed per file and never assumed. India
+    at 68-98 E is contiguous under both, which is checked rather than
+    trusted.
     """
     start = ((LON_MIN - first_lon) % 360.0) / GRID_STEP
     if abs(start - round(start)) > 1e-6:

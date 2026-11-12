@@ -57,21 +57,22 @@ from .run_live import (
 
 # ------------------------------------------------------------------ numbers
 
-# SPEC 8.12. These live here and not in config.py because config.py is
-# imported by Pile A, which is still running and is not being touched.
-KEEP_RUNS = 8                    # SPEC 8.7
-MANIFEST_MAX_AGE = 60            # SPEC 8.4, the documented minimum
-RUN_FILE_MAX_AGE = 2_592_000     # SPEC 8.4, one month
-TILE_DEGREES = 4.0               # SPEC 8.4
-NOT_INDIA = 255                  # SPEC 8.4
-MEMBER_STEP = 0.0625             # SPEC 8.4, mm per stored integer
-MEMBER_MAX_CODE = 65_535         # what an unsigned 16-bit value holds
-STEPS_PER_MM = 16                # 1 mm / MEMBER_STEP, exactly
+# SPEC 8.12. The numbers live in config.py, where they moved on 12 November
+# 2026 once Pile A had stopped importing it. The names stay here as aliases,
+# so the tests and the rest of this module read them unchanged.
+KEEP_RUNS = cfg.KEEP_RUNS
+MANIFEST_MAX_AGE = cfg.MANIFEST_MAX_AGE
+RUN_FILE_MAX_AGE = cfg.RUN_FILE_MAX_AGE
+TILE_DEGREES = cfg.TILE_DEGREES
+NOT_INDIA = cfg.NOT_INDIA
+MEMBER_STEP = cfg.MEMBER_STEP
+MEMBER_MAX_CODE = cfg.MEMBER_MAX_CODE
+STEPS_PER_MM = cfg.STEPS_PER_MM
 
-MANIFEST = "manifest.json"
-MARKERS = "published/"           # SPEC 8.5, one immutable marker a run
-RUNS = "runs/"
-PUBLISH = cfg.DATA / "publish"
+MANIFEST = cfg.MANIFEST_NAME
+MARKERS = cfg.MARKERS_PREFIX
+RUNS = cfg.RUNS_PREFIX
+PUBLISH = cfg.PUBLISH_DIR
 NODE_SCRIPT = cfg.ROOT / "scripts" / "publish" / "blob.mjs"
 
 JSON_TYPE = "application/json"
