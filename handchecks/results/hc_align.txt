@@ -1,0 +1,154 @@
+HC-ALIGN
+written 2026-11-12T12:24:19
+read-only check; nothing but this file is written
+
+========================================================================
+1. Is precipitation_cnt constant 48?
+========================================================================
+   file  3B-DAY-L.MS.MRG.3IMERG.20260722-S000000-E235959.V07C.nc4
+   shape (3600, 1800) (lon, lat), 6,480,000 pixels
+   global minimum 0, maximum 48
+
+   histogram of every value present, whole globe:
+       cnt       pixels     share
+         0           27   0.0004%
+         1           34   0.0005%
+         2           41   0.0006%
+         3           47   0.0007%
+         4          252   0.0039%
+         5          190   0.0029%
+         6          155   0.0024%
+         7           54   0.0008%
+         8          134   0.0021%
+         9          156   0.0024%
+        10          182   0.0028%
+        11          150   0.0023%
+        12          169   0.0026%
+        13          156   0.0024%
+        14          129   0.0020%
+        15          230   0.0035%
+        16          164   0.0025%
+        17          153   0.0024%
+        18          138   0.0021%
+        19          248   0.0038%
+        20          225   0.0035%
+        21          186   0.0029%
+        22          197   0.0030%
+        23          255   0.0039%
+        24          315   0.0049%
+        25          316   0.0049%
+        26          381   0.0059%
+        27          426   0.0066%
+        28          518   0.0080%
+        29          495   0.0076%
+        30          537   0.0083%
+        31          452   0.0070%
+        32          275   0.0042%
+        33          476   0.0073%
+        34          721   0.0111%
+        35          878   0.0135%
+        36          517   0.0080%
+        37          457   0.0071%
+        38          332   0.0051%
+        39          204   0.0031%
+        40          410   0.0063%
+        41          602   0.0093%
+        42          390   0.0060%
+        43          443   0.0068%
+        44          269   0.0042%
+        45          164   0.0025%
+        46          110   0.0017%
+        47          357   0.0055%
+        48    6,466,283  99.7883%
+
+   values below 48: 13,717 pixels (0.2117% of the globe)
+   distinct values present: 49
+   So the variable is not constant. It is 48 over India on every
+   day in the archive, which is a fact about India's coverage, not
+   about the variable (SPEC 3.7).
+
+========================================================================
+2. Is the pairing right? Spatial correlation over India squares
+========================================================================
+   Forecast side: lead day 1 ensemble mean, steps 24 to 48.
+   Observed side: IMERG for imerg_date_for(R, 1) = R + 1.
+   Correlation is Pearson's r across India squares within one date,
+   then averaged over dates. Shifts move the IMERG map, so
+   'one cell north' compares our square with the IMERG square
+   0.25 degrees to its south.
+
+   dates used: 65  (20260515 to 20261105)
+   India squares per date: 4,613
+
+   pairing                          mean r    min r    max r  dates
+   correct pairing                  0.5863   0.2761   0.8384     65
+   IMERG one day earlier            0.4967   0.1241   0.8134     65
+   IMERG one day later              0.4092   0.0602   0.7643     65
+   IMERG one cell north             0.5865   0.2909   0.8345     65
+   IMERG one cell south             0.5666   0.2286   0.8323     65
+   IMERG one cell east              0.5831   0.2784   0.8439     65
+   IMERG one cell west              0.5675   0.2487   0.8180     65
+   IMERG flipped north-south        0.1366  -0.1466   0.6169     65
+
+   highest average: IMERG one cell north at r = 0.5865
+   next best:       correct pairing at r = 0.5863
+   margin:          0.0002
+   FAIL by the rule as written: a wrong pairing beat the
+   correct one. Two diagnostics below say what kind of failure
+   this is before anyone acts on it.
+
+   DIAGNOSTIC A: paired per-date comparison against the winner
+     correct vs IMERG one cell north:
+       correct higher on 33 of 65 dates
+       mean difference -0.00017, standard deviation 0.02194
+       standard error of the mean 0.00272
+     correct vs IMERG one cell east:
+       correct higher on 35 of 65 dates
+       mean difference +0.00321, standard deviation 0.02731
+       standard error of the mean 0.00339
+
+   DIAGNOSTIC B: the same correlation at two cells out
+   If a one-cell shift were a real misalignment, two cells in that
+   direction would not fall away sharply.
+     shift                    mean r  vs correct
+     none (correct)           0.5863     +0.0000
+     1 cell(s) north          0.5865     +0.0002
+     1 cell(s) south          0.5666     -0.0197
+     1 cell(s) east           0.5831     -0.0032
+     1 cell(s) west           0.5675     -0.0188
+     2 cell(s) north          0.5678     -0.0185
+     2 cell(s) south          0.5343     -0.0521
+     2 cell(s) east           0.5650     -0.0213
+     2 cell(s) west           0.5328     -0.0536
+
+========================================================================
+3. One square, one run, both sides
+========================================================================
+   run            20260720  (nearest done date to 20260721, which is not done; 1 day(s) earlier)
+   square         20.25 N, 72.75 E  (India square: True)
+
+   LEAD DAY 1, as asked
+     steps                 24 to 48
+     IMERG date            20260721
+     ensemble mean mm      49.3818
+     ensemble max mm       118.4766
+     ensemble min mm       12.2148
+     members >= 50 mm      20 of 51
+     members >= 10 mm      51 of 51
+     members >= 1 mm       51 of 51
+     IMERG mm              151.4103
+
+   LEAD DAY 2, added because this is the day the 406 mm fell
+     steps                 48 to 72
+     IMERG date            20260722
+     ensemble mean mm      86.7057
+     ensemble max mm       233.7891
+     ensemble min mm       17.1172
+     members >= 50 mm      38 of 51
+     members >= 10 mm      51 of 51
+     members >= 1 mm       51 of 51
+     IMERG mm              406.0926
+
+========================================================================
+HC-ALIGN FAILED
+========================================================================
