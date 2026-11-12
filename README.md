@@ -3,7 +3,22 @@
 India precipitation forecast from the ECMWF AIFS ENS 51-member ensemble,
 verified against NASA IMERG satellite estimates, with a published track record.
 
+**Live: <https://precipitation-forecast-app.vercel.app>**
+
+How many of 51 model runs give 1 mm, 10 mm and 50 mm of rain over the next
+five days, for one 0.25 degree square of India. Model-run counts, not
+probabilities, and not an official warning. The forecast is published once a
+day by `.github/workflows/forecast.yml` from the 00 UTC run.
+
+| | |
+|---|---|
+| the page | <https://precipitation-forecast-app.vercel.app> |
+| what is published now | <https://precipitation-forecast-app.vercel.app/api/health> |
+| one square | `/api/place?lat=28.5&lon=77.25` |
+
 See `SPEC.md` for what the project does and `CLAUDE.md` for the working rules.
+Section 11 of `SPEC.md` covers the page and the two functions; section 8
+covers publishing.
 
 ---
 

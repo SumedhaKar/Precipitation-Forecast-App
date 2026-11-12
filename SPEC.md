@@ -2451,6 +2451,17 @@ The fifth was settled by the first publish itself, 12 November 2026:
 
 Nothing in section 8 is open.
 
+#### G2 as it went live, 12 November 2026
+
+| Checked against the published store | Result |
+|---|---|
+| `/api/health` | `20261112T00Z`, 4,613 India squares, 51 members, the five labels, `stale: false` at 10.6 hours |
+| `/api/place` for Delhi, Mumbai and the HC6 wettest square | every count, every dot and all 51 member values of all five days identical to the squares' own records in `tiles/28N_76E.json`, `tiles/16N_72E.json` and `tiles/32N_72E.json`. **0 mismatches** |
+| Mumbai | moved from 19.00 N 73.00 E to 19.25 N 73.00 E, one square, and said so |
+| 10 N 70 E, the Arabian Sea | 404, "outside the forecast area" |
+| the page | the live JavaScript bundle is **byte for byte** the local build, 228,423 bytes, and holds no store URL |
+| the function region | `X-Vercel-Id: bom1::...`, which is Mumbai |
+
 ## 11. Display rules, the website pages and the `api/` functions
 
 This section is drafted in two parts. **This draft is part one, G2 only:** a
@@ -2616,7 +2627,7 @@ So the functions are **Node, `.mjs`, with no dependencies at all**:
 | Files | `api/health.mjs`, `api/place.mjs` | the fixed structure names `health` and `place`. `.mjs` because Vercel compiles ES module syntax in `.js` to CommonJS unless the nearest `package.json` says `"type": "module"`, and there is no `package.json` at the root |
 | Signature | `export default { fetch(request) { … } }` | the Web standard export. It takes a `Request` and returns a `Response`, which means **plain `node` can import the file and call it**, with no Vercel runtime and no emulator. That is what makes `tests/test_api_consistency.py` possible offline (11.8) |
 | Dependencies | none | `fetch`, `URL` and `Response` are global in Node 18 and later. No `package.json`, no lockfile, no install step, nothing to keep pinned |
-| Node version | whatever the project is set to | 26.x is the current default, with 24.x and 22.x available. The functions use only built-ins, so any of the three works. Set **24.x** in Project Settings so the site and the publisher of 8.2 run the same major version |
+| Node version | **26.x**, the default Vercel chose | 26.x is the current default, with 24.x and 22.x available. The functions use only built-ins — `fetch`, `URL`, `Response` and `node:fs` — so any of the three works, and the default is one fewer setting to remember. It is deliberately **not** matched to the publisher's Node 24.22.3 (8.2): nothing is shared between them but JSON over HTTPS |
 | Two functions, not one | kept | Vercel's own advice is to put related routes in one function so Fluid can reuse instances. The fixed structure names two, and `health` answering while `place` is broken is the whole point of a health endpoint. Two functions of about fifty lines each is not the case that advice is about |
 
 ### 11.4 How the page gets its numbers
@@ -2896,8 +2907,8 @@ Open:
 |---|---|---|
 | 1 | ~~the stale-cache problem of 11.1~~ | **fixed on 12 November 2026, before any section 11 code.** What is published is now decided from `list` and an immutable marker, and the mutable manifest is confirmed by ETag rather than by bytes. See 8.5, 8.6 and 8.10 |
 | 2 | ~~adding `config/store.json` to the fixed structure~~ | approved |
-| 3 | whether the repository is already connected to a Vercel project | the Blob store exists and the token is set, but a connected Git project is a separate step, and G2 cannot deploy without it. The Blob store must **not** be connected to that project (8.9) |
-| 4 | the Node version in Project Settings | 24.x recommended, to match the publisher of 8.2. Harmless either way, since the functions use only built-ins |
+| 3 | ~~whether the repository is connected to a Vercel project~~ | **imported and live, 12 November 2026**, at `https://precipitation-forecast-app.vercel.app`, functions in `bom1`, with the Blob store deliberately not connected to it (8.9) |
+| 4 | ~~the Node version in Project Settings~~ | **26.x**, Vercel's default, kept (11.3) |
 
 ---
 

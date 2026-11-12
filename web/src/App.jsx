@@ -352,9 +352,10 @@ export default function App() {
           <CountsTable place={place} />
           <p className="small">
             <strong>0 mm means under 1 mm.</strong> These are model-run counts,
-            not probabilities: 40 of 51 does not mean a 78% chance. A
-            percentage would claim a reliability this forecast has not earned
-            yet, and it will only appear next to a published track record.
+            not probabilities: a count of 40 out of 51 is not a chance of
+            rain. A percentage would claim a reliability this forecast has not
+            earned yet, and one will only appear beside a published track
+            record.
           </p>
           <Members place={place} />
         </>
