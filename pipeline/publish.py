@@ -593,7 +593,7 @@ def read_remote_manifest(store: Store) -> tuple[dict | None, str]:
         raise PublishError(
             f"the store's manifest.json has run_id {run_id!r}, which is not "
             f"a run id: {exc}") from exc
-    return manifest, f"the store currently publishes {run_id}"
+    return manifest, f"the store currently publishes {run_id} at {url}"
 
 
 def retention_plan(listing: list[dict], current: str,
@@ -704,6 +704,10 @@ def publish(store: Store, run_id: str | None = None,
     results.update({r["pathname"]: r["url"]
                     for r in store.put_many([manifest])})
     log(f"{run_id}: manifest written last; the site now shows this run")
+    # The public address of the manifest, logged because the store id is
+    # nowhere in the repository (SPEC 8.14) and the site and HC7 both need
+    # it. It is a read-only public URL and not a credential.
+    log(f"manifest URL: {results[MANIFEST]}")
 
     for entry in plan["deleted"]:
         log(f"retention: deleting {entry['pathname']} "
