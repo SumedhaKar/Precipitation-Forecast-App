@@ -2309,6 +2309,14 @@ has never been served before (8.5).
 A store that returns no `ETag` at all is a failure: there would then be
 nothing left to confirm the write with except a cached body.
 
+`@vercel/blob` 2.9.0 declares `etag: string`, required, on both
+`PutBlobResult` and `ListBlobResultBlob`, and the compiled SDK copies both
+straight out of the API response, so the two are in the same format by
+construction. The comparison **normalises anyway**: surrounding quotes and a
+`W/` weak prefix are stripped from each side first, because the same value
+appears quoted in an HTTP `ETag` header and a daily publish should not go red
+over a pair of quotation marks.
+
 ### 8.11 What the website reads
 
 The whole contract, in three requests:

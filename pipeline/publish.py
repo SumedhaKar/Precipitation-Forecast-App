@@ -643,6 +643,25 @@ def adoption_marker(published: dict) -> Upload:
 
 # ------------------------------------------------------------------ the store side
 
+def etag_key(value: str | None) -> str | None:
+    """An ETag, compared without caring how it is quoted.
+
+    `@vercel/blob` 2.9.0 declares `etag: string` on both `PutBlobResult` and
+    `ListBlobResultBlob`, and the compiled SDK copies both straight out of
+    the API response (`etag: response.etag` for a put, `etag: result.etag`
+    for a list), so the two are in the same format by construction. An HTTP
+    `ETag` header, which is where the same value shows up in a browser, is
+    quoted and may carry a weak prefix. Normalising costs two lines and
+    means the publish cannot go red over a pair of quotation marks.
+    """
+    if not value:
+        return None
+    text = value.strip()
+    if text.startswith("W/"):
+        text = text[2:]
+    return text.strip('"')
+
+
 def marker_name(run_id: str) -> str:
     return f"{MARKERS}{run_id}.json"
 
@@ -844,7 +863,7 @@ def verify_manifest(store: Store, manifest: Upload,
         raise PublishError(
             "the store returned no ETag for manifest.json, so there is no "
             "way to confirm the write without trusting a cached body")
-    if put_etag != list_etag:
+    if etag_key(put_etag) != etag_key(list_etag):
         raise PublishError(
             f"manifest.json was written with ETag {put_etag} but the store "
             f"now holds {list_etag}: another publish overwrote it")

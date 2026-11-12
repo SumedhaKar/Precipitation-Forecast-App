@@ -466,6 +466,38 @@ def test_a_manifest_overwritten_by_someone_else_is_a_failure(run_root, india):
         publish.verify_manifest(store, manifest, result)
 
 
+@pytest.mark.parametrize("put_etag, list_etag, agree", [
+    ("abc123", "abc123", True),
+    ('"abc123"', "abc123", True),            # quoted one side only
+    ("abc123", '"abc123"', True),
+    ('W/"abc123"', '"abc123"', True),        # a weak ETag
+    (' "abc123" ', "abc123", True),
+    ("abc123", "def456", False),
+    ('"abc123"', '"def456"', False),
+])
+def test_etags_are_compared_without_caring_about_quoting(put_etag, list_etag,
+                                                         agree):
+    assert (publish.etag_key(put_etag) == publish.etag_key(list_etag)) is agree
+
+
+def test_a_quoted_etag_from_one_call_and_a_bare_one_from_the_other_agree(
+        run_root, india):
+    """The SDK copies both out of the same API field, but a publish must not
+    go red if one of them ever arrives quoted."""
+    write_run(run_root, "20261112T00Z", india)
+    uploads, core = publish.build_payload("20261112T00Z")
+    manifest = publish.manifest_upload(core, uploads, {"deleted": []}, None)
+    store = FakeStore()
+    result = store.put_many([manifest])[0]
+    bare = result["etag"]
+    store.stale_etag[MANIFEST] = f'"{bare}"'       # list answers quoted
+
+    check = publish.verify_manifest(store, manifest, result)
+
+    assert check["etags_agree"] is True
+    assert check["edge_stale"] is False
+
+
 def test_a_store_that_returns_no_etag_cannot_confirm_the_manifest(run_root,
                                                                  india):
     write_run(run_root, "20261112T00Z", india)
