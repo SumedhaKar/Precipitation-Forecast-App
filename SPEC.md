@@ -2327,6 +2327,398 @@ The fifth was settled by the first publish itself, 12 November 2026:
 
 Nothing in section 8 is open.
 
+## 11. Display rules, the website pages and the `api/` functions
+
+This section is drafted in two parts. **This draft is part one, G2 only:** a
+plain page, live on Vercel, showing one square's counts honestly. The map is
+G3 and extends this section rather than replacing it; nothing here is written
+in a way the map would have to undo.
+
+G2 is finished when the page is reachable on its Vercel URL, shows the run id
+and the five day labels from the published manifest, lets someone pick a
+place and see the three counts out of 51 and the 51 member values for each of
+the five days, and carries the three sentences of 11.9 and the credits. The
+target is **7 pm IST on 12 November 2026**.
+
+| In G2 | Out of G2, and where it goes |
+|---|---|
+| the published run id, its model run time in IST, and when it was published | — |
+| the five lead-day labels | — |
+| a short city list plus a latitude and longitude box | the map, G3 |
+| the three counts out of 51 a day for one square | — |
+| the 51 member values as whole millimetres, rounded down | — |
+| a stale banner when the run is older than 36 hours | — |
+| "model-run counts, not probabilities", "0 mm means under 1 mm", "not an official warning" | — |
+| credits and licences | `CREDITS.md`, written in the same step (2.1) |
+| `api/health` and `api/place` | — |
+| a map of India coloured by count | G3, reading the counts files of 8.4 |
+| the track record, report card and reliability diagrams | sections 5, 6 and 12 |
+| any percentage | section 6: only with a "Good track record" label |
+
+### 11.1 What was measured before deciding anything
+
+Every row was run from this laptop against the real store on 12 November
+2026, after the first publish, with no token. The commands were plain `curl`
+against the public URLs of run `20261112T00Z`.
+
+| Measured | Result | What it decides |
+|---|---|---|
+| `Access-Control-Allow-Origin` on `manifest.json`, a tile and a counts file | `*` on all three, with `Access-Control-Allow-Headers: content-type` | a browser **may** read the store directly. No rewrite and no proxy is needed for that |
+| `OPTIONS` preflight on a tile | **405 Method Not Allowed**, though it does carry `Access-Control-Allow-Origin: *` | any request that **triggers** a preflight fails. So no custom request headers, no `Range`, no credentials from the page |
+| `Cache-Control` as served | `public, max-age=60` on the manifest, `public, max-age=2592000` on run files | the publisher's two cache ages of 8.4 arrive intact |
+| brotli | the 102,791 byte tile is 31,974 bytes on the wire with `Content-Encoding: br` | a tile is affordable to a server, still heavy for a phone on a slow link |
+| `Range: bytes=1837-1837` on `ge10mm_day1.u8` | **206**, `Content-Range: bytes 1837-1837/15609`, byte value **40** | ranges work server side, and 40 is the same number HC7 and `squares.npz` give for 34.25 N 73.5 E. Combined with the 405 above: the map may **not** read single bytes from a browser, it fetches whole counts files |
+| `Age` on the manifest | `Age: 583` with `max-age=60`, `X-Vercel-Cache: HIT` | the CDN serves the manifest well past its freshness lifetime |
+| `manifest.json?cb=<nonce>` | same `Age`, same `X-Vercel-Cache: HIT`, same `ETag` | **the query string is not part of the cache key.** Cache busting by query string does not work on this store |
+| `Cache-Control: no-cache` and `Pragma: no-cache` as request headers | same `Age`, still `HIT` | nothing a client can send forces a fresh copy |
+| `If-None-Match` with the current ETag | **304 Not Modified** | the page can poll the manifest cheaply |
+
+Two of these are uncomfortable and are written down rather than smoothed
+over.
+
+**The cache-busting in 8.6 and 8.10 does not do what it says.** Those
+paragraphs claim that `?cb=<nonce>` stops the CDN serving a stale run id.
+Measured, the query string is ignored for caching, so a manifest read can be
+minutes old, and no request header changes that. For run selection the
+practical risk is small, because runs are a day apart, but the claim is
+wrong and the read-back of 8.10 has a sharper version of the same problem:
+the **second** publish overwrites `manifest.json`, and if the edge still
+holds the previous copy then `read_back` compares a stale body against the
+bytes just sent and fails the job after a correct publish. It is listed as
+open question 1 of 11.11, with the fix named, because section 8 is approved
+and this draft does not change it.
+
+**A browser cannot ask for one byte.** The `Range` header is not on the CORS
+safe list, so a ranged `fetch` preflights, and the preflight answers 405.
+G3's map therefore fetches whole 15,609 byte counts files, which is what the
+one-month immutable cache of 8.4 was for.
+
+### 11.2 One Vercel project, `api/` at the root, `web/` in a subfolder
+
+The trap in the question is real. Setting the project's **Root Directory** to
+`web` makes Vercel treat `web/` as the whole project: it would find
+`web/package.json`, build the site, and never see `api/`, because `api/` is
+above the root. Vercel's rule is "create an `api` directory at the **root of
+your project directory**", where root means the Root Directory setting, not
+the repository.
+
+So **Root Directory stays at the repository root** and `vercel.json` does the
+rest:
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd web && npm ci",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "regions": ["bom1"],
+  "functions": {
+    "api/*.mjs": {
+      "maxDuration": 10,
+      "excludeFiles": "{data/**,handchecks/**,results/**,tests/**,pipeline/**,scripts/**,web/**,.github/**}"
+    }
+  }
+}
+```
+
+| Key | Value | Why |
+|---|---|---|
+| `framework` | `null` | `null` is documented as the way to select the "Other" preset. There is no framework at the repository root, and the site inside `web/` is built by our own command |
+| `installCommand` | `cd web && npm ci` | there is no `package.json` at the repository root, so the default install has nothing to do. `npm ci` and not `npm install`, so the deploy uses `web/package-lock.json` exactly, the same rule as `scripts/publish` in 8.10 |
+| `buildCommand` | `cd web && npm run build` | Vite writes `web/dist` |
+| `outputDirectory` | `web/dist` | overrides the default of the root directory, which would otherwise publish `SPEC.md` and the pipeline as a static site |
+| `regions` | `["bom1"]` | the store answers from `bom1` (`X-Vercel-Id: bom1::…` in every response measured in 11.1) and the readers are in India. The documented default is `iad1`, which would put Washington between the page and a Mumbai store on every request. Hobby plans may select any single region |
+| `functions` key glob | `api/*.mjs` | one level, which is all of `api/` |
+| `maxDuration` | `10` | a function that fetches a manifest and a tile and gives up. The default is longer; a request that cannot finish in ten seconds is a request to fail |
+| `memory` | **absent on purpose** | Fluid compute has been on by default for new projects since 23 April 2025, and with Fluid on, `memory` in `vercel.json` is documented as not settable. It belongs in the dashboard |
+| `excludeFiles` | the pipeline, tests, data and the site | Vercel bundles "all files reachable at build time" for a function unless told otherwise. `api/` needs nothing but itself and `config/store.json` |
+
+Checked on 12 November 2026 against `vercel.com/docs/project-configuration/vercel-json`,
+`/docs/functions/runtimes/node-js`, `/docs/functions/runtimes/node-js/node-js-versions`
+and `/docs/functions/configuring-functions/region`.
+
+The site is a Vite and React app from the start, not a hand-written HTML
+file. The fixed structure already says `web/` is React, Vite and MapLibre,
+and G3 needs exactly that; a static page now would be thrown away in a day.
+G2 simply has no map in it.
+
+### 11.3 The runtime for `api/`: Node, with no dependencies
+
+The question was how to keep the functions from installing the pipeline's
+requirements. The answer is to use a runtime that never looks at them.
+
+Vercel's Python runtime takes its dependencies from `pyproject.toml`,
+`requirements.txt` or a `Pipfile` **at the project root**. The
+`/api`-directory page for Python says nothing about a per-directory
+requirements file and points back to that same reference. Our root
+`requirements.txt` is the pipeline's:
+
+| Package | What it drags in |
+|---|---|
+| `eccodes==2.50.1` | the ecCodes C library |
+| `netCDF4`, `h5py` | HDF5 |
+| `earthaccess` | NASA authentication, and a login this laptop does by netrc |
+| `shapely`, `pyshp`, `numpy` | geometry and arrays for the mask |
+| `ecmwf-opendata` | the downloader |
+
+None of it is needed to read two JSON files over HTTPS, all of it would be
+installed on every deploy, and a function that carries an ecCodes build to
+answer `/api/health` is a function that will one day fail to build for a
+reason that has nothing to do with the website.
+
+So the functions are **Node, `.mjs`, with no dependencies at all**:
+
+| Decision | Value | Why |
+|---|---|---|
+| Files | `api/health.mjs`, `api/place.mjs` | the fixed structure names `health` and `place`. `.mjs` because Vercel compiles ES module syntax in `.js` to CommonJS unless the nearest `package.json` says `"type": "module"`, and there is no `package.json` at the root |
+| Signature | `export default { fetch(request) { … } }` | the Web standard export. It takes a `Request` and returns a `Response`, which means **plain `node` can import the file and call it**, with no Vercel runtime and no emulator. That is what makes `tests/test_api_consistency.py` possible offline (11.8) |
+| Dependencies | none | `fetch`, `URL` and `Response` are global in Node 18 and later. No `package.json`, no lockfile, no install step, nothing to keep pinned |
+| Node version | whatever the project is set to | 26.x is the current default, with 24.x and 22.x available. The functions use only built-ins, so any of the three works. Set **24.x** in Project Settings so the site and the publisher of 8.2 run the same major version |
+| Two functions, not one | kept | Vercel's own advice is to put related routes in one function so Fluid can reuse instances. The fixed structure names two, and `health` answering while `place` is broken is the whole point of a health endpoint. Two functions of about fifty lines each is not the case that advice is about |
+
+### 11.4 How the page gets its numbers
+
+The store's CORS is open, so the page *could* fetch the manifest and the
+tiles itself. For G2 it does not.
+
+| | Decision |
+|---|---|
+| The page talks to | `api/health` and `api/place` on its own origin, and nothing else |
+| The functions talk to | the store's public URLs, with no token |
+| G3's map will talk to | the store directly, fetching whole counts files, which is what 11.1 measured the CORS and the one-month cache for |
+
+Four reasons, in order of weight:
+
+1. **The page is tested.** `tests/test_api_consistency.py` can drive
+   `api/place.mjs` in plain Node against a local copy of a published run and
+   check it square by square against the tile. If the page read the store
+   itself, the arithmetic that turns a latitude into a byte would live in
+   the browser where that test cannot reach it.
+2. **Size.** A square's answer is about 2 KB. The tile holding it is 102 KB,
+   31 KB compressed, and the manifest is 10.6 KB because it lists the
+   `sha256` of all 58 files. The page should not download a hundred
+   kilobytes to show one place.
+3. **One place does the arithmetic.** The snapping and the tile naming of
+   11.7 exist once, server side, not once per client.
+4. **No CORS dependence.** Same-origin requests cannot be broken by a change
+   to someone else's response headers.
+
+### 11.5 Where the store's public base URL comes from
+
+It is not a secret: it is a read-only public address, now recorded in 8.14.
+It is also not a constant of the code, because a store can be recreated.
+
+| Reader | Source | Fallback |
+|---|---|---|
+| `api/health.mjs`, `api/place.mjs` | `process.env.STORE_BASE_URL` if set, else `base_url` from `config/store.json` | none; a function with neither answers 500 and says which |
+| `tests/test_api_consistency.py` | sets `STORE_BASE_URL` to its own local HTTP server | — |
+| the page | **nothing.** It never learns the URL | — |
+| `pipeline/publish.py` | still nothing: it finds the manifest with `list` (8.6), as before | — |
+
+`config/store.json` is committed, holds `{"base_url": …, "manifest":
+"manifest.json"}` and no credential, and is the single source of truth. A
+change of store is then a commit, which is the right weight for a change of
+data source. The environment variable exists so a preview deployment can be
+pointed at a different store without a commit, and so the test can point at
+`127.0.0.1`.
+
+`.env.example` gains `STORE_BASE_URL=` alongside the empty
+`BLOB_READ_WRITE_TOKEN=` line of 8.9. Neither carries a value.
+
+**This adds `config/store.json` to the fixed structure**, which needs your
+approval under rule 5. Nothing else in the structure changes: `vercel.json`,
+`api/health`, `api/place`, `web/` and `tests/test_api_consistency` are all
+already there.
+
+### 11.6 `api/health`
+
+`GET /api/health`, no parameters.
+
+| Field | From |
+|---|---|
+| `ok` | true when the manifest was fetched and parsed |
+| `run_id`, `run_time_utc`, `run_time_ist`, `publish_time_ist` | the manifest |
+| `age_hours` | now minus `run_time_utc`, one decimal |
+| `stale` | `age_hours > 36` (11.8) |
+| `days` | the five `lead_day` and `label` pairs only |
+| `india_squares`, `thresholds_mm`, `members` | the manifest |
+| `store` | `"reachable"`, or the failure in words |
+| `checked_at_ist` | the function's own clock |
+
+| Case | Status |
+|---|---|
+| manifest fetched and parsed | **200**, `ok: true` |
+| manifest old | **200**, `ok: true`, `stale: true`. Old data is not a broken service, and a monitor that goes red for staleness cannot be trusted to mean anything else |
+| store unreachable, or the body is not a manifest | **503**, `ok: false`, with the reason |
+| no base URL configured | **500**, saying which of the two sources were empty |
+
+Response header `Cache-Control: public, max-age=60`, matching the manifest's
+own age. The function never sends `no-store`: a health endpoint that cannot
+be cached is a health endpoint that can be used to hammer the store.
+
+### 11.7 `api/place`
+
+`GET /api/place?lat=<degrees north>&lon=<degrees east>`
+
+| Step | Rule |
+|---|---|
+| 1. Validate | both present, finite, `6 <= lat <= 38` and `68 <= lon <= 98`, the India box of 1.4. Anything else is **400** with the box in the message |
+| 2. Snap | `i = round((38 - lat) / 0.25)`, `j = round((lon - 68) / 0.25)`, then the square's own centre is reported back as `square.lat` and `square.lon`. The request's own numbers are echoed as `asked` |
+| 3. Tile | `floor(lat / 4) * 4`, `floor(lon / 4) * 4`, named after the south-west corner, as 8.4 |
+| 4. Fetch | the manifest, then `paths.tiles/<tile>.json` of that run |
+| 5. Find | the record whose `lat` and `lon` match the snapped square |
+| 6. Answer | counts, dots and member integers as published, plus the whole millimetres |
+
+The response, per day: `lead_day`, `label`, `from_ist`, `to_ist`, `counts`
+as `{ge1, ge10, ge50}` out of 51, `dots` as the four category counts, and
+`members_mm`, the 51 member values as whole millimetres **rounded down**,
+which is `code // 16` of 8.4 and nothing else. The run block is the same
+fields `api/health` returns, so the page can render everything from one
+request. `square` carries `lat`, `lon`, `i`, `j` and `tile`, so a reader can
+check the arithmetic by hand the way HC7 does.
+
+| Case | Status |
+|---|---|
+| a square inside the India mask | **200** |
+| outside the box, or unparseable | **400** |
+| inside the box, but not in the India mask | **404**, with `nearest_in_tile`: the nearest square the tile does hold, in degrees, and the sentence "that square is sea or outside India". The tile already holds every India square in its 4 degrees, so the suggestion costs no extra request. When the tile holds none, the answer says so instead of guessing |
+| store unreachable | **503** |
+
+`Cache-Control: public, max-age=60`. One square's answer is small and
+identical for every reader, so the edge may keep it for a minute; a new run
+appears a minute later than it might have, which nobody can perceive in a
+daily forecast.
+
+Nothing in the answer is computed from a member value except the whole
+millimetre. The counts and the dots are the published ones (8.4), so the
+page cannot disagree with the store even if someone later changes how
+members are rounded.
+
+### 11.8 The G2 page
+
+In order down the page:
+
+| Part | Content |
+|---|---|
+| Title | the project name, and one line saying what it is: 51 model runs, India, five days |
+| Stale banner | only when `stale`: "This forecast is from <age> hours ago. A newer model run has not been published." in a colour, above everything |
+| Run line | "Model run **12 Nov 2026, 5:30 am IST** (00 UTC). Published 2:39 pm IST." and the run id in small type |
+| Day labels | the five labels from `days`, exactly as the manifest gives them: "5:30 am Fri 13 Nov to 5:30 am Sat 14 Nov" |
+| Place picker | a city list (below) and a latitude and longitude box. The square actually used is always shown: "34.25 N 73.5 E, tile 32N_72E" |
+| Counts table | five rows, one a day; three columns, 1 mm, 10 mm, 50 mm; each cell "**40** of 51" |
+| Members | per day, the 51 whole-millimetre values in member order, with member 0 labelled as the control (2.1), and the lowest, middle and highest called out so 51 numbers are readable |
+| The three sentences | 11.9, verbatim |
+| Credits | 11.9, verbatim, with links |
+
+The city list is committed as `web/src/cities.json`. Every entry was checked
+against the India mask on 12 November 2026, and three of them do not snap to
+a land square, so the list stores **the square the page shows**, not the city
+centre, and the page says so when they differ:
+
+| City | Square shown | Note |
+|---|---|---|
+| Delhi | 28.50 N 77.25 E | |
+| Mumbai | **19.25 N 73.00 E** | the nearest 0.25 square to 19.08 N 72.88 E is 19.00 N 73.00 E, which the mask calls sea |
+| Kolkata | 22.50 N 88.25 E | |
+| Chennai | 13.00 N 80.25 E | |
+| Bengaluru | 13.00 N 77.50 E | |
+| Hyderabad | 17.50 N 78.50 E | |
+| Ahmedabad | 23.00 N 72.50 E | |
+| Pune | 18.50 N 73.75 E | |
+| Jaipur | 27.00 N 75.75 E | |
+| Lucknow | 26.75 N 81.00 E | |
+| Patna | 25.50 N 85.25 E | |
+| Bhopal | 23.25 N 77.50 E | |
+| Nagpur | 21.25 N 79.00 E | |
+| Visakhapatnam | 17.75 N 83.25 E | |
+| Kochi | **10.25 N 76.25 E** | 10.00 N 76.25 E is sea in the mask |
+| Thiruvananthapuram | 8.50 N 77.00 E | |
+| Guwahati | 26.25 N 91.75 E | |
+| Cherrapunji | 25.25 N 91.75 E | the wettest place in the list, and a useful check that large counts display |
+| Srinagar | 34.00 N 74.75 E | |
+| Mangaluru | **12.75 N 75.00 E** | 12.75 N 74.75 E is sea in the mask |
+
+A coastal city sitting in a sea square is a property of a 0.25 degree mask,
+not a mistake, and the page says which square it is showing rather than
+pretending the city centre was asked for.
+
+**Stale means older than 36 hours**, measured from the model run time, not
+from the publish time. A 00 UTC run published around 11:00 UTC is at most
+about 18.5 hours old at midnight IST, so a normal day never trips it; two
+missed publishes do. The threshold is compared server side in `api/health`
+and `api/place`, and the page also recomputes it from `run_time_utc` so that
+a page served from a browser cache cannot show a fresh-looking banner.
+
+**No percentages anywhere.** Not in the table, not in the member list, not in
+a tooltip. A forecast carries a percentage only when it carries a "Good track
+record" label (section 6), and no label exists until the verification of
+section 5 has run. The page says "40 of 51 model runs" and stops.
+
+### 11.9 Wording that is fixed
+
+These strings are part of the specification, not of the styling, and are
+written out so they cannot drift:
+
+| Where | Exactly |
+|---|---|
+| under the counts table | `0 mm means under 1 mm.` |
+| under the counts table | `These are model-run counts, not probabilities.` |
+| footer, prominent | `Not an official warning. For warnings and advisories, see the India Meteorological Department.` linking to `https://mausam.imd.gov.in/` |
+| footer, forecast credit | `Copyright © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF)` |
+| footer, forecast credit | `This data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0)` |
+| footer, forecast credit | `ECMWF does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use` |
+| footer, forecast credit | `Source: www.ecmwf.int. Modified: daily totals and member counts computed from AIFS ENS open data.` |
+| footer, observation credit | `Observations: NASA GPM IMERG Late Precipitation L3 1 day V07C, DOI 10.5067/GPM/IMERGDL/DAY/07, a satellite estimate and not ground truth.` |
+| footer | a link to `CREDITS.md` and to the repository |
+
+The three ECMWF lines are the copyright statement, licence statement and
+disclaimer that ECMWF's terms of use require of anyone redistributing their
+data, quoted from `apps.ecmwf.int/datasets/licences/general/` on 12 November
+2026, with the year taken from the run. 2.1 says attribution goes in
+`CREDITS.md` **and** in the site footer, so `CREDITS.md` is written in this
+step too; the footer is the short form and links to the long one.
+
+### 11.10 Tests
+
+| Test | What it holds |
+|---|---|
+| `tests/test_api_consistency.py` | `api/place` against the published tile, square by square |
+| | a synthetic run is built with the helpers of `test_publish.py`, published to a temporary directory through `FakeStore`, and served by a `http.server` on `127.0.0.1`. `STORE_BASE_URL` points at it, so there is no network and no token |
+| | the harness is written to the test's own temporary directory, not committed: six lines that import `api/place.mjs` and call `export default.fetch(new Request(url))` in plain `node` |
+| | for every square checked: the three counts, the four dots and the 51 member values the API returns are identical to the tile's `c`, `d` and `m` |
+| | the whole millimetres the API returns equal `m // 16`, and their count above each threshold equals the published count, which is 8.4's rule arriving at the page |
+| | snapping: a request half a square away comes back with the square's own centre, and `i`, `j` and `tile` consistent with it |
+| | a sea square inside the box answers 404 with a `nearest_in_tile` the tile really holds |
+| | outside the box answers 400; an unreachable store answers 503; no base URL answers 500 |
+| `tests/test_api_consistency.py`, `api/health` | the fields come from the manifest unchanged, `age_hours` and `stale` are computed from `run_time_utc` against a frozen clock, and `stale` flips at 36 hours and not before |
+| the existing 144 tests | unchanged. Nothing in `pipeline/` moves for G2 |
+
+Skipped rather than failed when `node` is not on `PATH`, with the reason
+printed, the same way the `@real` tests of 8.13 skip without a built run.
+
+### 11.11 Settled, and what is open
+
+Settled in this draft:
+
+| Question | Decision |
+|---|---|
+| project layout | Root Directory stays the repository root; `vercel.json` sets `installCommand`, `buildCommand`, `outputDirectory` and `framework: null`, so `web/` builds and `api/` still deploys (11.2) |
+| the `api/` runtime | Node `.mjs`, Web standard `fetch` export, zero dependencies, so the pipeline's `requirements.txt` is never installed (11.3) |
+| CORS | the store sends `Access-Control-Allow-Origin: *`, measured. No rewrite is needed. The G2 page still goes through `api/` for the four reasons of 11.4, and G3's map reads the store directly |
+| the store URL | `config/store.json`, committed, with a `STORE_BASE_URL` override; the page never learns it (11.5) |
+| the G2 page | 11.8, with the city list measured against the mask and three coastal cities moved to their nearest land square |
+| percentages | none, until a "Good track record" label exists |
+
+Open:
+
+| # | Open | Note |
+|---|---|---|
+| 1 | **the stale-cache problem of 11.1** | `?cb=` does not bust the CDN cache, so 8.6 and 8.10 claim something untrue, and tomorrow's publish may fail its own read-back on `manifest.json` after publishing correctly. The fix is to stop trusting a public fetch for freshness: compare the fetched `ETag` against the `etag` that `put` and `list` return from the API, retry briefly, and treat only a mismatch that persists as a failure. It is a change to section 8, which is approved, so it needs your word. It should happen before the 06:17 UTC run on 13 November |
+| 2 | adding `config/store.json` to the fixed structure | rule 5 (11.5) |
+| 3 | whether the repository is already connected to a Vercel project | the Blob store exists and the token is set, but a connected Git project is a separate step, and G2 cannot deploy without it |
+| 4 | the Node version in Project Settings | 24.x recommended, to match the publisher of 8.2. Harmless either way, since the functions use only built-ins |
+
 ---
 
 ## Open questions
@@ -2350,8 +2742,12 @@ Nothing in sections 1-4 is now blocked.
 7. Pipeline stages and file layout
 9. Automation and failure handling
 10. Testing strategy
-11. Display rules, the website pages and the `api/` functions (8.1)
 12. Tiers and acceptance tests
+
+**Section 11 is drafted for G2** (the plain page, `api/health` and
+`api/place`). The map, the track record pages and the display rules that go
+with a "Good track record" label are part two of that section, drafted when
+G3 starts.
 
 ### Requirements already fixed for later sections
 
