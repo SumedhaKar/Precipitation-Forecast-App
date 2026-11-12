@@ -1,7 +1,8 @@
-/* SPEC 11.18. Light theme only, declared, because the palette of 11.17 is
-   chosen against a white page and an automatic dark inversion would change
-   what the colours mean. One font: the system stack, so there is no webfont
-   to download and no flash of unstyled text. */
+/* SPEC 11.18, with the design fixes of 11.28. Light theme only, declared,
+   because the palette of 11.17 is chosen against a white page and an
+   automatic dark inversion would change what the colours mean. One font: the
+   system stack, so there is no webfont to download and no flash of unstyled
+   text. */
 
 :root {
   color-scheme: light;
@@ -12,7 +13,13 @@
   --rule: #dbe1e8;
   --page: #f4f6f8;
   --card: #ffffff;
-  --sea: #eaf0f4;
+  /* SPEC 11.28. This was #eaf0f4, a contrast ratio of 1.005 against the 0
+     class's #eceff1: the same colour to any eye, so a square where no model
+     run reaches the threshold could not be told from the ocean. #aec6da is
+     1.53 against the 0 class and 1.77 against the white land under it. The
+     one copy that matters is SEA in palette.js, which the map reads; this is
+     the same value for the page behind the canvas. */
+  --sea: #aec6da;
   --picked: #0b2b4a;
   --warn-bg: #fff4e5;
   --warn-ink: #7a4100;
@@ -77,11 +84,14 @@ header {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  justify-content: space-between;
   gap: 0.2rem 1rem;
   padding: 0.6rem 1rem;
   background: var(--card);
   border-bottom: 1px solid var(--rule);
 }
+
+.titles { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1rem; }
 
 .run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
 .runid {
@@ -90,6 +100,19 @@ header {
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
+
+/* SPEC 11.28: visible without scrolling, on every screen. */
+.headwarn {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  border: 1px solid #f0d9b5;
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+}
+
+.headwarn a { color: #7a4100; }
 
 .stale {
   margin: 0;
@@ -101,12 +124,16 @@ header {
 }
 
 .error {
+  margin-bottom: 1rem;
   padding: 0.5rem 0.7rem;
   background: var(--err-bg);
   color: var(--err-ink);
   border-radius: 6px;
   font-size: 0.88rem;
 }
+
+.error p { margin: 0; }
+.error .why { margin-top: 0.25rem; font-size: 0.82rem; opacity: 0.85; }
 
 .stage {
   position: relative;
@@ -143,23 +170,22 @@ header {
 
 /* --------------------------------------------------------- the controls */
 
+/* SPEC 11.28. A bar above the map, at every width. As a card floating on the
+   map it sat on Tamil Nadu, Kerala and the southern tip, and on a phone it
+   covered the legend as well. Nothing is drawn over the country now except
+   the legend and MapLibre's own zoom buttons, and the fit leaves room for
+   both by measuring them. */
 .controls {
-  position: absolute;
-  left: 0.75rem;
-  bottom: 0.75rem;
-  z-index: 2;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.6rem 0.7rem;
-  max-width: calc(100% - 1.5rem);
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 1.6rem;
+  padding: 0.5rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
 }
 
-.group { display: flex; flex-direction: column; gap: 0.25rem; }
+.group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 
 .grouplabel {
   font-size: 0.72rem;
@@ -187,40 +213,78 @@ header {
 
 .window { margin: 0; font-size: 0.75rem; color: var(--quiet); }
 
-/* ----------------------------------------------------------- the legend */
+/* ----------------------------------------------------- the place labels */
 
-.legend {
+/* SPEC 11.28. Twenty city names over the canvas. MapLibre draws text from
+   glyph files fetched from a font server, and there is no font server here on
+   purpose, so these are elements and the halo is four text shadows. Above
+   the canvas, below MapLibre's own controls and the legend. */
+.maplabels {
   position: absolute;
-  right: 0.75rem;
-  bottom: 2.4rem;
-  z-index: 2;
-  padding: 0.55rem 0.65rem;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
-  max-width: 15rem;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-.legend-head { margin: 0 0 0.35rem; font-size: 0.8rem; }
-.legend-foot { margin: 0.35rem 0 0; font-size: 0.7rem; color: var(--quiet); }
+.maplabel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--ink);
+  text-shadow:
+    0 0 2px #ffffff, 0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff;
+}
+
+.maplabel.chosen { font-weight: 700; font-size: 0.78rem; }
+
+/* ----------------------------------------------------------- the legend */
+
+/* SPEC 11.28. In the bar, next to the threshold buttons it describes, not
+   floating over the Bay of Bengal. A horizontal ramp: the swatches are the
+   scale and the numbers under them are the classes. */
+.legend { gap: 0.3rem; }
+
+.legend .grouplabel {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.legend-foot { margin: 0; font-size: 0.7rem; color: var(--quiet); }
 
 .legend-rows {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  gap: 0;
 }
 
 .legend-rows li {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
+  gap: 1px;
+  min-width: 2.3rem;
+  font-size: 0.66rem;
+  color: var(--quiet);
   font-variant-numeric: tabular-nums;
 }
+
+.legend-rows .swatch {
+  width: 100%;
+  height: 0.8rem;
+  border-radius: 0;
+  border-left-width: 0;
+}
+
+.legend-rows li:first-child .swatch { border-left-width: 1px; }
 
 .swatch {
   display: inline-block;
@@ -270,7 +334,8 @@ header {
 }
 
 .searchrow button,
-.mine button {
+.mine button,
+.reveal {
   padding: 0.35rem 0.7rem;
   background: var(--card);
   border: 1px solid var(--rule);
@@ -331,39 +396,91 @@ header {
   border-radius: 0 6px 6px 0;
 }
 
+/* --------------------------------------- how to read this, and a notice */
+
+.howto h2 { font-size: 1rem; }
+
+.howto ul {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+  color: var(--quiet);
+}
+
+.howto li { margin-bottom: 0.45rem; }
+.howto strong { color: var(--ink); }
+
+.prompt {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--picked);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+}
+
+/* An island the grid cannot carry is not an error, and is not red. */
+.notice {
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.notice h2 { font-size: 0.95rem; }
+.notice p { margin: 0; font-size: 0.86rem; color: var(--quiet); }
+
 /* ------------------------------------------------------------ the counts */
 
-table.counts {
+.counts { margin-bottom: 0.4rem; }
+
+.counts h3 {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--quiet);
+  margin-bottom: 0.3rem;
+}
+
+/* SPEC 11.28. These were table rows with the chosen one shaded, which looked
+   like a control and was not one. Three radio buttons now, the same three
+   choices as the buttons over the map and bound to the same state. */
+.countrows {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.countrow {
+  display: grid;
+  grid-template-columns: 6.6rem 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem;
   width: 100%;
-  border-collapse: collapse;
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
   font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
 }
 
-table.counts caption {
-  text-align: left;
-  font-size: 0.78rem;
-  color: var(--quiet);
-  padding-bottom: 0.25rem;
+.countrow:hover { background: var(--page); }
+
+.countrow.on {
+  border-color: var(--picked);
+  box-shadow: inset 0 0 0 1px var(--picked);
+  background: var(--page);
 }
 
-table.counts th,
-table.counts td {
-  text-align: left;
-  padding: 0.3rem 0.35rem;
-  border-top: 1px solid var(--rule);
-  vertical-align: baseline;
-}
+.rowwhat { color: var(--quiet); }
+.rowband { font-size: 0.78rem; color: var(--quiet); white-space: nowrap; }
 
-table.counts th[scope="row"] { font-weight: 400; color: var(--quiet); }
-table.counts td { font-variant-numeric: tabular-nums; }
-table.counts tr.now th,
-table.counts tr.now td { background: var(--page); }
-table.counts td.band {
-  font-size: 0.78rem;
-  color: var(--quiet);
-  white-space: nowrap;
-}
-table.counts td.band .swatch {
+.rowband .swatch {
   width: 0.8rem;
   height: 0.8rem;
   margin-right: 0.3rem;
@@ -395,8 +512,9 @@ table.counts td.band .swatch {
   border-radius: 6px;
 }
 
-.cell.chosen { border-color: var(--picked); border-width: 2px; }
-.cellday { font-size: 0.64rem; color: var(--ink); white-space: nowrap; }
+.cell.chosen { outline: 2px solid var(--picked); outline-offset: 1px; }
+/* `color` comes from the palette's own ink for that class, set inline. */
+.cellday { font-size: 0.64rem; white-space: nowrap; }
 .cellcount {
   font-size: 0.95rem;
   font-weight: 600;
@@ -445,7 +563,8 @@ table.counts td.band .swatch {
 /* ------------------------------------------------------------ the members */
 
 .members { margin-top: 1rem; }
-.spread { font-size: 0.8rem; color: var(--quiet); margin: 0 0 0.35rem; }
+.spread { font-size: 0.86rem; color: var(--ink); margin: 0 0 0.4rem; }
+.reveal { margin-bottom: 0.45rem; }
 
 ol.values {
   list-style: none;
@@ -488,29 +607,21 @@ footer {
 }
 
 footer .warning { color: var(--ink); }
+footer .credit { margin-bottom: 0.4rem; }
 footer summary { cursor: pointer; margin-bottom: 0.4rem; }
 footer p { max-width: 70ch; }
 
 /* ------------------------------------- phone and tablet: a bottom sheet */
 
 @media (max-width: 1023px) {
+  header { gap: 0.3rem; }
+  .headwarn { width: 100%; }
+
   .stage { flex-direction: column; }
 
   .mapwrap { flex: 0 0 52vh; min-height: 52vh; order: 1; }
 
-  /* Not floating over the map. On a phone the card is as wide as the screen
-     and covered both the south of the country and the legend. */
-  .controls {
-    position: static;
-    order: 2;
-    flex: none;
-    max-width: none;
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-    box-shadow: none;
-    background: var(--card);
-  }
+  .controls { gap: 0.4rem 1rem; padding: 0.45rem 0.6rem; }
 
   .radios {
     flex-wrap: nowrap;
@@ -518,6 +629,8 @@ footer p { max-width: 70ch; }
     padding-bottom: 2px;
     scrollbar-width: thin;
   }
+
+  .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
 
   .panel {
     order: 3;
@@ -556,32 +669,14 @@ footer p { max-width: 70ch; }
   .shell.open .mapwrap { flex-basis: 26vh; min-height: 26vh; }
   .shell.open .panel { max-height: none; }
 
-  /* With the sheet open the map is a strip, and a full-width legend covers
-     the country. The key is not lost: every count row in the panel carries
-     its own swatch and the class by name. */
-  .shell.open .legend { display: none; }
-
-  /* One compact row along the bottom of the map, now that nothing else is
-     there. The end labels carry the scale; the middle classes are read from
-     the swatches. */
-  /* Clear of MapLibre's attribution strip, which sits along the bottom
-     right and covered the swatches when the legend was flush with it. */
-  .legend {
-    left: 0.5rem;
-    right: 0.5rem;
-    bottom: 1.9rem;
-    max-width: none;
-    padding: 0.4rem 0.5rem;
-  }
-
-  .legend-head { font-size: 0.72rem; margin-bottom: 0.25rem; }
+  /* The legend is in the bar at every width, so there is nothing to hide
+     when the sheet opens and nothing to lift clear of the attribution. It
+     spans the bar on a phone, where there is no room beside the buttons. */
+  .legend { flex: 1 1 100%; }
+  .legend-rows li { flex: 1 1 0; min-width: 0; }
   .legend-foot { display: none; }
-  .legend-rows { flex-direction: row; gap: 0; }
-  .legend-rows li { flex: 1 1 0; flex-direction: column; gap: 1px; font-size: 0.6rem; }
-  .legend-rows .swatch { width: 100%; height: 0.7rem; border-radius: 0; }
 
-  .controls { padding: 0.45rem 0.6rem; gap: 0.4rem; }
-  .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
+  .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

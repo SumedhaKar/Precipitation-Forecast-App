@@ -1,4 +1,4 @@
-// The place panel. SPEC 11.20.
+// The place panel. SPEC 11.20 and 11.28.
 //
 // Everything the map shows for the chosen square is written here in words and
 // numbers, because a canvas is not readable: no information on this site is
@@ -9,11 +9,11 @@
 // api/place computed from the published integers, and the one sentence a day
 // is built by api/place from that day's three counts and nothing else.
 
-import { colourOf, labelOf, notProbability } from './palette';
-import { squareText } from './snap';
-import cityList from './cities.json';
+import { useState } from 'react';
 
-const CITIES = cityList.cities;
+import { colourOf, inkOf, labelOf, notProbability } from './palette';
+import { squareText } from './snap';
+import { nameOfSquare } from './places';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -21,11 +21,10 @@ const DOT_COLOURS = ['#eceff1', '#a1dab4', '#41b6c4', '#225ea8'];
 
 const THRESHOLDS = [1, 10, 50];
 
-function cityAt(lat, lon) {
-  const found = CITIES.find(
-    (city) => Math.abs(city.lat - lat) < 1e-9
-      && Math.abs(city.lon - lon) < 1e-9);
-  return found ? found.name : null;
+/** "under 1 mm" -> "Under 1 mm". The names are the store's, not ours. */
+function sentenceCase(text) {
+  const name = String(text || '');
+  return name ? name[0].toUpperCase() + name.slice(1) : name;
 }
 
 function summarise(values) {
@@ -34,18 +33,28 @@ function summarise(values) {
     lowest: sorted[0],
     middle: sorted[Math.floor(sorted.length / 2)],
     highest: sorted[sorted.length - 1],
+    same: sorted[0] === sorted[sorted.length - 1],
   };
 }
 
-export function PlaceLine({ place }) {
+export function PlaceLine({ place, from }) {
   const where = place.square;
-  const name = cityAt(where.lat, where.lon);
+  const name = nameOfSquare(where.lat, where.lon);
   return (
     <div className="placeline" aria-live="polite">
       <h2>
         {squareText(where.lat, where.lon)}
         {name ? <span className="cityname">{name}</span> : null}
       </h2>
+      {/* SPEC 11.28: a location is reported as its square and nothing
+          finer, and the name appears only because that square is exactly
+          that town's square. */}
+      {from === 'location' ? (
+        <p className="small">
+          Your location: square {squareText(where.lat, where.lon)}. Your exact
+          position was not sent anywhere.
+        </p>
+      ) : null}
       {where.moved ? (
         <p className="moved">
           {squareText(where.moved.from.lat, where.moved.from.lon)} is sea on
@@ -72,9 +81,9 @@ export function DayStrip({ place, day, threshold, onDay }) {
               <button
                 type="button"
                 className={chosen ? 'cell chosen' : 'cell'}
-                style={{ background: colourOf(count) }}
+                style={{ background: colourOf(count), color: inkOf(count) }}
                 aria-pressed={chosen}
-                aria-label={`${entry.short_ist}. ${entry.sentence}`}
+                aria-label={`${entry.short_ist} IST. ${entry.sentence}`}
                 onClick={() => onDay(entry.lead_day)}
               >
                 <span className="cellday">{entry.short_ist}</span>
@@ -86,7 +95,7 @@ export function DayStrip({ place, day, threshold, onDay }) {
       </ol>
       <p className="small">
         Each cell is that day&apos;s count out of 51 at {threshold} mm, in the
-        same colours as the map. Choose one to change the day.
+        same colours as the map. Dates are IST. Choose one to change the day.
       </p>
     </div>
   );
@@ -97,39 +106,51 @@ export function DaySentence({ day }) {
   return <p className="sentence">{day.sentence}</p>;
 }
 
-export function Counts({ place, day, threshold }) {
+/**
+ * The three counts for the chosen day, each row a way of choosing it.
+ *
+ * SPEC 11.28. These were a table, and the chosen row was shaded, so the rows
+ * looked like the control they were not. They are a radio group now: the same
+ * three choices as the buttons over the map, kept in step with them because
+ * both read and set the one `threshold` the page holds.
+ */
+export function Counts({ place, day, threshold, onThreshold }) {
   return (
-    <>
-      <table className="counts">
-        <caption>
-          {day.short_ist}: {day.label}
-        </caption>
-        <tbody>
-          {THRESHOLDS.map((amount, k) => {
-            const count = day.counts_by_threshold[k].count;
-            return (
-              <tr key={amount} className={amount === threshold ? 'now' : ''}>
-                <th scope="row">{amount} mm or more</th>
-                <td>
+    <div className="counts">
+      <h3 id="countshead">
+        {day.short_ist}: {day.label} IST
+      </h3>
+      <ul className="countrows" role="radiogroup" aria-labelledby="countshead">
+        {THRESHOLDS.map((amount, k) => {
+          const count = day.counts_by_threshold[k].count;
+          const chosen = amount === threshold;
+          return (
+            <li key={amount}>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={chosen}
+                className={chosen ? 'countrow on' : 'countrow'}
+                onClick={() => onThreshold(amount)}
+              >
+                <span className="rowwhat">{amount} mm or more</span>
+                <span className="rowcount">
                   <strong>{count}</strong> of {place.members} model runs
-                </td>
-                <td className="band">
+                </span>
+                <span className="rowband">
                   <span
                     className="swatch"
                     style={{ background: colourOf(count) }}
                   />
                   {labelOf(count)}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <p className="small">
-        {notProbability(day.counts_by_threshold[THRESHOLDS.indexOf(threshold)]
-          .count)}
-      </p>
-    </>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="small">{notProbability()}</p>
+    </div>
   );
 }
 
@@ -155,7 +176,7 @@ export function Dots({ place, day }) {
               className="swatch"
               style={{ background: DOT_COLOURS[category] }}
             />
-            {day.dots[category]} {name}
+            {sentenceCase(name)}: {day.dots[category]}
           </li>
         ))}
       </ul>
@@ -163,29 +184,63 @@ export function Dots({ place, day }) {
   );
 }
 
+/**
+ * What each of the 51 runs gives, in whole millimetres.
+ *
+ * SPEC 11.28. A grid of 51 numbers that are all the same number says nothing
+ * a sentence cannot, and in a dry week every square showed one, so the grid
+ * is behind a button and the line in front of it is the shape of the spread.
+ * The numbers are never summarised away: the button is always there.
+ */
 export function MemberValues({ day }) {
+  const [open, setOpen] = useState(false);
   const spread = summarise(day.members_mm);
+  const count = day.members_mm.length;
   return (
     <div className="members">
       <h3>What each model run gives, in whole millimetres</h3>
-      <p className="spread">
-        lowest {spread.lowest} mm, middle {spread.middle} mm, highest{' '}
-        {spread.highest} mm
-      </p>
-      <ol className="values">
-        {day.members_mm.map((value, index) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <li key={index} className={index === 0 ? 'control' : undefined}>
-            <span className="who">{index === 0 ? 'control' : index}</span>
-            <span className="mm">{value}</span>
-          </li>
-        ))}
-      </ol>
-      <p className="small">
-        The control run first, then the 50 perturbed runs, in the order the
-        model publishes them. Rounded down, so 9.9 mm shows as 9 and{' '}
-        <strong>0 mm means under 1 mm</strong>.
-      </p>
+      {spread.same ? (
+        <p className="spread">
+          All {count} runs: {spread.lowest} mm
+          {spread.lowest === 0 ? ', which means under 1 mm' : null}
+        </p>
+      ) : (
+        <p className="spread">
+          lowest {spread.lowest} mm, middle {spread.middle} mm, highest{' '}
+          {spread.highest} mm
+        </p>
+      )}
+      <button
+        type="button"
+        className="reveal"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {open ? `Hide the ${count} values` : `Show all ${count} values`}
+      </button>
+      {open ? (
+        <>
+          <ol className="values">
+            {day.members_mm.map((value, index) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <li key={index} className={index === 0 ? 'control' : undefined}>
+                <span className="who">{index === 0 ? 'control' : index}</span>
+                <span className="mm">{value}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="small">
+            The control run first, then the 50 perturbed runs, in the order the
+            model publishes them. Rounded down, so 9.9 mm shows as 9 and{' '}
+            <strong>0 mm means under 1 mm</strong>.
+          </p>
+        </>
+      ) : (
+        <p className="small">
+          Rounded down, so 9.9 mm shows as 9 and{' '}
+          <strong>0 mm means under 1 mm</strong>.
+        </p>
+      )}
     </div>
   );
 }
@@ -200,20 +255,72 @@ export function SquareUsed({ place }) {
   );
 }
 
-export default function Panel({ place, error, busy, day, threshold, onDay }) {
+/**
+ * What the panel says before anything has been chosen. SPEC 11.28.
+ *
+ * The page opens on day 1 at 1 mm with no square chosen, so this is the first
+ * thing a reader sees, and it has to explain the only three ideas the map
+ * uses. It says what a square is, what a colour is, and what the number is
+ * not.
+ */
+export function HowToRead() {
+  return (
+    <div className="howto">
+      <h2>How to read this map</h2>
+      <ul>
+        <li>
+          <strong>One square is 0.25 degrees</strong>, about 28 km across. The
+          forecast has no detail finer than that, so a square is the smallest
+          place this site can answer about.
+        </li>
+        <li>
+          <strong>The colour is a count.</strong> The model is run 51 times
+          from slightly different starting points, and a square&apos;s colour
+          is how many of those 51 runs give at least the chosen amount of rain
+          in the chosen day. Darker is more runs.
+        </li>
+        <li>
+          <strong>It is not a probability.</strong> {notProbability()} Nothing
+          on this site is calibrated against what actually happened until the
+          track record exists.
+        </li>
+      </ul>
+      <p className="prompt">Click a square or search a town.</p>
+    </div>
+  );
+}
+
+export default function Panel({
+  place, error, notice, busy, day, threshold, onDay, onThreshold, from,
+}) {
+  if (notice) {
+    // SPEC 11.28: a place the grid cannot carry is not an error. It gets the
+    // island group's own sentence, in a plain box rather than a red one.
+    return (
+      <div className="panel-body">
+        <div className="notice" role="status">
+          {notice.where ? <h2>{notice.where}</h2> : null}
+          <p>{notice.note}</p>
+        </div>
+        <HowToRead />
+      </div>
+    );
+  }
   if (error) {
     return (
       <div className="panel-body">
-        <p className="error">{error}</p>
+        <div className="error">
+          <p>{error.said}</p>
+          {error.detail ? <p className="why">{error.detail}</p> : null}
+        </div>
+        <HowToRead />
       </div>
     );
   }
   if (!place) {
     return (
       <div className="panel-body">
-        <p className="small">
-          {busy ? 'Reading the forecast…' : 'Choose a square on the map.'}
-        </p>
+        {busy ? <p className="small">Reading the forecast…</p> : <HowToRead />}
       </div>
     );
   }
@@ -221,9 +328,14 @@ export default function Panel({ place, error, busy, day, threshold, onDay }) {
     || place.days[0];
   return (
     <div className="panel-body">
-      <PlaceLine place={place} />
+      <PlaceLine place={place} from={from} />
       <DaySentence day={chosen} />
-      <Counts place={place} day={chosen} threshold={threshold} />
+      <Counts
+        place={place}
+        day={chosen}
+        threshold={threshold}
+        onThreshold={onThreshold}
+      />
       <DayStrip
         place={place}
         day={day}

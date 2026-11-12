@@ -1,4 +1,4 @@
-// The page. SPEC 11.12 to 11.22.
+// The page. SPEC 11.12 to 11.22, with the design fixes of 11.28.
 //
 // What talks to what:
 //
@@ -18,22 +18,28 @@
 // No percentages, anywhere. A percentage implies a reliability that has to be
 // earned by the record (SPEC 6), and no track record exists yet.
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 
 import Panel from './Panel';
+import Legend from './Legend';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { countKey } from './palette';
-import { inBox, snap } from './snap';
-import cityList from './cities.json';
+import { inBox, snap, squareText } from './snap';
+import { nameOfSquare } from './places';
+import { notFoundNote } from './islands';
 
 // SPEC 11.16: MapLibre is 295 KB gzipped, so it is a chunk of its own and
 // the run line, the stale banner and the panel paint without waiting for it.
 const ForecastMap = lazy(() => import('./Map'));
 
-const CITIES = cityList.cities;
-const HOME = CITIES[0];
 const THRESHOLDS = [1, 10, 50];
 const STALE_HOURS = 36; // SPEC 11.8
+
+// SPEC 11.28. The page opens on day 1 at 1 mm with nothing chosen, so the
+// first thing shown is the whole country and an explanation of what a colour
+// is, rather than one city's numbers nobody asked for.
+const FIRST_DAY = 1;
+const FIRST_THRESHOLD = 1;
 
 const handcheck = typeof window !== 'undefined'
   && new URLSearchParams(window.location.search).get('handcheck') === '1';
@@ -102,7 +108,23 @@ function Footer() {
         </a>
         .
       </p>
-      <details>
+      {/* SPEC 11.28: ECMWF's licence asks for attribution wherever the data
+          is shown, so one line of it is outside the details and visible
+          whatever the reader does. The full three-paragraph form is inside. */}
+      <p className="credit">
+        Forecast: ECMWF AIFS ENS, CC BY 4.0.{' '}
+        <a
+          href="#credits"
+          onClick={() => {
+            const details = document.getElementById('credits');
+            if (details) details.open = true;
+          }}
+        >
+          Credits and licences in full
+        </a>
+        .
+      </p>
+      <details id="credits">
         <summary>Credits and licences</summary>
         <p>
           Forecast: ECMWF AIFS ENS open data, 51 members, the 00 UTC run.
@@ -122,9 +144,10 @@ function Footer() {
         </p>
         <p>
           Outlines: Natural Earth 1:10m, India point-of-view edition, public
-          domain, the same geometry the forecast squares were cut with. Map
-          rendering: MapLibre GL JS 6.17.0, BSD-3-Clause. No basemap, so
-          nothing on the map comes from anywhere else.
+          domain, the same geometry the forecast squares were cut with. Towns:
+          Natural Earth 1:10m populated places, public domain. Map rendering:
+          MapLibre GL JS 6.17.0, BSD-3-Clause. No basemap, so nothing on the
+          map comes from anywhere else.
         </p>
         <p>
           Built by Sumedha Kar. The code, the specification and the hand
@@ -146,10 +169,13 @@ export default function App() {
   const [countsError, setCountsError] = useState(null);
   const [place, setPlace] = useState(null);
   const [placeError, setPlaceError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [day, setDay] = useState(1);
-  const [threshold, setThreshold] = useState(1);
-  const [square, setSquare] = useState(() => snap(HOME.lat, HOME.lon));
+  const [day, setDay] = useState(FIRST_DAY);
+  const [threshold, setThreshold] = useState(FIRST_THRESHOLD);
+  const [square, setSquare] = useState(null);
+  const [from, setFrom] = useState(null);
+  const [shown, setShown] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // One request to our own origin: the run, the day labels, the staleness,
@@ -212,6 +238,7 @@ export default function App() {
   const load = useCallback(async (lat, lon) => {
     setBusy(true);
     setPlaceError(null);
+    setNotice(null);
     try {
       const response = await fetch(
         `/api/place?lat=${encodeURIComponent(lat)}`
@@ -219,49 +246,123 @@ export default function App() {
       const body = await response.json();
       if (!response.ok || !body.ok) {
         setPlace(null);
-        setPlaceError(body.error
-          || `the forecast could not be read (${response.status})`);
+        // SPEC 11.28: nothing was found, so nothing is marked. A ring around
+        // a square with no numbers in it is a claim the page cannot support.
+        setSquare(null);
+        // An island group the grid cannot carry is not a failure, and
+        // api/place answers with that group's own sentence.
+        if (body.island_group) {
+          setNotice({ where: body.island_group, note: body.error });
+        } else {
+          setPlaceError({
+            said: body.error
+              || `the forecast could not be read (${response.status})`,
+            // The detail is the half that says why, and the first build
+            // threw it away: "outside the forecast area" on its own reads
+            // as a refusal rather than an explanation.
+            detail: body.detail || null,
+          });
+        }
       } else {
         setPlace(body);
       }
     } catch (error) {
       setPlace(null);
-      setPlaceError(`the forecast could not be read: ${error.message}`);
+      setPlaceError({
+        said: `The forecast could not be read: ${error.message}`,
+        detail: null,
+      });
     } finally {
       setBusy(false);
     }
   }, []);
 
-  // SPEC 11.19: snapped here, so only a square centre is ever sent.
-  const pick = useCallback((lat, lon) => {
+  /**
+   * Every way of choosing a place ends up here. SPEC 11.19 and 11.28.
+   *
+   * The point is snapped in the page before anything is sent, so only a
+   * square centre ever reaches a URL, and the search box is set to whatever
+   * is now being shown so that the question and the answer agree.
+   */
+  const show = useCallback((lat, lon, how, label) => {
     if (!inBox(lat, lon)) {
       setPlace(null);
-      setPlaceError('That is outside the forecast area, which covers 6 to 38 '
-        + 'degrees north and 68 to 98 degrees east.');
+      setSquare(null);
+      setNotice(null);
+      setPlaceError({
+        said: 'That is outside the forecast area.',
+        detail: 'The forecast covers 6 to 38 degrees north and 68 to 98 '
+          + 'degrees east.',
+      });
       return;
     }
     const here = snap(lat, lon);
     setSquare(here);
+    setFrom(how);
     setSheetOpen(true);
+    setShown(label || squareText(here.lat, here.lon));
     load(here.lat, here.lon);
   }, [load]);
+
+  const pick = useCallback(
+    (lat, lon) => show(lat, lon, 'map'), [show]);
+
+  const point = useCallback(
+    (lat, lon) => show(lat, lon, 'typed'), [show]);
+
+  const located = useCallback((lat, lon) => {
+    const here = snap(lat, lon);
+    const name = nameOfSquare(here.lat, here.lon);
+    // SPEC 11.28: the square, never the fix, and a name only when the square
+    // is exactly that town's own square.
+    show(lat, lon, 'location',
+      `Your location: square ${squareText(here.lat, here.lon)}`
+      + (name ? ` (${name})` : ''));
+  }, [show]);
+
+  /** A town from the search list, which may be one the grid cannot carry. */
+  const town = useCallback((chosen) => {
+    if (chosen.not_forecast) {
+      setPlace(null);
+      setPlaceError(null);
+      setSquare(null);
+      setFrom('town');
+      setSheetOpen(true);
+      setShown(chosen.name);
+      setNotice({
+        where: `${chosen.name}, ${chosen.not_forecast}`,
+        note: notFoundNote(chosen.lat, chosen.lon),
+      });
+      return;
+    }
+    show(chosen.lat, chosen.lon, 'town', chosen.name);
+  }, [show]);
 
   const snapTo = useCallback(
     (lat, lon) => (inBox(lat, lon) ? snap(lat, lon) : null), []);
 
-  useEffect(() => { load(HOME.lat, HOME.lon); }, [load]);
-
   const run = place ? place.run : health;
   const days = (place ? place.days : (health ? health.days : [])) || [];
-  const padding = useMemo(() => ({
-    top: 10, bottom: 10, left: 10, right: 10,
-  }), []);
+  const squareName = square
+    ? (from === 'location' ? 'Your location'
+      : nameOfSquare(square.lat, square.lon))
+    : null;
 
   return (
     <div className={sheetOpen ? 'shell open' : 'shell'}>
       <header>
-        <h1>How many model runs say rain</h1>
-        <RunLine run={run} />
+        <div className="titles">
+          <h1>How many model runs say rain</h1>
+          <RunLine run={run} />
+        </div>
+        {/* SPEC 11.28: this was in the footer only, below the fold on every
+            screen. The footer still carries it; this is the copy a reader
+            cannot miss. */}
+        <p className="headwarn">
+          <strong>Not an official warning.</strong>{' '}
+          <a href="https://mausam.imd.gov.in/">India Meteorological
+            Department</a>
+        </p>
       </header>
 
       <StaleBanner run={run} />
@@ -270,6 +371,21 @@ export default function App() {
           The store could not be read: {healthError}
         </p>
       ) : null}
+
+      {/* SPEC 11.28: a bar above the map, not a card floating on it. As a
+          card the controls covered Tamil Nadu, Kerala and the tip of the
+          country, and the legend covered the Bay of Bengal and the Andaman
+          Islands. Nothing is over the map now but MapLibre's zoom buttons. */}
+      <div className="controls">
+        {days.length ? (
+          <DayChoice days={days} day={day} onDay={setDay} />
+        ) : null}
+        <ThresholdChoice
+          threshold={threshold}
+          onThreshold={setThreshold}
+        />
+        <Legend threshold={threshold} />
+      </div>
 
       <div className="stage">
         <div className="mapwrap">
@@ -281,8 +397,8 @@ export default function App() {
                 threshold={threshold}
                 day={day}
                 square={square}
+                squareName={squareName}
                 onPick={pick}
-                padding={padding}
                 handcheck={handcheck}
               />
             </Suspense>
@@ -295,20 +411,6 @@ export default function App() {
           )}
         </div>
 
-        {/* A child of the stage, not of the map: over the map on a wide
-            screen, and a strip between the map and the sheet on a phone,
-            where floating it covered both the country and the legend
-            (SPEC 11.18). One copy, two places, no duplicated markup. */}
-        <div className="controls">
-          {days.length ? (
-            <DayChoice days={days} day={day} onDay={setDay} />
-          ) : null}
-          <ThresholdChoice
-            threshold={threshold}
-            onThreshold={setThreshold}
-          />
-        </div>
-
         <aside className="panel" aria-label="The square you chose">
           <button
             type="button"
@@ -319,16 +421,24 @@ export default function App() {
             {sheetOpen ? 'Hide the details' : 'Show the details'}
           </button>
           <div className="finder">
-            <Search onPick={pick} busy={busy} />
-            <MyLocation onPick={pick} snapTo={snapTo} />
+            <Search
+              onTown={town}
+              onPoint={point}
+              busy={busy}
+              shown={shown}
+            />
+            <MyLocation onLocation={located} snapTo={snapTo} />
           </div>
           <Panel
             place={place}
             error={placeError}
+            notice={notice}
             busy={busy}
             day={day}
             threshold={threshold}
             onDay={setDay}
+            onThreshold={setThreshold}
+            from={from}
           />
           <Footer />
         </aside>
