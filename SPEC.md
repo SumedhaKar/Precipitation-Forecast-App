@@ -196,6 +196,26 @@ Valid source values in the client are `ecmwf`, `aws`, `azure`, `google` and
 `ecmwf-testdata`. Google resolves to
 `https://storage.googleapis.com/ecmwf-open-data`. **[verified]**
 
+#### What AIFS ENS does and does not publish
+
+Checked on 12 November 2026 against the real URLs and the real index files:
+
+| Product | Available? |
+|---|---|
+| `aifs-ens` / `enfo` / `cf` | yes, about 58 MB per step |
+| `aifs-ens` / `enfo` / `pf` | yes, about 2.9 GB per step for all parameters |
+| `aifs-ens` / `enfo` / `ep` (probabilities) | **no**, HTTP 404 |
+| `aifs-ens` / `enfo` / `ef`, `em`, `es` | no, HTTP 404 |
+| `aifs-ens` / `waef` / `cf` and `pf` (waves) | yes, not used here |
+
+The `pf` index lists 29 parameters, with `tp` the only precipitation total and
+no threshold-probability parameter such as `tpg1` or `tpg10`. **[verified]**
+
+So **there is no official AIFS ENS rain probability to compare our counts
+against**, which decides the shape of HC6 (section 4.6). It also means our
+counts cannot be cross-checked against an ECMWF-produced probability at all,
+and the only independent check available is a member-by-member dump.
+
 Licence: CC-BY-4.0. Attribution to ECMWF is required and goes in CREDITS.md and
 in the site footer.
 
@@ -674,10 +694,18 @@ total sits within about a quarter of a millimetre of 1 mm may be counted on
 either side of it, purely because of how the number was stored. The 10 mm and
 50 mm thresholds are far enough above the quantum for this to be negligible.
 
-HC6, which compares our counts against ECMWF's own published probabilities,
-may therefore show small gaps near thresholds for dates after the change.
-Those gaps are a storage-precision artefact, not a disagreement about the
-weather, and must be reported as such rather than explained away.
+HC6 was written to compare our counts against ECMWF's own published
+probabilities. **There are none to compare against.** Checked on
+12 November 2026: the only AIFS ENS products in the 0.25 degree `enfo` stream
+on ECMWF open data are `cf` and `pf`. There is no `ep` probability file, and
+the `pf` index lists 29 parameters with `tp` the only precipitation total.
+**[verified]** by HEAD requests on the real URLs and by reading the index.
+
+HC6 therefore dumps all 51 members instead, and the precision point still
+applies to it: a member whose stored total sits within about a quarter of a
+millimetre of 1 mm may be counted on either side of that threshold. That is a
+storage-precision artefact, not a disagreement about the weather, and must be
+reported as such rather than explained away.
 
 This limitation is published on the site alongside the track record.
 
@@ -951,6 +979,169 @@ for this square".
 A run is publishable only when, for every one of the six steps, all 51 members
 are present with the right perturbation numbers and all checks in section 2.5
 pass. 50 of 51 members is not publishable. There is no partial publish.
+
+### 4.6 The live run
+
+`pipeline/run_live.py`. It fetches one 00 UTC run and builds the product.
+**It publishes nothing**; publishing is section 8.
+
+```
+python -m pipeline.run_live              build the latest complete run
+python -m pipeline.run_live --dry-run    decide which run, download nothing
+```
+
+#### Same code as the archive
+
+The live run calls the **same** downloader and the **same** checks that built
+Pile A: `download_one` from `ecmwf_download`, and `build_india_array`,
+`quantum_summary`, `check_quantum_cap`, `check_daily_differences` and
+`daily_totals` from `ecmwf_process`. No copies, no live-only variants.
+
+An honest track record depends on this. If the live forecast were produced by
+different code from the archive it is judged against, the record would be
+measuring the wrong thing. The only difference is the `source` argument:
+`ecmwf` live, `google` for the archive (section 2.6).
+
+Because the downloader writes to `data/raw/<date>/`, the live run downloads
+there, runs the checks there, and **moves** the 12 raw files into
+`data/live/<run_id>/raw/` once the product is written, leaving nothing of its
+own in Pile A's directory. A run that fails a check leaves its raw files in
+`data/raw/<date>/` for inspection, as a failed Pile A date does.
+
+#### Run selection
+
+| # | Rule |
+|---|---|
+| 1 | Only `00` UTC runs are eligible. A run at any other hour is ignored, whatever its id looks like |
+| 2 | An **incomplete run is never used**. The newest complete 00 UTC run is used and the incomplete newer one is named in the log |
+| 3 | A run is never built when one at least as new has already been built. This covers both "an older run never replaces a newer one" and "the same run is never republished" |
+
+`select_run(listing, published)` is a pure function: a listing in, a decision
+and a **reason in words** out. No network, no disk, no clock. That is what
+makes the rules testable without the network, and it is why the reason is
+returned rather than logged from inside.
+
+A run id is `YYYYMMDDTHHZ`, for example `20261112T00Z`. Twelve characters,
+and it sorts chronologically as plain text, so "newest" needs no date
+parsing. `data/live/last_run.json` holds the last run built, which is what
+rule 3 compares against.
+
+**File-level completeness** is decided by `Client.latest`, which walks back
+from today and returns the newest run for which every file of the request
+returns HTTP 200. **Member-level completeness** is decided afterwards by the
+section 2.5 checks, which require 51 members at all six steps. Both must
+pass; the first stops a run being chosen, the second stops it being built.
+
+#### One per-square record
+
+The stored record for a square is its **51 member daily totals for the five
+lead days**. Counts (4.2) and dot categories (4.3) are both derived from that
+same array, in one function, every run.
+
+This is deliberate. If counts and dots were computed or stored separately the
+map could show "40 of 51" while the panel drew 39 dots at or above the line,
+and there would be no way for a reader to tell which was wrong. Four
+identities are asserted on every square of every day **at run time**, not
+only in the tests:
+
+```
+dots[under 1] + dots[1-10] + dots[10-50] + dots[50+]  ==  51
+count(>= 1 mm)   ==  dots[1-10] + dots[10-50] + dots[50+]
+count(>= 10 mm)  ==  dots[10-50] + dots[50+]
+count(>= 50 mm)  ==  dots[50+]
+```
+
+A run that breaks one of them fails rather than publishing numbers that
+disagree with each other.
+
+#### Day labels
+
+Lead day n covers 00 UTC to 00 UTC starting n days after the run date, which
+in IST is 5:30 am to 5:30 am. The label is built from those two instants, not
+written out:
+
+> `5:30 am Fri 13 Nov to 5:30 am Sat 14 Nov`
+
+IST is a fixed +05:30 with no daylight saving, so no timezone database is
+needed and the offset is the same in every month. Both the run time and the
+publish time are recorded in IST in the manifest, and the run time in UTC as
+well.
+
+#### What a run writes
+
+`data/live/<run_id>/`:
+
+| File | Contents |
+|---|---|
+| `squares.npz` | `member_totals` (5, 51, 129, 121) float32 mm; `counts` (3, 5, 129, 121) uint8; `dots` (4, 5, 129, 121) uint8; `india` mask; `lat`; `lon` |
+| `days.json` | per lead day: steps, the window in UTC and IST, and the label |
+| `raw/` | the 12 GRIB files the run was built from |
+| `manifest.json` | run id, run and publish times, thresholds, dot categories, download summary, every check result, product shapes, the highest count per threshold and lead day over India, and `"published": false` |
+
+**The manifest is written last, on purpose.** Its presence is the only signal
+that everything else in the directory is complete and checked. `squares.npz`
+is written through a `.part`, reopened and compared, then renamed, as
+everywhere else in this project.
+
+#### Running in GitHub Actions
+
+The live run must work on Linux with **no login**. ECMWF open data needs no
+credential: there is no netrc, no token, no key and no interactive step
+anywhere in this path, which is why the live source is ECMWF's own server and
+not something authenticated. Paths are built with `pathlib`, there is no
+shell call and no Windows-only code.
+
+**It exits non-zero on any failed check.** Anything raised by the downloader,
+the section 2.5 checks, the quantum cap, the negative-difference rule, the
+member count or the product identities is logged with its type and message
+and returns exit code 1. Deciding not to build (nothing new, or the newest
+run incomplete) is **not** a failure and exits 0, because the previous
+forecast correctly stays up.
+
+#### First real run
+
+12 November 2026, run `20261112T00Z`, from `source="ecmwf"`:
+
+| Measure | Result |
+|---|---|
+| Downloaded | 149.3 MB, 12 files, 130 s on 4 connections |
+| Total wall clock | 2 min 26 s |
+| Packing | `bitsPerValue` 12, coarsest quantum 0.25 mm, tolerance -0.5 mm |
+| Longitude origin | 180.0 |
+| Members | 51, numbered 0 to 50, at all six steps |
+| Most negative daily difference | -0.125 mm, inside the -0.5 mm tolerance |
+| Product | 2.7 MB compressed |
+| Highest count at 10 mm over India, lead day 1 | 43 of 51 |
+
+149.3 MB is about half what a May date cost, because of the 12-bit packing
+change in section 2.1.
+
+#### Tests
+
+| File | Covers |
+|---|---|
+| `tests/test_lead_days.py` | lead day n is steps 24n to 24(n+1); the 0-24 window is never a lead day; windows meet exactly; IST labels across a month end and a year end; IST has no daylight saving |
+| `tests/test_counts_dots.py` | the four identities on every square of a full grid; exactly 10.0 counts at 10 mm; each threshold boundary and the float just below it; a longhand per-member recount on a small grid |
+| `tests/test_run_selection.py` | every rule above, with made-up listings; no network, no disk |
+
+#### HC6
+
+`handchecks/hc6_members.py` and `handchecks/results/hc6_members.csv`. All 51
+members' accumulated `tp` at steps 24 and 48 for one rainy and one dry India
+square, chosen from the run itself, with the day 1 difference, the three
+threshold flags, the dot category, and our own counts in the header to
+compare against.
+
+Values are read with `codes_grib_find_nearest` from the ecCodes library, so
+no pipeline code takes part in locating them. The ecCodes **command line**
+tools would be the cleaner independent route, but they are not shipped in the
+Windows pip wheel; there are no executables in the package and none on PATH.
+This is the same limitation and the same substitute as HC1.
+
+On run `20261112T00Z` the CSV reproduces our counts exactly: the rainy square
+at 34.25 N, 73.5 E gives 51 at 1 mm, 40 at 10 mm and 0 at 50 mm, with dots
+0/11/40/0; the dry square at 29.5 N, 75.5 E gives 0, 0, 0 with all 51 dots in
+the under-1-mm category.
 
 ---
 
