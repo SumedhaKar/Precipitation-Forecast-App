@@ -3120,7 +3120,7 @@ reasons, the first of which is decisive:
    drawn country and the forecast squares cannot disagree.
 2. **Weight.** A basemap is a sprite sheet, a glyph set and a vector tile for
    every viewport on every pan and zoom. Our entire data layer is 14,441
-   bytes and the two outline files are 31,904 gzipped, all fetched once.
+   bytes and the two outline files are 30,967 gzipped, all fetched once.
 3. **A dependency we do not need.** OpenFreeMap is free and generous and runs
    on donated infrastructure. If it is down, our map is blank for a reason
    that has nothing to do with our forecast. The store is ours and is already
@@ -3143,17 +3143,29 @@ when Natural Earth changes. Measured by the script itself on 12 November
 
 | File | From | Geometry | Bytes | Gzipped |
 |---|---|---|---|---|
-| `web/src/geo/india.geo.json` | `ne_10m_admin_0_countries_ind`, the `India` feature, **the same file and edition the mask of 3.5 is built from** | MultiPolygon, 2,745 points in 35 parts | 44,179 | **15,169** |
-| `web/src/geo/states.geo.json` | `ne_10m_admin_1_states_provinces`, `admin = India`, the same file the IMD regions of 5.4 use | MultiLineString, 3,011 points in 77 parts, 229.6 degrees of line | 48,717 | **16,735** |
-| | | | | **31,904 total**, against the 60,000 you allowed |
+| `web/src/geo/india.geo.json` | `ne_10m_admin_0_countries_ind`, the `India` feature, **the same file and edition the mask of 3.5 is built from** | MultiPolygon, 2,745 points in 35 parts | 43,557 | **14,730** |
+| `web/src/geo/states.geo.json` | `ne_10m_admin_1_states_provinces`, `admin = India`, the same file the IMD regions of 5.4 use | MultiLineString, 3,063 points in 141 parts, 220.2 degrees of line | 49,026 | **16,237** |
+| | | | | **30,967 total**, against the 60,000 you allowed |
 
-The outline keeps **99.9947%** of the source area and its bounding box is
-identical to the shapefile's, 68.1434 to 97.3623 E and 6.7456 to 37.0545 N;
-the script fails rather than writes if simplifying ever moves that box. Both
-are simplified at **0.01 degrees**, about 1.1 km, and written to three
-decimal places, about 110 m. A grid square is 0.25 degrees, so the drawn
-lines are finer than the data they sit under by a factor of twenty-five and
-cannot be nudged into the wrong square by this.
+The outline keeps **99.9952%** of the source area. Both files are simplified
+at **0.01 degrees**, about 1.1 km, and their coordinates are then snapped to
+a **0.001 degree grid**, about 110 m, which is the precision they are written
+to. A grid square is 0.25 degrees, so the drawn lines are finer than the data
+they sit under by a factor of twenty-five and cannot be nudged into the wrong
+square by any of this.
+
+The snapping is done to the geometry and not to the text, so **what is
+written is exactly what was checked**. Rounding coordinates in the JSON
+afterwards would have meant the file could contain shapes the checks never
+saw, and it did: the first build left a zero-length closed ring at 93.018 E
+24.399 N, a shared border a few centimetres long whose two ends rounded to
+the same coordinate. One part was below the grid and is dropped.
+
+The outline's bounding box is 68.143 to 97.362 E and 6.746 to 37.054 N,
+within one grid step of the shapefile's own 68.1434 to 97.3623 and 6.7456 to
+37.0545. The script fails rather than writes if it ever moves further than
+that; simplifying at 0.5 degrees instead of 0.01 moves it by 0.266 and was
+refused.
 
 | Layer | Paint |
 |---|---|
@@ -3162,28 +3174,60 @@ cannot be nudged into the wrong square by this.
 | state lines | `#c9d2da`, 0.6 px, under the national line and over the squares: thin and light enough to orient without competing with the palette |
 | India, line | `#aab6c0`, 1 px, drawn last so the coast stays crisp where squares meet the sea |
 
-#### The state lines are internal only, and make no claim
+#### The state lines are shared boundaries only, and make no claim
 
-`states.geo.json` holds the boundary of each of the 36 India state polygons
-**with everything that runs along the national edge removed**. The script
-takes every state's own boundary, which is 429.9 degrees of line, and keeps
-only the 229.6 degrees that are still inside India after the national outline
-is pulled inward by 0.02 degrees, about 2 km. A line that follows the coast
-or the national border falls outside the shrunken outline and is dropped.
+**`states.geo.json` contains a line only where two Indian units meet.** For
+every pair of the 36 India admin-1 polygons whose bounding boxes overlap, the
+script takes the part of their boundaries that coincides, and that is all it
+keeps. **68 pairs share a boundary**, 225.3 degrees of it, of which 220.2
+degrees survive being clipped to the national outline.
 
-That matters because, as 5.4 already records, **Natural Earth publishes no
-point-of-view edition of admin-1**. Taking the external edge from admin-1
-would have drawn a different border from the one the mask uses. Taking only
-the internal lines means the single boundary this map draws is the India POV
-outline of 3.5, and the admin-1 file contributes nothing but lines between
-Indian states.
+That is a stronger rule than "internal lines", which is what this section
+first proposed: an internal line is any line not near the national edge, and
+a unit's edge facing an area admin-1 does not cover is exactly that. The
+measured difference is **9.4 degrees of line**, about 1,000 km, that the
+first rule would have drawn and this one does not.
 
-Where admin-1 has no polygon at all there is simply no state line. That is
-the same gap 5.4's rule 3 exists for, 183 squares in the northwest, and the
-honest result is an area inside India's outline with no internal subdivision
-drawn, rather than a line invented to fill it.
+The reason it matters is in the data. As 5.4 already records, **Natural Earth
+publishes no point-of-view edition of admin-1**, and its northern units stop
+short:
+
+| | Northern limit |
+|---|---|
+| `ne_10m_admin_0_countries_ind`, the India POV outline, which the mask and the map both come from | **37.0545 N** |
+| admin-1 `Ladakh` | 35.4954 N |
+| admin-1 `Jammu and Kashmir` | 34.77 N |
+| the state lines actually drawn | **34.558 N** |
+
+An outer edge taken from admin-1 would therefore have been a different
+boundary from the one the mask was cut with, drawn underneath squares we
+colour. A **shared** boundary never is one: it is a line between two Indian
+units by construction, which no national edge can be.
+
+The Jammu and Kashmir to Ladakh boundary is a boundary between two Indian
+union territories, so it is drawn, and it is **2.168 degrees** long. The
+northern edges of both are shared with nothing and are not drawn. North of
+34.558 N the map shows India's outline with no internal subdivision inside
+it, which is the honest consequence of the admin-1 file stopping there, and
+not a line invented to fill the space.
+
+Four things the script checks before it writes, each of which fails the build
+rather than warning:
+
+| Check | Measured |
+|---|---|
+| `Jammu and Kashmir` and `Ladakh` are both in admin-1 and share a boundary | both present, 2.168 degrees |
+| no drawn state line falls outside the national outline | **0.000000 degrees** outside. Keeping every unit boundary instead of only shared ones puts 0.016646 degrees outside, so this check is what the rule is for |
+| no state line runs north of the admin-1 data | 34.558 N against 35.4954 N |
+| both files together fit the budget | 30,967 gzipped against 60,000 |
+
+One closed ring survives all of that and should: **Puducherry's Yanam** is an
+enclave inside Andhra Pradesh, so the boundary it shares with Andhra Pradesh
+is its entire perimeter, 0.327 degrees at 82.178 to 82.301 E. It is a real
+boundary between two Indian units and it is drawn.
 
 #### Amending 3.5
+
 
 3.5 said "The outline decides only which grid squares count as India. The
 published map does not draw national borders." **The second sentence is now
@@ -3256,7 +3300,7 @@ The whole map contract, on first load:
 
 The India outline and the state lines of 11.14 are **not** in that table:
 they are imported by the map module, so they travel inside the map's own
-JavaScript chunk and add **31,904 gzipped bytes** to it rather than two more
+JavaScript chunk and add **30,967 gzipped bytes** to it rather than two more
 requests. They are build-time constants of the site, not data of a run, and
 they change only when `scripts/build_outline.py` is rerun.
 
@@ -3680,7 +3724,7 @@ Settled in this draft:
 
 | # | Was open | Your answer |
 |---|---|---|
-| 1 | **Draw the India outline?** | **Yes**, from the same Natural Earth India point-of-view file the mask is cut from, **plus thin light internal state lines** from the admin-1 file the IMD regions already use, if they stayed under about 60 KB gzipped. Measured: **15,169 + 16,735 = 31,904 gzipped**, about half the budget, so both are drawn (11.14). `scripts/build_outline.py` is **approved into the fixed structure**, and 3.5's "the published map does not draw national borders" is amended there and in 11.14. Still no basemap |
+| 1 | **Draw the India outline?** | **Yes**, from the same Natural Earth India point-of-view file the mask is cut from, **plus thin light state lines** from the admin-1 file the IMD regions already use, drawn only where two Indian units share a boundary, if they stayed under about 60 KB gzipped. Measured: **14,730 + 16,237 = 30,967 gzipped**, about half the budget, so both are drawn (11.14). Jammu and Kashmir and Ladakh were checked by name, as you asked: they share 2.168 degrees of boundary, which is drawn, and nothing from admin-1 falls outside the point-of-view outline. `scripts/build_outline.py` is **approved into the fixed structure**, and 3.5's "the published map does not draw national borders" is amended there and in 11.14. Still no basemap |
 | 2 | replacing both old sentences with `N of 51 model runs, which is not a calibrated probability.` | **yes.** 11.9's row is amended and 11.21 holds the replacement |
 | 3 | the page learning the store base URL from `api/health` at runtime | **yes.** 11.5's table row is amended |
 | 4 | **one plain sentence a day in the panel, above the counts** | **added**, built from that day's three counts and nothing else, with no weather words at all: the rule is 11.20 and the test that holds it, including a list of forbidden words, is 11.24 |
