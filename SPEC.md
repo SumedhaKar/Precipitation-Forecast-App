@@ -2537,11 +2537,24 @@ rest:
   "functions": {
     "api/*.mjs": {
       "maxDuration": 10,
-      "excludeFiles": "{data/**,handchecks/**,results/**,tests/**,pipeline/**,scripts/**,web/**,.github/**}"
+      "includeFiles": "config/store.json",
+      "excludeFiles": "{data/**,handchecks/**,results/**,tests/**,pipeline/**,scripts/**,web/**,.github/**,.venv/**,*.md}"
     }
   }
 }
 ```
+
+`includeFiles` names `config/store.json` explicitly: it is the one file
+outside `api/` that a function reads, and it is read rather than imported, so
+nothing would trace it into the bundle on its own. The functions also look
+for it relative to the working directory as a second try, so a bundle that
+flattens the layout still finds it (11.5).
+
+The site is built with **Vite 8.3.8, React 19.3.1 and @vitejs/plugin-react
+6.3.0**, pinned exactly in `web/package.json` with a `package-lock.json`
+beside it. `npm ci` and `npm run build` were both run on this laptop before
+the first deploy: 17 modules, `dist/index.html` 0.72 KB, one 2.85 KB
+stylesheet and one 228 KB script, 72 KB of it over the wire gzipped.
 
 | Key | Value | Why |
 |---|---|---|
@@ -2843,10 +2856,18 @@ step too; the footer is the short form and links to the long one.
 | | a sea square inside the box answers 404 with a `nearest_in_tile` the tile really holds |
 | | outside the box answers 400; an unreachable store answers 503; no base URL answers 500 |
 | `tests/test_api_consistency.py`, `api/health` | the fields come from the manifest unchanged, `age_hours` and `stale` are computed from `run_time_utc` against a frozen clock, and `stale` flips at 36 hours and not before |
-| the existing 144 tests | unchanged. Nothing in `pipeline/` moves for G2 |
+| the committed `config/store.json` | an `https` Blob URL with no trailing slash and no credential in it, and `STORE_BASE_URL` read **before** the file in both functions |
+| `api/place` against the counts bytes | the byte at `i × n_lon + j` of each of the 15 counts files equals the count the API returns, so the map of G3 and the page of G2 cannot drift apart |
+| the existing 156 tests | unchanged. Nothing in `pipeline/` moves for G2 |
 
 Skipped rather than failed when `node` is not on `PATH`, with the reason
 printed, the same way the `@real` tests of 8.13 skip without a built run.
+
+**Built and run, 12 November 2026: 19 tests here, 175 in the suite.** Every
+one of the 30 India squares of the synthetic run is fetched through
+`api/place` under `node` and compared against its published tile, day by day
+and member by member. The check was shown to bite: changing the whole
+millimetre from `floor` to `round` in `api/place.mjs` fails two of the 19.
 
 ### 11.11 Settled, and what is open
 

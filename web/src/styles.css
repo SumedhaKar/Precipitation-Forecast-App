@@ -1,0 +1,184 @@
+/* G2: a plain page that reads well on a phone. SPEC 11.8. */
+
+:root {
+  --ink: #16191d;
+  --quiet: #555f6b;
+  --line: #d7dbe0;
+  --panel: #f5f7f9;
+  --warn: #8a3b00;
+  --warn-panel: #fff4e6;
+  --bad: #8a0f14;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #fff;
+  color: var(--ink);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+h1 {
+  font-size: 1.6rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+
+h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
+h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+
+a { color: #0b4f9c; }
+
+.lede { margin: 0 0 1.25rem; }
+
+.small, .spread, .daylabel { font-size: 0.875rem; color: var(--quiet); }
+
+.stale {
+  background: var(--warn-panel);
+  border-left: 4px solid var(--warn);
+  color: var(--warn);
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.error {
+  background: #fff0f0;
+  border-left: 4px solid var(--bad);
+  color: var(--bad);
+  padding: 0.75rem 1rem;
+}
+
+.run { margin: 0.5rem 0 1.25rem; }
+
+.runid {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--quiet);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--quiet);
+}
+
+.picker select, .picker input {
+  font: inherit;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #9aa3ad;
+  border-radius: 4px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.picker input { width: 7rem; }
+
+.picker button {
+  font: inherit;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #0b4f9c;
+  border-radius: 4px;
+  background: #0b4f9c;
+  color: #fff;
+  cursor: pointer;
+}
+
+.picker button:disabled { opacity: 0.6; cursor: default; }
+
+.where { margin: 1.25rem 0 0.5rem; }
+.moved { color: var(--warn); }
+
+table.counts {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0 0.75rem;
+}
+
+table.counts caption {
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--quiet);
+  padding-bottom: 0.4rem;
+}
+
+table.counts th, table.counts td {
+  border: 1px solid var(--line);
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.counts thead th { background: var(--panel); font-size: 0.875rem; }
+
+table.counts tbody th { font-weight: 600; }
+
+.daynum { display: block; }
+.daylabel { display: block; font-weight: 400; }
+
+table.counts td strong { font-size: 1.1rem; }
+
+.memberday h3 .daylabel { display: block; }
+
+ol.values {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+}
+
+ol.values li {
+  min-width: 3.1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.2rem 0.3rem;
+  text-align: center;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+ol.values li.control { border-color: #0b4f9c; border-width: 2px; }
+
+ol.values .who { display: block; color: var(--quiet); font-size: 0.68rem; }
+ol.values .mm { display: block; font-size: 0.95rem; }
+
+footer {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+  font-size: 0.8125rem;
+  color: var(--quiet);
+}
+
+footer .warning {
+  background: var(--warn-panel);
+  border-left: 4px solid var(--warn);
+  color: var(--warn);
+  padding: 0.75rem 1rem;
+  font-size: 0.9375rem;
+}
+
+footer h2 { font-size: 0.9375rem; color: var(--ink); }

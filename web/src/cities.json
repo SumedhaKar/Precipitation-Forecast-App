@@ -1,0 +1,25 @@
+{
+  "note": "SPEC 11.8. `lat` and `lon` are the 0.25 degree square the page shows, not the city centre. Three of these are not the city's own square: its own square is sea on this grid, so the nearest India square is used and `moved_from` records where the city actually is. Every square here was checked against the India mask on 12 November 2026.",
+  "cities": [
+    { "name": "Delhi", "lat": 28.5, "lon": 77.25 },
+    { "name": "Mumbai", "lat": 19.25, "lon": 73.0, "moved_from": { "lat": 19.08, "lon": 72.88 } },
+    { "name": "Kolkata", "lat": 22.5, "lon": 88.25 },
+    { "name": "Chennai", "lat": 13.0, "lon": 80.25 },
+    { "name": "Bengaluru", "lat": 13.0, "lon": 77.5 },
+    { "name": "Hyderabad", "lat": 17.5, "lon": 78.5 },
+    { "name": "Ahmedabad", "lat": 23.0, "lon": 72.5 },
+    { "name": "Pune", "lat": 18.5, "lon": 73.75 },
+    { "name": "Jaipur", "lat": 27.0, "lon": 75.75 },
+    { "name": "Lucknow", "lat": 26.75, "lon": 81.0 },
+    { "name": "Patna", "lat": 25.5, "lon": 85.25 },
+    { "name": "Bhopal", "lat": 23.25, "lon": 77.5 },
+    { "name": "Nagpur", "lat": 21.25, "lon": 79.0 },
+    { "name": "Visakhapatnam", "lat": 17.75, "lon": 83.25 },
+    { "name": "Kochi", "lat": 10.25, "lon": 76.25, "moved_from": { "lat": 9.93, "lon": 76.27 } },
+    { "name": "Thiruvananthapuram", "lat": 8.5, "lon": 77.0 },
+    { "name": "Guwahati", "lat": 26.25, "lon": 91.75 },
+    { "name": "Cherrapunji", "lat": 25.25, "lon": 91.75 },
+    { "name": "Srinagar", "lat": 34.0, "lon": 74.75 },
+    { "name": "Mangaluru", "lat": 12.75, "lon": 75.0, "moved_from": { "lat": 12.87, "lon": 74.84 } }
+  ]
+}

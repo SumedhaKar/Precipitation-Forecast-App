@@ -1,0 +1,5 @@
+{
+  "base_url": "https://zshhfucqsimhyy61.public.blob.vercel-storage.com",
+  "manifest": "manifest.json",
+  "note": "SPEC 11.5. The public, read-only address of the Blob store. Not a credential: it appears in every URL the website fetches, and nothing can be written through it. The publisher does not read this file; it finds the manifest with list (SPEC 8.6). STORE_BASE_URL in the environment overrides it."
+}

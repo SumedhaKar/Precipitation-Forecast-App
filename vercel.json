@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd web && npm ci",
+  "buildCommand": "cd web && npm run build",
+  "outputDirectory": "web/dist",
+  "regions": ["bom1"],
+  "functions": {
+    "api/*.mjs": {
+      "maxDuration": 10,
+      "includeFiles": "config/store.json",
+      "excludeFiles": "{data/**,handchecks/**,results/**,tests/**,pipeline/**,scripts/**,web/**,.github/**,.venv/**,*.md}"
+    }
+  }
+}
