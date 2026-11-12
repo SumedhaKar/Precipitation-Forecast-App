@@ -1923,6 +1923,15 @@ the largest total it can carry is 4,095.9 mm against the 101.75 mm highest
 member total over India on this run. The step is written in `grid.json`, so a
 reader multiplies rather than guesses.
 
+An unsigned type is safe because a member total is never negative by the time
+anything sees it. The small negative differences section 3.6 tolerates are
+set to 0 inside `daily_totals`, before the counts, the dots or this section
+touch them, and anything below the tolerance raises instead. On run
+`20261112T00Z` the lowest member total is **0.0 mm** over India and over the
+whole window, with no negative value anywhere, after 61,338 differences had
+been clamped. The publish checks it again and fails on a negative rather than
+storing it as a large unsigned number.
+
 Three reasons for that step and for rounding down rather than to the nearest:
 
 1. **0.0625 mm is the finest quantum the data has.** GRIB packs each message
@@ -1946,11 +1955,35 @@ Three reasons for that step and for rounding down rather than to the nearest:
    understate a member, never promote one.
 
 A future run with an even finer quantum than 0.0625 mm would be rounded down
-by less than one step, which still cannot change a count or a dot category,
-and can change the whole-millimetre display by at most 1 mm in the rare case
-where the true value sits just above a half. The publish asserts that the
-integers reproduce the counts and the dots exactly, so a run where that stops
-being true fails instead of publishing numbers that disagree.
+by less than one step, which still cannot change a count or a dot category.
+The publish asserts that the integers reproduce the counts and the dots
+exactly, so a run where that stops being true fails instead of publishing
+numbers that disagree.
+
+#### The displayed whole millimetre is rounded down too
+
+The panel shows a member total as a whole number of millimetres, **rounded
+down**: 9.9375 mm shows as 9, and 10.0 mm shows as 10. In integers it is one
+division, `code // 16`, because 16 steps of 0.0625 mm make a millimetre.
+
+Rounding the display down is what keeps the three things a reader sees about
+one member in agreement. A member at 9.9375 mm is below the 10 mm line, so it
+is not in our count of 51 and its dot is in the "1 to under 10 mm" category.
+Displayed to the nearest it would read "10 mm", next to a dot in the under-10
+category and a count that does not include it, and a reader comparing them
+would be right to think one of the three was wrong. Rounded down it reads
+"9 mm", and all three agree.
+
+This holds for every value, not just the ones measured. 0.0625 mm divides
+1 mm exactly, so flooring to the step and then flooring to the millimetre
+gives the same whole number as flooring the true total straight away, and the
+three thresholds are whole millimetres themselves. Display, dot category and
+count cannot disagree about which side of a line a member is on.
+
+A consequence worth stating plainly: a member total under 1 mm displays as
+**0 mm** while its dot is still in the "under 1 mm" category and the 1 mm
+count correctly excludes it. Zero displayed does not mean no rain, it means
+less than a millimetre, and section 11 has to word it that way.
 
 The integers live in the tile JSON rather than in a separate binary file next
 to it. Measured both ways on the real run: JSON is 3,202,461 bytes against
@@ -2158,10 +2191,13 @@ The whole contract, in three requests:
 | 2 | `runs/<run_id>/counts/ge<T>mm_day<d>.u8` | the map, 15,609 bytes, 255 outside India |
 | 3 | `runs/<run_id>/tiles/<lat>_<lon>.json` | the place panel, on a square click: the counts, the four dot categories and all 51 member totals for that square |
 
-A member total arrives as an integer. The panel multiplies it by the step in
-`grid.json`, 0.0625 mm, and shows **whole millimetres**. It never shows more
-precision than that: a sixteenth of a millimetre is an artefact of how GRIB
-packs numbers, not a distinction a five-day forecast can support.
+A member total arrives as an integer in steps of 0.0625 mm, the step being
+stated in `grid.json`. The panel shows **whole millimetres, rounded down**,
+which is `code // 16`: 9.9375 mm shows as 9 and 10.0 mm shows as 10, so the
+number shown, the dot category and the count always agree about which side of
+a threshold that member is on (8.4). It never shows more precision than a
+millimetre: a sixteenth of a millimetre is an artefact of how GRIB packs
+numbers, not a distinction a five-day forecast can support.
 
 No server, no database, no key: the pages can read the store directly.
 `api/health` and `api/place` are built as well, in section 11, because the
@@ -2216,6 +2252,8 @@ being touched until it stops.
 | member integers round **down**: a total of 9.9375 mm never becomes 10 mm, at any step | 8.4 |
 | a member total that is an exact multiple of 0.0625 mm survives the round trip exactly | 8.4 |
 | a member integer above 65,535, or a negative one, fails the publish | 8.4 |
+| the whole-millimetre display rounds down: 9.9375 mm shows 9, 10.0 mm shows 10, 0.9375 mm shows 0 | 8.4 |
+| for every member of every India square of a real run, the displayed whole millimetre is on the same side of 1, 10 and 50 mm as the count and the dot category | 8.4 |
 | the cache ages are 60 s on the manifest and 2,592,000 s on every run file | 8.4 |
 
 #### HC7
