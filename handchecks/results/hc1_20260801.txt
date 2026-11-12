@@ -1,0 +1,26 @@
+HC1  date 20260801
+     saved file 20260801.npz, shape (6, 51, 129, 121)
+     comparing against raw GRIB via ecCodes find_nearest
+     tolerance 0.0001 mm
+
+     squares chosen:
+       rainy    row  44 col  75  lat  27.00  lon  86.75
+       dry      row   5 col   2  lat  36.75  lon  68.50
+       coastal  row  72 col 100  lat  20.00  lon  93.00
+
+     square    step  mem    saved mm     grib mm        diff  result
+     ---------------------------------------------------------------
+     rainy      24    0    32.33594    32.33594    0.00e+00  MATCH
+     rainy      24   38    14.59375    14.59375    0.00e+00  MATCH
+     rainy     144    0   199.67188   199.67188    0.00e+00  MATCH
+     rainy     144   38   138.46875   138.46875    0.00e+00  MATCH
+     dry        24    0     0.00000     0.00000    0.00e+00  MATCH
+     dry        24   38     0.00000     0.00000    0.00e+00  MATCH
+     dry       144    0     0.00000     0.00000    0.00e+00  MATCH
+     dry       144   38     0.00000     0.00000    0.00e+00  MATCH
+     coastal    24    0    22.25391    22.25391    0.00e+00  MATCH
+     coastal    24   38    19.67188    19.67188    0.00e+00  MATCH
+     coastal   144    0   106.85938   106.85938    0.00e+00  MATCH
+     coastal   144   38   119.17188   119.17188    0.00e+00  MATCH
+
+HC1 PASSED: all 12 comparisons matched

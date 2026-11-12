@@ -1,0 +1,23 @@
+HC3  date 20260801
+     file    20260801.npz  (19,108,866 bytes)
+     arrays  ['tp', 'steps', 'members', 'lat', 'lon']
+     tp      shape (6, 51, 129, 121), dtype float32
+
+     steps stored in the file (6):
+       [24, 48, 72, 96, 120, 144]
+
+     member ids stored in the file (51):
+         0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16
+        17  18  19  20  21  22  23  24  25  26  27  28  29  30  31  32  33
+        34  35  36  37  38  39  40  41  42  43  44  45  46  47  48  49  50
+
+     latitude  129 values, 38.0 down to 6.0
+     longitude 121 values, 68.0 up to 98.0
+
+     packing quantum, coarsest 0.015625 mm
+     tolerance from the done record -0.03125 mm
+
+     51 members, 0 to 50, each exactly once, ascending
+     6 steps, ascending, accumulations never decrease materially
+
+HC3 PASSED
