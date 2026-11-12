@@ -2112,25 +2112,24 @@ anyway.
 Step 8 runs whether or not step 7 built anything: with nothing new on the
 disk it prints "nothing to publish" and exits 0.
 
-**The schedule is commented out**, since 12 November 2026, and the job runs
-only when it is started by hand. It is restored by deleting two comment
-markers in `forecast.yml`, once the first manual publish and HC7 have both
-passed.
+**The schedule was held back and is now live.** It was commented out on 12
+November 2026 and restored the same day, once the first publish and HC7 had
+both passed.
 
-The reason is not the cron itself but what a cron does before anyone has
+The reason was not the cron itself but what a cron does before anyone has
 watched the job work. A schedule becomes live the moment the file is on
-`main`, and until the secret of 8.9 exists every attempt fails at step 6 with
-a missing token: one runner minute, nothing downloaded, nothing published.
-The failure is correct, and the alternative of skipping quietly when the
-secret is absent would make a store that had stopped answering look the same
-as a store nobody had set up yet. What it is not is **informative**, and a
-job that goes red every day at the same time is how a real failure comes to
-be ignored. So the schedule waits until there is a successful publish to
-compare a failure against.
+`main`, and until the secret of 8.9 existed every attempt would have failed
+at step 6 with a missing token: one runner minute, nothing downloaded,
+nothing published. That failure is correct, and the alternative of skipping
+quietly when the secret is absent would make a store that had stopped
+answering look the same as a store nobody had set up yet. What it is not is
+**informative**, and a job that goes red every day at the same time is how a
+real failure comes to be ignored. So the schedule waited until there was a
+successful publish to compare a failure against, which 20261112T00Z now is.
 
 | Setting | Value | Why |
 |---|---|---|
-| Triggers | `workflow_dispatch` now, `schedule` commented out until the first manual publish and HC7 both pass | the dispatch is for the first publish and after a failure |
+| Triggers | `schedule` and `workflow_dispatch` | the cron is the normal path; the dispatch is for the first publish, after a failure, and for a run ECMWF published late |
 | Concurrency | group `live`, `cancel-in-progress: false` | two overlapping publishes could interleave uploads; a queued second attempt simply finds nothing new |
 | Permissions | `contents: read` | the workflow writes nothing back to the repository |
 | Timeout | 30 minutes | the first real run took 2 min 26 s |
