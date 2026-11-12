@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { colourOf, inkOf, labelOf, notProbability } from './palette';
 import { squareText } from './snap';
 import { nameOfSquare } from './places';
+import { sameSquare } from './answers';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -291,8 +292,14 @@ export function HowToRead() {
 }
 
 export default function Panel({
-  place, error, notice, busy, day, threshold, onDay, onThreshold, from,
+  place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
 }) {
+  // SPEC 11.30. The last line of defence, and the rule in one place: numbers
+  // are shown for the chosen square or not at all. `place.square.asked` is
+  // what was sent to api/place, which is the chosen square even when the
+  // answer is for the land square one step away (SPEC 11.7).
+  const answered = place && place.square
+    && sameSquare(place.square.asked, square);
   if (notice) {
     // SPEC 11.28: a place the grid cannot carry is not an error. It gets the
     // island group's own sentence, in a plain box rather than a red one.
@@ -317,10 +324,17 @@ export default function Panel({
       </div>
     );
   }
-  if (!place) {
+  if (!place || !answered) {
     return (
       <div className="panel-body">
-        {busy ? <p className="small">Reading the forecast…</p> : <HowToRead />}
+        {square ? (
+          <p className="loadingsquare" role="status">
+            Loading {squareText(square.lat, square.lon)}…
+          </p>
+        ) : null}
+        {!square && busy ? <p className="small">Reading the forecast…</p>
+          : null}
+        {!square && !busy ? <HowToRead /> : null}
       </div>
     );
   }

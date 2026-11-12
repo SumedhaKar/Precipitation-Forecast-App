@@ -19,7 +19,7 @@
 // earned by the record (SPEC 6), and no track record exists yet.
 
 import {
-  Component, Suspense, lazy, useCallback, useEffect, useState,
+  Component, Suspense, lazy, useCallback, useEffect, useRef, useState,
 } from 'react';
 
 import Panel from './Panel';
@@ -30,6 +30,7 @@ import { inBox, snap, squareText } from './snap';
 import { nameOfSquare } from './places';
 import { notFoundNote } from './islands';
 import { OUTSIDE, mapProblem } from './messages';
+import { keepAnswer } from './answers';
 
 // SPEC 11.16: MapLibre is 295 KB gzipped, so it is a chunk of its own and
 // the run line, the stale banner and the panel paint without waiting for it.
@@ -220,6 +221,8 @@ export default function App() {
   const [sheetOpen, setSheetOpen] = useState(false);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
+  // The number of the most recent request for a square's numbers (11.30).
+  const asked = useRef(0);
 
   // One request to our own origin: the run, the day labels, the staleness,
   // and where the store is.
@@ -278,7 +281,24 @@ export default function App() {
     return () => { alive = false; };
   }, [health]);
 
+  /**
+   * One square's numbers, with nothing stale left on the screen. SPEC 11.30.
+   *
+   * Every request is given a ticket, and an answer is used only if it is the
+   * answer to the latest one **and** it is about the square that is chosen
+   * now. Before this, two requests in the air meant whichever answered last
+   * won: "use my location" put the ring on 22.75 N 88.25 E while the panel
+   * went on showing 34.50 N 74.25 E and 51 of 51 model runs at 1 mm, because
+   * the older request answered second.
+   *
+   * The old numbers also go the moment a new square is picked, rather than
+   * sitting there under a new heading while the answer is fetched.
+   */
   const load = useCallback(async (lat, lon) => {
+    const ticket = asked.current + 1;
+    asked.current = ticket;
+    const here = { lat, lon };
+    setPlace(null);
     setBusy(true);
     setPlaceError(null);
     setNotice(null);
@@ -287,6 +307,9 @@ export default function App() {
         `/api/place?lat=${encodeURIComponent(lat)}`
         + `&lon=${encodeURIComponent(lon)}`);
       const body = await response.json();
+      // A newer pick has happened while this was in the air: this answer is
+      // about somewhere the reader has already left.
+      if (ticket !== asked.current) return;
       if (!response.ok || !body.ok) {
         setPlace(null);
         // SPEC 11.28: nothing was found, so nothing is marked. A ring around
@@ -306,17 +329,28 @@ export default function App() {
             detail: body.detail || null,
           });
         }
-      } else {
+      } else if (keepAnswer(ticket, asked.current, here,
+        body.square && body.square.asked)) {
         setPlace(body);
+      } else {
+        // The ticket was current but the answer is about another square,
+        // which should not be possible and is not going on the screen.
+        setPlace(null);
+        setPlaceError({
+          said: 'The forecast could not be read for that square.',
+          detail: 'The answer that came back was for a different square, so '
+            + 'it was not shown. Try again.',
+        });
       }
     } catch (error) {
+      if (ticket !== asked.current) return;
       setPlace(null);
       setPlaceError({
         said: `The forecast could not be read: ${error.message}`,
         detail: null,
       });
     } finally {
-      setBusy(false);
+      if (ticket === asked.current) setBusy(false);
     }
   }, []);
 
@@ -502,6 +536,7 @@ export default function App() {
             <MyLocation onLocation={located} snapTo={snapTo} from={from} />
           </div>
           <Panel
+            square={square}
             place={place}
             error={placeError}
             notice={notice}
