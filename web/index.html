@@ -12,6 +12,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- SPEC 11.22. The map is drawn with JavaScript, but the numbers are
+         not behind it: this route answers JSON with no script at all. -->
+    <noscript>
+      <h1>India precipitation forecast</h1>
+      <p>
+        This page draws a map, which needs JavaScript. The forecast itself
+        does not: one square's counts, dots and 51 member values are at
+        <a href="/api/place?lat=28.5&amp;lon=77.25"
+          >/api/place?lat=28.5&amp;lon=77.25</a
+        >, and what is published right now is at
+        <a href="/api/health">/api/health</a>.
+      </p>
+      <p>
+        These are model-run counts, not a calibrated probability, and not an
+        official warning. For warnings see the
+        <a href="https://mausam.imd.gov.in/">India Meteorological Department</a>.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

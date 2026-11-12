@@ -3240,6 +3240,31 @@ wrong and is replaced**, approved 12 November 2026:
 > shape. No other country's borders are drawn, and no boundary comes from a
 > third-party basemap.
 
+#### Built so a basemap could be added later without rework
+
+Added 12 November 2026, at your request. **No basemap is drawn now and none
+is planned for G3.** What this fixes is the cost of changing that mind later:
+without it, adding a basemap would mean reordering layers, changing how the
+squares are painted, and rewriting HC8.
+
+| Kept open | How |
+|---|---|
+| a slot **below** the squares for a basemap | an empty layer with the stable id `slot-basemap`, sitting above our own white land fill and below the squares. `map.addLayer(basemapLayer, SLOT_BASEMAP)` puts a basemap exactly where one belongs: over the plain land fill it would replace, under every number we publish |
+| a slot **above** the squares for labels | an empty layer with the stable id `slot-labels`, at the very top. `map.addLayer(labelLayer, SLOT_LABELS)` puts place names over everything, which is the only place labels can go |
+| the squares as **one** layer with **one** constant opacity | `fill-opacity` is the exported constant `SQUARE_OPACITY`, which is **1.0**. A basemap that has to show through is then one number, not a new expression and not a second layer |
+
+Both slots are `background` layers painted at zero opacity, so they draw
+nothing at all and cost nothing: they exist only as ids to insert before.
+
+**HC8 samples with no basemap present**, and says so in its result. That is
+not a convenience: a sampled pixel equals the palette hex of 11.17 exactly
+only while `SQUARE_OPACITY` is 1 and nothing is drawn underneath. If a
+basemap is ever added and that constant drops below 1, HC8's colour
+comparison has to be rewritten to account for the blend, and the hand check
+should fail loudly rather than quietly compare a blended pixel against an
+unblended table. It therefore checks both: that the slot is empty, and that
+the constant is 1.
+
 #### What else gives the reader their bearings
 
 | | |
@@ -3672,6 +3697,12 @@ It passes when 1, 2, 3 and 4 are the same integer, **and** the sampled pixel
 is exactly the palette hex of 11.17 for the class that contains that integer,
 **and** the active legend row is that class. Anything else is a failure with
 all five values printed.
+
+Two more conditions, because the pixel comparison depends on them: the
+basemap slot of 11.14 must be **empty**, and the squares' `fill-opacity`
+must be **1**. A sampled pixel only equals an unblended table while both hold,
+so HC8 asserts them rather than assuming them, and records in its result that
+it sampled with no basemap present.
 
 Reading a pixel back from a WebGL canvas needs `preserveDrawingBuffer`, which
 costs performance on every frame for every reader. So the map sets it **only

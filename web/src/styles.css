@@ -1,184 +1,589 @@
-/* G2: a plain page that reads well on a phone. SPEC 11.8. */
+/* SPEC 11.18. Light theme only, declared, because the palette of 11.17 is
+   chosen against a white page and an automatic dark inversion would change
+   what the colours mean. One font: the system stack, so there is no webfont
+   to download and no flash of unstyled text. */
 
 :root {
-  --ink: #16191d;
-  --quiet: #555f6b;
-  --line: #d7dbe0;
-  --panel: #f5f7f9;
-  --warn: #8a3b00;
-  --warn-panel: #fff4e6;
-  --bad: #8a0f14;
+  color-scheme: light;
+
+  --ink: #1f2933;
+  --quiet: #52606d;
+  --faint: #7b8794;
+  --rule: #dbe1e8;
+  --page: #f4f6f8;
+  --card: #ffffff;
+  --sea: #eaf0f4;
+  --picked: #0b2b4a;
+  --warn-bg: #fff4e5;
+  --warn-ink: #7a4100;
+  --err-bg: #fdecec;
+  --err-ink: #8a1c1c;
+
+  --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --panel: 380px;
 }
 
 * { box-sizing: border-box; }
 
+html, body, #root { height: 100%; }
+
 body {
   margin: 0;
-  background: #fff;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
   color: var(--ink);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--page);
   -webkit-text-size-adjust: 100%;
 }
 
-main {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
+h1, h2, h3 { line-height: 1.25; margin: 0 0 0.4rem; }
+h1 { font-size: 1.25rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 0.95rem; }
+p { margin: 0 0 0.6rem; }
 
-h1 {
-  font-size: 1.6rem;
-  line-height: 1.2;
-  margin: 0 0 0.5rem;
-}
+a { color: #0b4f8a; }
 
-h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
-h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
-
-a { color: #0b4f9c; }
-
-.lede { margin: 0 0 1.25rem; }
-
-.small, .spread, .daylabel { font-size: 0.875rem; color: var(--quiet); }
-
-.stale {
-  background: var(--warn-panel);
-  border-left: 4px solid var(--warn);
-  color: var(--warn);
-  padding: 0.75rem 1rem;
-  margin: 1rem 0;
-}
-
-.error {
-  background: #fff0f0;
-  border-left: 4px solid var(--bad);
-  color: var(--bad);
-  padding: 0.75rem 1rem;
-}
-
-.run { margin: 0.5rem 0 1.25rem; }
-
-.runid {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--quiet);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-}
-
-.picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: flex-end;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1rem;
-}
-
-.picker label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--quiet);
-}
-
-.picker select, .picker input {
+button {
   font: inherit;
-  padding: 0.45rem 0.5rem;
-  border: 1px solid #9aa3ad;
-  border-radius: 4px;
-  background: #fff;
-  color: var(--ink);
-}
-
-.picker input { width: 7rem; }
-
-.picker button {
-  font: inherit;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid #0b4f9c;
-  border-radius: 4px;
-  background: #0b4f9c;
-  color: #fff;
+  color: inherit;
   cursor: pointer;
 }
 
-.picker button:disabled { opacity: 0.6; cursor: default; }
+:focus-visible {
+  outline: 2px solid var(--picked);
+  outline-offset: 2px;
+}
 
-.where { margin: 1.25rem 0 0.5rem; }
-.moved { color: var(--warn); }
+.small { font-size: 0.82rem; color: var(--quiet); }
+.note { font-size: 0.82rem; color: var(--quiet); margin: 0.3rem 0 0; }
+
+/* ------------------------------------------------------------- the shell */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  /* A definite height, not min-height: the map is the hero and fills the
+     screen, and the panel scrolls inside itself. With min-height the stage
+     grows to fit the panel's content and pushes the map below the fold,
+     which is what the first build did. */
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+}
+
+.run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
+.runid {
+  margin-left: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.stale {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border-bottom: 1px solid #f0d9b5;
+  font-size: 0.88rem;
+}
+
+.error {
+  padding: 0.5rem 0.7rem;
+  background: var(--err-bg);
+  color: var(--err-ink);
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.mapwrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--sea);
+}
+
+/* Not `position: absolute; inset: 0`. MapLibre's own stylesheet sets
+   `.maplibregl-map { position: relative }` on this same element and loads
+   after this file, so the absolute positioning was overridden and the
+   container collapsed to zero height with the canvas floating in it. A
+   definite width and height needs no positioning and cannot be overridden
+   by a rule about position. */
+.map { width: 100%; height: 100%; }
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--quiet);
+  font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------- the controls */
+
+.controls {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  max-width: calc(100% - 1.5rem);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
+}
+
+.group { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.grouplabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.radios { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+.radios button {
+  padding: 0.3rem 0.55rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.radios button.on {
+  background: var(--picked);
+  border-color: var(--picked);
+  color: #ffffff;
+}
+
+.window { margin: 0; font-size: 0.75rem; color: var(--quiet); }
+
+/* ----------------------------------------------------------- the legend */
+
+.legend {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 2.4rem;
+  z-index: 2;
+  padding: 0.55rem 0.65rem;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(31, 41, 51, 0.08);
+  max-width: 15rem;
+}
+
+.legend-head { margin: 0 0 0.35rem; font-size: 0.8rem; }
+.legend-foot { margin: 0.35rem 0 0; font-size: 0.7rem; color: var(--quiet); }
+
+.legend-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.legend-rows li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1px solid rgba(31, 41, 51, 0.25);
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------ the panel */
+
+.panel {
+  flex: 0 0 var(--panel);
+  width: var(--panel);
+  overflow-y: auto;
+  background: var(--card);
+  border-left: 1px solid var(--rule);
+  padding: 0.8rem 0.9rem 1.2rem;
+}
+
+.handle { display: none; }
+
+.finder { margin-bottom: 0.8rem; }
+
+.search label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  margin-bottom: 0.2rem;
+}
+
+.searchrow { display: flex; gap: 0.35rem; }
+
+.searchrow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.searchrow button,
+.mine button {
+  padding: 0.35rem 0.7rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.mine { margin-top: 0.4rem; }
+
+.matches {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.matches button {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  background: var(--card);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.matches li:last-child button { border-bottom: 0; }
+
+.placeline h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cityname { font-size: 0.85rem; font-weight: 400; color: var(--quiet); }
+
+.moved {
+  font-size: 0.82rem;
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+}
+
+.sentence {
+  font-size: 1rem;
+  margin: 0.5rem 0 0.7rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--picked);
+  border-radius: 0 6px 6px 0;
+}
+
+/* ------------------------------------------------------------ the counts */
 
 table.counts {
   width: 100%;
   border-collapse: collapse;
-  margin: 0.5rem 0 0.75rem;
+  font-size: 0.88rem;
 }
 
 table.counts caption {
   text-align: left;
-  font-size: 0.875rem;
+  font-size: 0.78rem;
   color: var(--quiet);
-  padding-bottom: 0.4rem;
+  padding-bottom: 0.25rem;
 }
 
-table.counts th, table.counts td {
-  border: 1px solid var(--line);
-  padding: 0.5rem 0.6rem;
+table.counts th,
+table.counts td {
   text-align: left;
-  vertical-align: top;
+  padding: 0.3rem 0.35rem;
+  border-top: 1px solid var(--rule);
+  vertical-align: baseline;
 }
 
-table.counts thead th { background: var(--panel); font-size: 0.875rem; }
+table.counts th[scope="row"] { font-weight: 400; color: var(--quiet); }
+table.counts td { font-variant-numeric: tabular-nums; }
+table.counts tr.now th,
+table.counts tr.now td { background: var(--page); }
+table.counts td.band {
+  font-size: 0.78rem;
+  color: var(--quiet);
+  white-space: nowrap;
+}
+table.counts td.band .swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.3rem;
+  vertical-align: -1px;
+}
 
-table.counts tbody th { font-weight: 600; }
+/* -------------------------------------------------------- the day strip */
 
-.daynum { display: block; }
-.daylabel { display: block; font-weight: 400; }
+.strip { margin-top: 1rem; }
 
-table.counts td strong { font-size: 1.1rem; }
+.strip ol {
+  list-style: none;
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0 0.3rem;
+  padding: 0;
+}
 
-.memberday h3 .daylabel { display: block; }
+.strip li { flex: 1 1 0; min-width: 0; }
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.35rem 0.1rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.cell.chosen { border-color: var(--picked); border-width: 2px; }
+.cellday { font-size: 0.64rem; color: var(--ink); white-space: nowrap; }
+.cellcount {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- the dots */
+
+.dots { margin-top: 1rem; }
+
+.dotgrid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(17, 1fr);
+  gap: 2px;
+  margin: 0 0 0.4rem;
+  padding: 0;
+}
+
+.dotgrid li {
+  aspect-ratio: 1;
+  border: 1px solid rgba(31, 41, 51, 0.2);
+  border-radius: 50%;
+}
+
+.dotkey {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dotkey li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.dotkey .swatch { width: 0.8rem; height: 0.8rem; border-radius: 50%; }
+
+/* ------------------------------------------------------------ the members */
+
+.members { margin-top: 1rem; }
+.spread { font-size: 0.8rem; color: var(--quiet); margin: 0 0 0.35rem; }
 
 ol.values {
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-  margin: 0.4rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+  gap: 2px;
+  margin: 0 0 0.4rem;
   padding: 0;
 }
 
 ol.values li {
-  min-width: 3.1rem;
-  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.15rem 0;
+  background: var(--page);
   border-radius: 4px;
-  padding: 0.2rem 0.3rem;
-  text-align: center;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
-ol.values li.control { border-color: #0b4f9c; border-width: 2px; }
+ol.values li.control { outline: 1px solid var(--picked); }
+.who { font-size: 0.6rem; color: var(--faint); }
+.mm { font-size: 0.85rem; }
 
-ol.values .who { display: block; color: var(--quiet); font-size: 0.68rem; }
-ol.values .mm { display: block; font-size: 0.95rem; }
+.arith {
+  margin-top: 0.8rem;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- the footer */
 
 footer {
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 1rem;
-  font-size: 0.8125rem;
+  margin-top: 1.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.78rem;
   color: var(--quiet);
 }
 
-footer .warning {
-  background: var(--warn-panel);
-  border-left: 4px solid var(--warn);
-  color: var(--warn);
-  padding: 0.75rem 1rem;
-  font-size: 0.9375rem;
+footer .warning { color: var(--ink); }
+footer summary { cursor: pointer; margin-bottom: 0.4rem; }
+footer p { max-width: 70ch; }
+
+/* ------------------------------------- phone and tablet: a bottom sheet */
+
+@media (max-width: 1023px) {
+  .stage { flex-direction: column; }
+
+  .mapwrap { flex: 0 0 52vh; min-height: 52vh; order: 1; }
+
+  /* Not floating over the map. On a phone the card is as wide as the screen
+     and covered both the south of the country and the legend. */
+  .controls {
+    position: static;
+    order: 2;
+    flex: none;
+    max-width: none;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    background: var(--card);
+  }
+
+  .radios {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+  }
+
+  .panel {
+    order: 3;
+    flex: 1 1 auto;
+    width: 100%;
+    max-height: 45vh;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 0;
+  }
+
+  .handle {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--card);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.85rem;
+    color: var(--quiet);
+  }
+
+  .handle::before {
+    content: "";
+    display: block;
+    width: 2.2rem;
+    height: 3px;
+    margin: 0 auto 0.35rem;
+    background: var(--rule);
+    border-radius: 2px;
+  }
+
+  .shell.open .mapwrap { flex-basis: 26vh; min-height: 26vh; }
+  .shell.open .panel { max-height: none; }
+
+  /* With the sheet open the map is a strip, and a full-width legend covers
+     the country. The key is not lost: every count row in the panel carries
+     its own swatch and the class by name. */
+  .shell.open .legend { display: none; }
+
+  /* One compact row along the bottom of the map, now that nothing else is
+     there. The end labels carry the scale; the middle classes are read from
+     the swatches. */
+  /* Clear of MapLibre's attribution strip, which sits along the bottom
+     right and covered the swatches when the legend was flush with it. */
+  .legend {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 1.9rem;
+    max-width: none;
+    padding: 0.4rem 0.5rem;
+  }
+
+  .legend-head { font-size: 0.72rem; margin-bottom: 0.25rem; }
+  .legend-foot { display: none; }
+  .legend-rows { flex-direction: row; gap: 0; }
+  .legend-rows li { flex: 1 1 0; flex-direction: column; gap: 1px; font-size: 0.6rem; }
+  .legend-rows .swatch { width: 100%; height: 0.7rem; border-radius: 0; }
+
+  .controls { padding: 0.45rem 0.6rem; gap: 0.4rem; }
+  .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
 }
 
-footer h2 { font-size: 0.9375rem; color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
