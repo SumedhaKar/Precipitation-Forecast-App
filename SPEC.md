@@ -135,10 +135,11 @@ dissemination. The 0.25 degree grid is therefore a presentation grid, not the
 model's native resolution. The site must never imply detail finer than about
 31 km.
 
-#### Two things ECMWF changed around 20 October 2026
+#### Two things ECMWF changed, on 14 May and 21 October 2026
 
 Both were found on 12 November 2026 by processing 13 May and 25 October and
-comparing them. Both are **[verified]** from the real files.
+comparing them, and both changeover dates were then read from the done records
+of the whole 177 date archive. Both are **[verified]** from the real files.
 
 | Key | 13 May 2026 | 25 October 2026 |
 |---|---|---|
@@ -150,11 +151,27 @@ comparing them. Both are **[verified]** from the real files.
 | File size, `pf` step 24 | 42 MB | 21.6 MB |
 | Raw bytes for the whole date | 301 MB | 153 MB |
 
-**[open] — the exact changeover dates.** The two changes are confirmed on
-13 May and 25 October, but the first date carrying each is not yet known. When
-the full Pile A run finishes, the first date with `bitsPerValue` 12 and the
-first date with longitude origin 180 are to be read from the done records and
-written in here. They may not be the same date.
+**The exact changeover dates [verified].** Read from the `longitude_origin`
+and `packing.bitsPerValue` fields of all 177 Pile A done records on 12
+November 2026. They are not the same date, and they are five months apart:
+
+| Change | Last date before | **First date with it** | Holds unbroken to |
+|---|---|---|---|
+| longitude origin 0.0 to **180.0** | 20260513 | **20260514** | 20261105 |
+| `bitsPerValue` 16 to **12** | 20261020 | **20261021** | 20261105 |
+
+Two things worth noticing in those numbers. The longitude origin moved on the
+**second** date of the archive, so exactly one date in the whole of Pile A,
+13 May 2026, carries the old origin — had the archive started a day later
+nothing here would ever have seen it, and the code would have been written
+against an assumption instead of a measurement. And `packingType` is
+`grid_ccsds` on all 177 dates: only the bit depth changed, not the scheme.
+
+The coarsest quantum across the six steps follows the bit depth, and varies
+from date to date within each era: 0.0078125, 0.015625 or 0.03125 mm on the
+16-bit dates, and 0.125 or 0.25 mm from 20261021 onward. That per-date
+variation is why the tolerance of 3.6 is derived from each file's own packing
+rather than fixed.
 
 **Storage precision dropped from 16 to 12 bits.** This is recorded for every
 date and never causes a failure. It does affect the negative-difference rule;
