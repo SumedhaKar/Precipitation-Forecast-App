@@ -3374,9 +3374,47 @@ in the middle of the country would be drawn a fraction of a square away from
 where they belong. A silent, plausible-looking misplacement of data is
 exactly what this project refuses, and no performance gain buys it.
 
-The frame cost of a day or threshold switch, the first-paint time and the
-real bundle size are **measured when it is built** and reported with the
-screenshots. Nothing is claimed for them here.
+#### What the build actually measured
+
+Built on this laptop on 12 November 2026, `vite build`, and served as a
+production build reading the real published store:
+
+| | Raw | Gzipped |
+|---|---|---|
+| `index.html` | 1,540 | **780** |
+| the page's stylesheet | 7,972 | **2,290** |
+| the page's script, which paints the title, the run line, the stale banner, the controls and the panel | 237,883 | **75,390** |
+| **first paint, all three** | | **78,460** |
+| the map chunk: MapLibre, the map code, the India outline and the state lines | 1,162,750 | **323,780** |
+| MapLibre's stylesheet, in the same chunk | 71,339 | **10,250** |
+| **the map, loaded after the text** | | **334,030** |
+| the worker MapLibre starts, loaded by the worker thread only | 520,110 | |
+
+So the code-splitting of point 4 does what it was for: the honest content is
+78 KB and arrives first, and the map's third of a megabyte follows. The
+forecast data itself, on top of that, is the 14,441 bytes of 11.13.
+
+**Four things were wrong and were found by looking at the built page**, not
+by reasoning about it. They are written down because each one would have
+looked like a design choice to anyone reading the result:
+
+| What happened | Why | Fixed by |
+|---|---|---|
+| the map never drew: "Worker failed to load" | MapLibre 6 is ESM only and works its worker's URL out at runtime as a sibling of its own bundle, which no bundler can see, so the file was never emitted | importing it with Vite's `?url` and calling `setWorkerUrl`, which MapLibre exports for exactly this |
+| the map container collapsed to zero height | `maplibre-gl.css` sets `position: relative` on the same element and loads **after** our stylesheet, so `position: absolute; inset: 0` was overridden | a definite `width: 100%; height: 100%`, which no rule about position can undo |
+| the south of India was cut off | `maxBounds` two degrees outside the India box: MapLibre will not zoom out past `maxBounds`, so on a wide screen the minimum zoom it forces is **more** zoomed in than the zoom that fits the country | a box 20 degrees wider and 12 taller, which never binds and still stops anyone wandering off |
+| the map was below the fold | `.shell` used `min-height`, so the panel's content set the height of the row and the map went with it | a definite `100dvh`, with the panel and the footer scrolling inside it |
+
+On a phone the day and threshold controls are a strip **between** the map and
+the sheet, not a card floating over the map: floating, they covered both the
+south of the country and the legend. The legend becomes a single compact
+ramp, and it is hidden while the sheet is open, because with the map reduced
+to a strip it covered what was left of it. Every count row in the panel
+carries its own swatch and class name, so the key is never out of reach.
+
+The frame cost of a day or threshold switch is not claimed here either. What
+can be said is what the code does: one `setPaintProperty`, no request and no
+source update, which was checked by watching the network while switching.
 
 ### 11.17 The colour scale and the legend
 
