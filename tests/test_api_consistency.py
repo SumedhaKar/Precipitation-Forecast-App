@@ -24,6 +24,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -62,14 +63,18 @@ process.stdout.write(JSON.stringify({
 # rule, the IST labels, the palette and the snap are tested as functions
 # rather than inferred from a response.
 EXPORT_HARNESS = """
-const [file, name, args] = process.argv.slice(2);
+// The arguments arrive in a file, not on the command line: Windows caps a
+// command line at about 32,000 characters and the town list alone is 15,000
+// (SPEC 11.28), so passing it as an argument failed outright.
+import { readFileSync } from 'node:fs';
+const [file, name, argsFile] = process.argv.slice(2);
 const mod = await import(file);
 const fn = mod[name];
 if (typeof fn !== 'function') {
   throw new Error(`${file} exports no function called ${name}`);
 }
-const out = JSON.parse(args).map((call) => fn(...call));
-process.stdout.write(JSON.stringify(out));
+const calls = JSON.parse(readFileSync(argsFile, 'utf8'));
+process.stdout.write(JSON.stringify(calls.map((call) => fn(...call))));
 """
 
 
@@ -124,9 +129,12 @@ def exports(tmp_path):
     path = tmp_path / "exports.mjs"
     path.write_text(EXPORT_HARNESS, encoding="utf-8")
 
+    args = tmp_path / "args.json"
+
     def run(module: Path, name: str, calls: list[list]) -> list:
+        args.write_text(json.dumps(calls), encoding="utf-8")
         done = subprocess.run(
-            [node, str(path), Path(module).as_uri(), name, json.dumps(calls)],
+            [node, str(path), Path(module).as_uri(), name, str(args)],
             capture_output=True, text=True, check=False)
         assert done.returncode == 0, f"node failed: {done.stderr}"
         return json.loads(done.stdout)
@@ -716,11 +724,19 @@ def test_the_count_key_is_the_one_the_map_reads(exports):
 
 @needs_node
 def test_the_not_a_probability_sentence_is_the_approved_wording(exports):
+    """SPEC 11.21, amended by 11.28.
+
+    It used to take the count and read "1 of 51 model runs, which is not a
+    calibrated probability." — a fragment with no verb, and one that reads as
+    a claim about the number next to it. It is one sentence now, the same
+    whatever the count is, so there is nothing for it to disagree with.
+    """
     said = exports(PALETTE, "notProbability", [[], [40]])
-    assert said[0] == ("N of 51 model runs, which is not a calibrated "
-                       "probability.")
-    assert said[1] == ("40 of 51 model runs, which is not a calibrated "
-                       "probability.")
+    assert said[0] == ("These are counts out of 51 model runs, not a "
+                       "calibrated probability.")
+    assert said[1] == said[0], "the count must not change the sentence"
+    # It is a sentence: a verb, and nothing to complete.
+    assert said[0].startswith("These are ") and said[0].endswith(".")
     # This is the one sentence on the site that is *allowed* to say
     # "probability", because its whole job is to say these numbers are not
     # one. The forbidden-word list of the day sentence does not apply to it.
@@ -809,3 +825,328 @@ def test_the_box_test_is_the_india_box_of_spec_one_four(exports):
 def test_the_square_text_always_shows_two_decimals(exports):
     said = exports(SNAP, "squareText", [[28.5, 77.25], [8.0, 73.0]])
     assert said == ["28.50 N 77.25 E", "8.00 N 73.00 E"]
+
+
+# ------------------- SPEC 11.28: the islands this grid cannot carry at all
+
+ISLANDS = ROOT / "web" / "src" / "islands.js"
+PLACE_FN = ROOT / "api" / "place.mjs"
+TOWNLIST = ROOT / "web" / "src" / "townlist.js"
+TOWNS_FILE = ROOT / "web" / "src" / "towns.json"
+MASK_FILE = ROOT / "config" / "india_mask.json"
+
+
+def india_box_points(step: float = 0.5) -> list[list[float]]:
+    """A sweep of the whole India box, plus the squares that matter."""
+    points = []
+    lat = 6.0
+    while lat <= 38.0001:
+        lon = 68.0
+        while lon <= 98.0001:
+            points.append([round(lat, 2), round(lon, 2)])
+            lon += step
+        lat += step
+    points += [[10.5, 72.75], [11.75, 92.75], [12.75, 92.75], [12.5, 92.75],
+               [10.75, 92.5], [8.0, 71.5], [12.5, 74.0], [6.0, 92.0],
+               [14.0, 94.5], [12.51, 74.01], [7.99, 71.49], [28.5, 77.25]]
+    return points
+
+
+@needs_node
+def test_the_page_and_the_api_say_the_same_thing_about_the_islands(exports):
+    """Two copies of one table, kept honest the way SPEC 11.24 keeps the snap.
+
+    The page answers for a reader who clicked Lakshadweep; api/place answers
+    for a reader with no JavaScript asking the same question. If the two ever
+    disagreed, the site would say one thing and its own API another.
+    """
+    points = india_box_points()
+    page = exports(ISLANDS, "notFoundNote", points)
+    api = exports(PLACE_FN, "notFoundNote", points)
+    assert page == api
+    groups_page = exports(ISLANDS, "islandGroup", points)
+    groups_api = exports(PLACE_FN, "islandGroup", points)
+    assert groups_page == groups_api
+
+    # And it fires where it should and nowhere else.
+    said = dict(zip([tuple(p) for p in points], page))
+    assert said[(10.5, 72.75)].startswith("Lakshadweep is not forecast.")
+    assert said[(11.75, 92.75)].startswith("This part of the Andaman")
+    assert said[(28.5, 77.25)] is None       # Delhi
+    assert said[(25.0, 80.0)] is None        # the middle of the country
+    assert said[(12.51, 74.01)] is None      # one step outside the box
+    assert said[(7.99, 71.49)] is None
+
+
+@needs_node
+def test_the_island_sentences_say_what_was_measured_and_judge_nothing(
+        exports):
+    notes = exports(ISLANDS, "notFoundNote", [[10.5, 72.75], [11.75, 92.75]])
+    lakshadweep, andaman = notes
+
+    # The measurements these sentences rest on are in SPEC 11.28: 209 squares
+    # cover Lakshadweep and none has its centre on land, and exactly three
+    # squares in the Andaman box pass SPEC 3.5's rule.
+    assert "209" in lakshadweep
+    assert "28 km" in lakshadweep and "28 km" in andaman
+    for square in ("12.75 N 92.75 E", "12.50 N 92.75 E", "10.75 N 92.50 E"):
+        assert square in andaman, square
+
+    # It is a limit of the grid, and must never read as a forecast.
+    for note in notes:
+        low = note.lower()
+        assert "not a forecast of no rain" in low
+        assert "%" not in note
+        for word in ("dry", "likely", "chance", "probability", "unlikely",
+                     "expect", "safe"):
+            assert word not in low, (word, note)
+
+
+@needs_node
+def test_a_point_in_lakshadweep_is_not_called_the_open_ocean(store, harness):
+    """The whole point of SPEC 11.28's table, through the real function.
+
+    The test store holds a small grid near 38 N 68 E, so every one of these
+    asks for a tile the store does not have, which is exactly the "no square
+    here" case a real Lakshadweep click produces.
+    """
+    island = call(harness, "place", "?lat=10.5&lon=72.75", store["base"])
+    assert island["status"] == 404
+    assert island["json"]["island_group"] == "Lakshadweep"
+    assert island["json"]["error"].startswith("Lakshadweep is not forecast.")
+
+    andaman = call(harness, "place", "?lat=11.75&lon=92.75", store["base"])
+    assert andaman["status"] == 404
+    assert andaman["json"]["island_group"] == "Andaman & Nicobar"
+    assert "narrower than one square" in andaman["json"]["error"]
+
+    # Somewhere with no island story: the old sentence, unchanged.
+    plain = call(harness, "place", "?lat=25&lon=80", store["base"])
+    assert plain["status"] == 404
+    assert plain["json"]["island_group"] is None
+    assert plain["json"]["error"] == "outside the forecast area"
+    assert "all eight squares around it" in plain["json"]["detail"]
+
+
+# ---------------------------- SPEC 11.28: the towns the search box offers
+
+def load_towns() -> list[dict]:
+    return json.loads(TOWNS_FILE.read_text("utf-8"))["towns"]
+
+
+def load_mask() -> dict:
+    return json.loads(MASK_FILE.read_text("utf-8"))
+
+
+def test_the_town_list_is_the_natural_earth_list_it_says_it_is():
+    body = json.loads(TOWNS_FILE.read_text("utf-8"))
+    assert body["source"]["layer"] == "ne_10m_populated_places"
+    assert body["source"]["licence"] == "public domain"
+    assert "India point-of-view" in body["source"]["rule"]
+    assert len(body["towns"]) == 215
+
+
+def test_the_town_list_holds_nothing_finer_than_one_square():
+    """SPEC 11.19 in the data as well as in the code.
+
+    A town's own position is never written down: the file holds the square
+    the page shows, so a coordinate finer than 28 km is not in the bundle at
+    all and cannot leak into a URL by accident.
+    """
+    for town in load_towns():
+        for lat, lon in [(town["lat"], town["lon"])] + (
+                [(town["moved_from"]["lat"], town["moved_from"]["lon"])]
+                if "moved_from" in town else []):
+            assert 6.0 <= lat <= 38.0 and 68.0 <= lon <= 98.0, town
+            assert abs(round(lat * 4) / 4 - lat) < 1e-9, town
+            assert abs(round(lon * 4) / 4 - lon) < 1e-9, town
+
+
+@needs_node
+def test_every_town_resolves_to_an_india_square_or_says_plainly_why(exports):
+    """What the search box promises. SPEC 11.28.
+
+    Every one of the 215 towns either lands on a square that is in the India
+    mask — so /api/place has numbers for it — or carries the island group it
+    is in, and that group has a sentence of its own. There is no third
+    outcome, and in particular no town that can be searched and then answered
+    with "outside the forecast area".
+    """
+    rows = load_mask()["india_rows"]
+    towns = load_towns()
+
+    def square_in_mask(lat: float, lon: float) -> bool:
+        i = round((38.0 - lat) / 0.25)
+        j = round((lon - 68.0) / 0.25)
+        return (0 <= i < len(rows) and 0 <= j < len(rows[i])
+                and rows[i][j] == "1")
+
+    missing = [t for t in towns if "not_forecast" in t]
+    notes = exports(ISLANDS, "notFoundNote",
+                    [[t["lat"], t["lon"]] for t in missing])
+    groups = exports(ISLANDS, "islandGroup",
+                     [[t["lat"], t["lon"]] for t in missing])
+
+    for town, note, group in zip(missing, notes, groups):
+        assert note and len(note) > 60, town
+        assert group == town["not_forecast"], town
+
+    for town in towns:
+        if "not_forecast" in town:
+            continue
+        assert square_in_mask(town["lat"], town["lon"]), town
+
+    # The two that cannot be forecast are the two measured in SPEC 11.28, and
+    # no others have crept in.
+    assert {t["name"]: t["not_forecast"] for t in missing} == {
+        "Kavaratti": "Lakshadweep",
+        "Port Blair": "Andaman & Nicobar",
+    }
+
+
+@needs_node
+def test_the_page_and_the_api_agree_on_every_town_s_square(exports):
+    """The stored square is the square api/place would pick for that town.
+
+    A town is stored as a square centre, so snapping it must be a no-op, in
+    the page and in the function alike. If this drifted, the search box would
+    show one square's name over another square's numbers.
+    """
+    towns = [t for t in load_towns() if "not_forecast" not in t]
+    calls = [[t["lat"], t["lon"]] for t in towns]
+    page = exports(SNAP, "snap", calls)
+    api = exports(PLACE_FN, "snapSquare", calls)
+    assert page == api
+    for town, got in zip(towns, page):
+        assert (got["lat"], got["lon"]) == (town["lat"], town["lon"]), town
+
+
+@needs_node
+def test_an_empty_search_box_matches_nothing(exports):
+    """SPEC 11.28. The page said 'No town in the list starts with ""'.
+
+    findTowns is what that message was built on, so the fix is tested here:
+    nothing typed, nothing matched, nothing to apologise for.
+    """
+    towns = load_towns()
+    answers = exports(TOWNLIST, "findTowns",
+                      [[towns, ""], [towns, "   "], [towns, None]])
+    assert answers == [[], [], []]
+
+
+@needs_node
+def test_the_search_offers_what_starts_with_the_letters_first(exports):
+    towns = load_towns()
+    found = exports(TOWNLIST, "findTowns",
+                    [[towns, "kavar"], [towns, "delh"], [towns, "zzzz"],
+                     [towns, "aurangabad"]])
+    kavaratti, delhi, nothing, aurangabad = found
+
+    assert [t["name"] for t in kavaratti] == ["Kavaratti"]
+    assert kavaratti[0]["not_forecast"] == "Lakshadweep"
+    assert [t["name"] for t in delhi][0] == "Delhi"
+    assert nothing == []
+    # Both Aurangabads are offered, and each says which state it is in.
+    assert [t["state"] for t in aurangabad] == ["Bihar", "Maharashtra"]
+
+
+@needs_node
+def test_a_square_with_two_towns_in_it_names_both(exports):
+    """Four squares hold two towns each, and the page claims neither alone."""
+    towns = load_towns()
+    said = exports(TOWNLIST, "nameOfSquare",
+                   [[towns, 28.5, 77.25], [towns, 22.5, 88.25],
+                    [towns, 26.25, 91.75], [towns, 19.25, 73.25],
+                    [towns, 13.0, 80.25], [towns, 10.5, 72.75]])
+    assert said[0] == "Faridabad and New Delhi"
+    assert said[1] == "Haora and Kolkata"
+    assert said[2] == "Dispur and Guwahati"
+    assert said[3] == "Bhiwandi and Kalyan"
+    assert said[4] == "Chennai"
+    # A town the grid cannot carry never names a square.
+    assert said[5] is None
+
+
+@pytest.mark.skipif(
+    not (ROOT / "data" / "raw" / "ne"
+         / "ne_10m_populated_places.shp").exists(),
+    reason="the Natural Earth populated places shapefile is not here; "
+           "data/ is never committed")
+def test_the_committed_town_list_is_what_the_script_writes():
+    """SPEC 11.28: the file is built, not hand-edited."""
+    done = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "build_towns.py"), "--check"],
+        capture_output=True, text=True, check=False, cwd=ROOT)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "byte for byte" in done.stdout
+
+
+# ------------------------- SPEC 11.28: the sea is not the colour of nothing
+
+@needs_node
+def test_the_sea_can_be_told_apart_from_a_square_no_run_reached(exports):
+    """The fault this was: #eaf0f4 sea against the #eceff1 zero class.
+
+    A contrast ratio of 1.005 is the same colour. The difference it hid is
+    the difference between "the forecast says no model run reaches 1 mm here"
+    and "there is no forecast here", which is the whole point of the mask.
+    """
+    sea = exports(PALETTE, "colourOf", [[0]])  # keeps the import honest
+    assert sea == ["#eceff1"]
+
+    text = (ROOT / "web" / "src" / "palette.js").read_text("utf-8")
+    assert "export const SEA = '#aec6da'" in text
+    # The old colour is named in the comment that records the fault, and
+    # nowhere else: no line that is not a comment may still mention it.
+    for line in text.splitlines():
+        if "#eaf0f4" in line:
+            assert line.strip().startswith("//"), line
+
+    def channel(value: float) -> float:
+        value /= 255
+        return (value / 12.92 if value <= 0.04045
+                else ((value + 0.055) / 1.055) ** 2.4)
+
+    def luminance(colour: str) -> float:
+        r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+        return (0.2126 * channel(r) + 0.7152 * channel(g)
+                + 0.0722 * channel(b))
+
+    def ratio(one: str, two: str) -> float:
+        a, b = luminance(one), luminance(two)
+        return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+
+    assert ratio("#aec6da", "#eceff1") > 1.4, "the sea against the 0 class"
+    assert ratio("#aec6da", "#ffffff") > 1.5, "the sea against the land"
+    assert ratio("#eaf0f4", "#eceff1") < 1.02, "what this replaced"
+
+
+@needs_node
+def test_every_class_is_written_in_an_ink_that_can_be_read_on_it(exports):
+    """SPEC 11.28. The five-day strip paints each cell its count's colour.
+
+    It wrote the number on it in the page's own dark ink, so a day where all
+    51 runs reach the threshold was near-black on navy. The table has carried
+    an ink per class since 11.17 and nothing was reading it.
+    """
+    inks = exports(PALETTE, "inkOf", [[count] for count in range(52)])
+    colours = exports(PALETTE, "colourOf", [[count] for count in range(52)])
+
+    def channel(value: float) -> float:
+        value /= 255
+        return (value / 12.92 if value <= 0.04045
+                else ((value + 0.055) / 1.055) ** 2.4)
+
+    def luminance(colour: str) -> float:
+        r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+        return (0.2126 * channel(r) + 0.7152 * channel(g)
+                + 0.0722 * channel(b))
+
+    for count, (ink, colour) in enumerate(zip(inks, colours)):
+        assert ink is not None, count
+        a, b = luminance(ink), luminance(colour)
+        ratio = (max(a, b) + 0.05) / (min(a, b) + 0.05)
+        # WCAG AA for text that is not large.
+        assert ratio >= 4.5, (count, colour, ink, round(ratio, 2))
+
+    assert exports(PALETTE, "inkOf", [[52], [-1], [None]]) == [None] * 3
