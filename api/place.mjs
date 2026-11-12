@@ -60,6 +60,60 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// SPEC 11.23. The same function as in api/health.mjs; see the note above
+// about the lines these two files share.
+export function shortIst(fromIst) {
+  const at = Date.parse(fromIst);
+  if (Number.isNaN(at)) return null;
+  const ist = new Date(at + 5.5 * 3_600_000);
+  return `${DAYS[ist.getUTCDay()]} ${ist.getUTCDate()} `
+    + `${MONTHS[ist.getUTCMonth()]}`;
+}
+
+function mm(threshold) {
+  // 1.0 prints as "1 mm", and a fractional threshold would print as itself.
+  return `${Number.isInteger(threshold) ? threshold : threshold} mm`;
+}
+
+// SPEC 11.20: one plain sentence for one day, built from that day's counts
+// and nothing else.
+//
+// There is no judgement in here and there must never be: no "dry", no
+// "likely", no "chance", no percentage, no banding. The thresholds come from
+// the manifest rather than from a constant, so the sentence cannot describe
+// a threshold the run did not publish. Counts are monotone by SPEC 4.2, so a
+// higher threshold is named only once a lower one has been reached, and the
+// first threshold nothing reaches ends the sentence.
+export function daySentence(counts, thresholds, members) {
+  const have = thresholds.map((threshold, k) => ({
+    threshold,
+    count: Number(counts[k]),
+  }));
+  if (!have.length || !Number.isFinite(have[0].count)) return null;
+
+  const verb = (count) => (count === 1 ? 'reaches' : 'reach');
+  const first = have[0];
+  if (first.count === 0) {
+    return `0 of ${members} model runs reach ${mm(first.threshold)}.`;
+  }
+
+  let sentence = `${first.count} of ${members} model runs `
+    + `${verb(first.count)} ${mm(first.threshold)}`;
+  for (const next of have.slice(1)) {
+    if (!Number.isFinite(next.count)) break;
+    if (next.count === 0) {
+      sentence += `, none reach ${mm(next.threshold)}`;
+      break;
+    }
+    sentence += `, ${next.count} ${verb(next.count)} ${mm(next.threshold)}`;
+  }
+  return `${sentence}.`;
+}
+
 // SPEC 8.4: a tile is named after its south-west corner in whole degrees.
 function tileName(lat, lon) {
   const south = Math.floor(lat / TILE) * TILE;
@@ -128,8 +182,10 @@ function daysFrom(manifest, record) {
     return {
       lead_day: day.lead_day,
       label: day.label,
+      short_ist: shortIst(day.from_ist),
       from_ist: day.from_ist,
       to_ist: day.to_ist,
+      sentence: daySentence(counts, thresholds, manifest.members),
       counts: {
         ge1: counts[0],
         ge10: counts[1],
@@ -267,7 +323,10 @@ export default {
       days: daysFrom(manifest, record),
       notes: {
         zero: '0 mm means under 1 mm.',
-        counts: 'These are model-run counts, not probabilities.',
+        // SPEC 11.21, amended 12 November 2026. This used to read "These are
+        // model-run counts, not probabilities."
+        counts: `N of ${manifest.members} model runs, which is not a `
+          + 'calibrated probability.',
         warning: 'Not an official warning.',
       },
       checked_at_ist: istNow(now),

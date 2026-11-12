@@ -3546,15 +3546,20 @@ promise rather than left to chance:
 Both are additive. No field changes meaning, no status code changes, and the
 60 second `Cache-Control` of 11.6 and 11.7 stays.
 
-**`api/health` gains a `store` block**, so the page can fetch bytes from the
-store after exactly one request to its own origin:
+**`api/health` gains a `source` block**, so the page can fetch bytes from
+the store after exactly one request to its own origin:
 
 | Field | From |
 |---|---|
-| `store.base_url` | the same resolution as today: `STORE_BASE_URL`, then `config/store.json` (11.5) |
-| `store.paths` | the manifest's own `paths`: `counts`, `tiles`, `india` |
-| `store.counts_files` | the manifest's 15 names, `ge1mm_day1.u8` and the rest |
-| `store.grid` | the manifest's `grid`: `n_lat`, `n_lon`, `grid_step_degrees`, `not_india`, `order` |
+| `source.base_url` | the same resolution as today: `STORE_BASE_URL`, then `config/store.json` (11.5) |
+| `source.paths` | the manifest's own `paths`: `counts`, `tiles`, `india` |
+| `source.counts_files` | the manifest's 15 names, `ge1mm_day1.u8` and the rest |
+| `source.grid` | the manifest's `grid`: `n_lat`, `n_lon`, `grid_step_degrees`, `not_india`, `order` |
+
+It is called `source` and not `store`, as this draft first said, because
+`store` is **already** a field of that response: 11.6 gives it the one-word
+status, `reachable` or the failure in words. Taking a live field's name for
+something else would have broken the G2 page to save a word.
 
 The `grid` block matters more than it looks: the page then never hardcodes
 121, 129 or 255, so it reads the byte at `i * n_lon + j` using the numbers
@@ -3571,7 +3576,7 @@ rather than by the reader's time zone.
 | Field | What |
 |---|---|
 | `days[].sentence` | the one-sentence rule of 11.20, built from that day's three counts and nothing else. Server side so there is one copy of the rule and a test can hold it |
-| `nearest_city` | set **only** when the square is exactly a city's square in `cities.json`, and absent otherwise. It never names a city merely near the square |
+| ~~`nearest_city`~~ | **dropped while building, 12 November 2026.** It would have made the function read `web/src/cities.json`, which means coupling `api/` to the site's source tree and widening `includeFiles` in `vercel.json` (11.2) for a city name. The page already holds that list and does the lookup itself: the square's name is a label, not a forecast number, so nothing honest is lost by the browser matching a latitude and longitude against twenty rows. The rule is unchanged either way — a city name appears only when the square **is** that city's square |
 
 **This amends 11.5's table**: the page's row changes from "**nothing.** It
 never learns the URL" to "learns it from `api/health` at runtime, never from

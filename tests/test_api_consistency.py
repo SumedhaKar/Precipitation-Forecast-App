@@ -57,6 +57,21 @@ process.stdout.write(JSON.stringify({
 }));
 """
 
+# SPEC 11.24. The same trick one level down: call a named export with
+# arguments instead of driving a whole request. This is how the sentence
+# rule, the IST labels, the palette and the snap are tested as functions
+# rather than inferred from a response.
+EXPORT_HARNESS = """
+const [file, name, args] = process.argv.slice(2);
+const mod = await import(file);
+const fn = mod[name];
+if (typeof fn !== 'function') {
+  throw new Error(`${file} exports no function called ${name}`);
+}
+const out = JSON.parse(args).map((call) => fn(...call));
+process.stdout.write(JSON.stringify(out));
+"""
+
 
 # ------------------------------------------------------------------ the store
 
@@ -101,6 +116,22 @@ def harness(tmp_path):
     path = tmp_path / "harness.mjs"
     path.write_text(HARNESS, encoding="utf-8")
     return path
+
+
+@pytest.fixture()
+def exports(tmp_path):
+    """Call a named export of any .mjs file in the project under node."""
+    path = tmp_path / "exports.mjs"
+    path.write_text(EXPORT_HARNESS, encoding="utf-8")
+
+    def run(module: Path, name: str, calls: list[list]) -> list:
+        done = subprocess.run(
+            [node, str(path), Path(module).as_uri(), name, json.dumps(calls)],
+            capture_output=True, text=True, check=False)
+        assert done.returncode == 0, f"node failed: {done.stderr}"
+        return json.loads(done.stdout)
+
+    return run
 
 
 def call(harness: Path, function: str, query: str, base: str,
@@ -387,3 +418,216 @@ def test_the_counts_files_agree_with_what_the_api_returns(store, harness):
             byte = np.frombuffer(data, dtype=np.uint8)[i * n_lon + j]
             key = ("ge1", "ge10", "ge50")[k]
             assert int(byte) == answer["days"][day]["counts"][key]
+
+
+# ------------------------------------------- SPEC 11.23: where the store is
+
+@needs_node
+def test_health_says_where_the_map_should_read_its_bytes(store, harness):
+    """SPEC 11.16: the page learns the store from its origin, not from a build."""
+    reply = call(harness, "health", "", store["base"])
+    block = reply["json"]["source"]
+    manifest = store["manifest"]
+
+    assert block["base_url"] == store["base"], "the override of SPEC 11.5"
+    assert block["paths"] == manifest["paths"]
+    assert block["counts_files"] == manifest["counts_files"]
+    assert len(block["counts_files"]) == 15, "3 thresholds x 5 days"
+    assert block["grid"] == manifest["grid"]
+    # The numbers the map indexes with come from the run, not from the page.
+    for key in ("n_lat", "n_lon", "not_india", "grid_step_degrees"):
+        assert key in block["grid"], key
+    assert block["grid"]["not_india"] == 255
+
+
+@needs_node
+def test_the_store_block_carries_no_credential(store, harness):
+    block = call(harness, "health", "", store["base"])["json"]["source"]
+    text = json.dumps(block).lower()
+    for secret in ("token", "secret", "password", "readwrite"):
+        assert secret not in text, f"{secret} appears in the store block"
+
+
+# -------------------------------------------- SPEC 11.23: the short IST label
+
+@needs_node
+def test_short_ist_appears_inside_the_manifests_own_label(store, harness):
+    """The label the manifest publishes starts with the time and this date."""
+    lat, lon = india_squares(store)[0]
+    for function, query in (("health", ""), ("place", f"?lat={lat}&lon={lon}")):
+        reply = call(harness, function, query, store["base"])
+        assert reply["status"] == 200, (function, reply["body"])
+        answer = reply["json"]
+        assert len(answer["days"]) == N_DAYS
+        for day, published in zip(answer["days"], store["manifest"]["days"]):
+            assert day["short_ist"], function
+            assert day["short_ist"] in published["label"], (
+                function, day["short_ist"], published["label"])
+    # And it is the real date of the real run, not just any substring.
+    assert [day["short_ist"] for day in answer["days"]] == [
+        "Fri 13 Nov", "Sat 14 Nov", "Sun 15 Nov", "Mon 16 Nov", "Tue 17 Nov"]
+
+
+@needs_node
+@pytest.mark.parametrize(("from_ist", "expected"), [
+    ("2026-11-13T05:30:00+05:30", "Fri 13 Nov"),
+    ("2026-01-01T05:30:00+05:30", "Thu 1 Jan"),
+    ("2026-12-31T05:30:00+05:30", "Thu 31 Dec"),
+    # The same instant written in UTC must still give the IST date.
+    ("2026-11-13T00:00:00+00:00", "Fri 13 Nov"),
+    ("2026-11-12T19:00:00+00:00", "Fri 13 Nov"),
+    ("2026-11-12T18:29:00+00:00", "Thu 12 Nov"),
+    ("not a date", None),
+])
+def test_the_ist_label_needs_no_time_zone_database(exports, from_ist, expected):
+    for module in ("health", "place"):
+        got = exports(ROOT / "api" / f"{module}.mjs", "shortIst",
+                      [[from_ist]])[0]
+        assert got == expected, (module, from_ist, got)
+
+
+# --------------------------------------- SPEC 11.20: one sentence for one day
+
+FORBIDDEN = ("dry", "wet", "heavy", "likely", "unlikely", "chance",
+             "probability", "probable", "expect", "risk", "warn", "%",
+             "percent", "certain", "safe", "danger", "storm", "flood")
+
+
+def expected_sentence(counts, thresholds, members) -> str:
+    """The rule of SPEC 11.20, written out again rather than imported."""
+    def mm(threshold):
+        whole = float(threshold).is_integer()
+        return f"{int(threshold) if whole else threshold} mm"
+
+    def verb(count):
+        return "reaches" if count == 1 else "reach"
+
+    if counts[0] == 0:
+        return f"0 of {members} model runs reach {mm(thresholds[0])}."
+    out = (f"{counts[0]} of {members} model runs "
+           f"{verb(counts[0])} {mm(thresholds[0])}")
+    for count, threshold in zip(counts[1:], thresholds[1:]):
+        if count == 0:
+            out += f", none reach {mm(threshold)}"
+            break
+        out += f", {count} {verb(count)} {mm(threshold)}"
+    return out + "."
+
+
+@needs_node
+@pytest.mark.parametrize(("counts", "expected"), [
+    ([0, 0, 0], "0 of 51 model runs reach 1 mm."),
+    ([18, 0, 0], "18 of 51 model runs reach 1 mm, none reach 10 mm."),
+    ([40, 12, 0],
+     "40 of 51 model runs reach 1 mm, 12 reach 10 mm, none reach 50 mm."),
+    ([51, 48, 3],
+     "51 of 51 model runs reach 1 mm, 48 reach 10 mm, 3 reach 50 mm."),
+    ([1, 0, 0], "1 of 51 model runs reaches 1 mm, none reach 10 mm."),
+    ([1, 1, 1],
+     "1 of 51 model runs reaches 1 mm, 1 reaches 10 mm, 1 reaches 50 mm."),
+    ([51, 1, 0],
+     "51 of 51 model runs reach 1 mm, 1 reaches 10 mm, none reach 50 mm."),
+])
+def test_the_day_sentence_is_exactly_the_rule(exports, counts, expected):
+    got = exports(ROOT / "api" / "place.mjs", "daySentence",
+                  [[counts, [1, 10, 50], 51]])[0]
+    assert got == expected
+    assert got == expected_sentence(counts, [1, 10, 50], 51)
+
+
+@needs_node
+def test_the_day_sentence_never_says_dry_or_likely(exports):
+    """SPEC 11.20: no judgement words, for any counts the data can hold."""
+    calls = [[[c1, c10, c50], [1, 10, 50], 51]
+             for c1 in range(0, 52, 3)
+             for c10 in range(0, c1 + 1, 7)
+             for c50 in range(0, c10 + 1, 11)]
+    assert len(calls) > 100, "a thin sweep proves nothing"
+    said = exports(ROOT / "api" / "place.mjs", "daySentence", calls)
+    for sentence in said:
+        low = sentence.lower()
+        for word in FORBIDDEN:
+            assert word not in low, f"{word} appears in: {sentence}"
+        assert sentence.endswith("."), sentence
+        assert "model runs" in sentence
+
+
+@needs_node
+def test_the_day_sentence_matches_the_counts_of_every_square(store, harness):
+    manifest = store["manifest"]
+    thresholds = manifest["thresholds_mm"]
+    members = manifest["members"]
+    for lat, lon in india_squares(store):
+        answer = call(harness, "place", f"?lat={lat}&lon={lon}",
+                      store["base"])["json"]
+        record = tile_record(store, lat, lon)
+        for day in range(N_DAYS):
+            counts = record["c"][day]
+            assert answer["days"][day]["sentence"] == expected_sentence(
+                counts, thresholds, members), (lat, lon, day, counts)
+
+
+def test_the_published_counts_are_monotone(store):
+    """SPEC 4.2, which is what lets the sentence stop at the first zero."""
+    for lat, lon in india_squares(store):
+        record = tile_record(store, lat, lon)
+        for day, counts in enumerate(record["c"]):
+            assert counts[0] >= counts[1] >= counts[2], (lat, lon, day, counts)
+
+
+# ------------------------------- SPEC 11.24: what the map reads, all fifteen
+
+@needs_node
+def test_the_map_byte_matches_the_api_for_every_square_and_combination(
+        store, harness):
+    """The map colours from these bytes and the panel prints the API's number.
+
+    Part one of SPEC 11 checked one square and one combination. The map reads
+    all fifteen files, so all fifteen are checked, for every India square.
+    """
+    from pipeline import config as cfg
+    n_lon = store["india"].shape[1]
+    counts_dir = store["dir"] / "runs" / RUN / "counts"
+    loaded = {
+        (threshold, day): np.frombuffer(
+            (counts_dir / publish.counts_file_name(threshold, day)).read_bytes(),
+            dtype=np.uint8)
+        for threshold in (1.0, 10.0, 50.0) for day in range(1, N_DAYS + 1)
+    }
+
+    squares = india_squares(store)
+    assert len(squares) == 30
+    checked = 0
+    for lat, lon in squares:
+        answer = call(harness, "place", f"?lat={lat}&lon={lon}",
+                      store["base"])["json"]
+        # The published bytes are indexed against the grid that wrote them,
+        # which here is the small test grid; api/place reports i and j against
+        # the real India box, which is right in production.
+        i = cfg.INDIA_LATS.index(lat)
+        j = cfg.INDIA_LONS.index(lon)
+        for k, threshold in enumerate((1.0, 10.0, 50.0)):
+            for day in range(1, N_DAYS + 1):
+                byte = int(loaded[(threshold, day)][i * n_lon + j])
+                assert byte != 255, "an India square is never 255"
+                answered = answer["days"][day - 1]["counts_by_threshold"][k]
+                assert byte == answered["count"], (lat, lon, threshold, day)
+                checked += 1
+    assert checked == 30 * 15, checked
+
+
+def test_the_mask_is_identical_in_every_counts_file(store):
+    """SPEC 11.16: one counts file gives the mask, so india.u8 is not fetched."""
+    run_dir = store["dir"] / "runs" / RUN
+    mask = np.frombuffer((run_dir / "india.u8").read_bytes(), dtype=np.uint8)
+    expected = (mask == 1)
+    assert expected.sum() == 30
+
+    for threshold in (1.0, 10.0, 50.0):
+        for day in range(1, N_DAYS + 1):
+            name = publish.counts_file_name(threshold, day)
+            data = np.frombuffer((run_dir / "counts" / name).read_bytes(),
+                                 dtype=np.uint8)
+            assert data.shape == mask.shape
+            assert ((data != 255) == expected).all(), name
+            assert (data[expected] <= 51).all(), name

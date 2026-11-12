@@ -33,6 +33,22 @@ function storeBase() {
   return null;
 }
 
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// SPEC 11.23: "Fri 13 Nov" from the manifest's own IST timestamp, so the
+// browser never formats a date and nobody sees a label in their own zone.
+// IST is a fixed +05:30, so shifting the instant and reading the UTC fields
+// of the result needs no time zone database.
+export function shortIst(fromIst) {
+  const at = Date.parse(fromIst);
+  if (Number.isNaN(at)) return null;
+  const ist = new Date(at + 5.5 * 3_600_000);
+  return `${DAYS[ist.getUTCDay()]} ${ist.getUTCDate()} `
+    + `${MONTHS[ist.getUTCMonth()]}`;
+}
+
 function json(body, status, maxAge) {
   return new Response(JSON.stringify(body, null, 1), {
     status,
@@ -108,6 +124,7 @@ export default {
       days: (manifest.days || []).map((day) => ({
         lead_day: day.lead_day,
         label: day.label,
+        short_ist: shortIst(day.from_ist),
         from_ist: day.from_ist,
         to_ist: day.to_ist,
       })),
@@ -116,6 +133,19 @@ export default {
       india_squares: manifest.india_squares,
       member_display: manifest.member_display,
       counts_not_probabilities: true,
+      // SPEC 11.16 and 11.23: where the map reads its bytes. The page is
+      // told at runtime by its own origin, so the store's address is never
+      // built into the site and stays in config/store.json alone.
+      //
+      // Called `source` and not `store` because `store` is already this
+      // response's one-word status, from SPEC 11.6, and repurposing a live
+      // field would have broken the G2 page to save a word.
+      source: {
+        base_url: base,
+        paths: manifest.paths,
+        counts_files: manifest.counts_files,
+        grid: manifest.grid,
+      },
       checked_at_ist: istNow(now),
     }, 200, MAX_AGE);
   },
