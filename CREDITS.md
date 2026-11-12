@@ -5,6 +5,11 @@ the map comes from anywhere else: there is no basemap, no tile server, no
 font server and no geocoder, so a reader's browser talks only to this site
 and to the public store the forecast is published to.
 
+**The only national boundary drawn anywhere on this site is India's own
+outline**, from the Natural Earth India point-of-view edition, which is the
+same geometry the forecast squares were cut with. The land around India is
+shaded from a coastline-only layer that carries no boundary at all.
+
 ---
 
 ## The forecast
@@ -44,18 +49,21 @@ observation of what fell.
 
 ## The map
 
-**Natural Earth 1:10m**, version 5.1.2, all public domain. No permission is
-required and none is implied by its use here.
+**Natural Earth 1:10m**, all public domain. No permission is required and
+none is implied by its use here.
 
 | layer | what it draws |
 |---|---|
 | `ne_10m_admin_0_countries_ind` | India's outline — the **India point-of-view edition**, which is the same geometry the forecast mask was cut with, so the country on screen and the squares that are coloured are the same shape |
 | `ne_10m_admin_1_states_provinces` | the state and union territory lines, and their names and label points. Only boundaries **shared by two Indian units** are drawn: Natural Earth publishes no point-of-view edition of admin-1, so an outer edge taken from it would be a different boundary from the one the mask was cut with |
 | `ne_10m_populated_places` | the 215 towns the search offers, and the one city labelled in each unit |
+| `ne_10m_land` | the land around India, as one quiet fill under India's own. It is **coastline and nothing else** — the layer holds no boundary of any kind, which is why it is the one used — clipped to the box the map can show and simplified to 0.05 degrees. Without it, every country around India was painted the colour of the sea |
 
 - Source: <https://www.naturalearthdata.com>
 - Licence: public domain
 - Terms: <https://www.naturalearthdata.com/about/terms-of-use/>
+- Versions: admin-0, admin-1 and land are 5.1.1 and populated places is
+  5.1.2, which is what each layer's own `VERSION.txt` says
 - Built into the files the site ships by `scripts/build_outline.py` and
   `scripts/build_towns.py`, which both refuse to write if what they measured
   stops being true.

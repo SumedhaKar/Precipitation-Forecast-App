@@ -19,6 +19,7 @@ store, square by square and day by day, and the whole millimetres against
 """
 from __future__ import annotations
 
+import gzip
 import http.server
 import json
 import os
@@ -1446,3 +1447,262 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
     # words turn out to be.
     assert ".days .radios button { flex: 1 1 0;" in styles
     assert "overflow-x: auto" not in styles
+
+
+# ----------------- SPEC 11.30: the land around India, the names in the
+# ----------------- order they are placed, and one answer at a time
+
+ANSWERS = ROOT / "web" / "src" / "answers.js"
+LAND_FILE = ROOT / "web" / "src" / "geo" / "land.geo.json"
+LEGEND = ROOT / "web" / "src" / "Legend.jsx"
+PANEL = ROOT / "web" / "src" / "Panel.jsx"
+
+
+def contrast(one: str, two: str) -> float:
+    """The WCAG ratio between two hex colours."""
+    def channel(value: float) -> float:
+        value /= 255
+        return (value / 12.92 if value <= 0.04045
+                else ((value + 0.055) / 1.055) ** 2.4)
+
+    def luminance(colour: str) -> float:
+        r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+        return (0.2126 * channel(r) + 0.7152 * channel(g)
+                + 0.0722 * channel(b))
+
+    a, b = luminance(one), luminance(two)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+
+
+@needs_node
+def test_an_answer_is_shown_only_for_the_square_that_is_chosen(exports):
+    """The fault this is for, reproduced on the built page. SPEC 11.30.
+
+    "Use my location" put the ring and the box on 22.75 N 88.25 E while the
+    panel went on showing 34.50 N 74.25 E and 51 of 51 model runs at 1 mm:
+    two requests were in the air, the older one answered last, and whichever
+    answered last won.
+
+    The rule is both halves. The ticket catches two requests crossing; the
+    square catches a request that was answered after the reader moved on for
+    any other reason.
+    """
+    kolkata = {"lat": 22.75, "lon": 88.25}
+    srinagar = {"lat": 34.5, "lon": 74.25}
+
+    # The exact shape of the bug: request 1 was for Srinagar's square,
+    # request 2 for Kolkata's, and 1 answers last.
+    late = exports(ANSWERS, "keepAnswer", [[1, 2, srinagar, srinagar]])
+    assert late == [False], "a stale answer must not be shown"
+
+    # The one that is current and is about the square now chosen.
+    good = exports(ANSWERS, "keepAnswer", [[2, 2, kolkata, kolkata]])
+    assert good == [True]
+
+    # Current ticket, wrong square: also refused.
+    wrong = exports(ANSWERS, "keepAnswer", [[2, 2, kolkata, srinagar]])
+    assert wrong == [False]
+
+    # Nothing, nonsense and half-answers are refused rather than guessed at.
+    odd = exports(ANSWERS, "keepAnswer", [
+        [2, 2, kolkata, None],
+        [2, 2, None, kolkata],
+        [None, 2, kolkata, kolkata],
+        [2, 2, kolkata, {"lat": 22.75, "lon": None}],
+    ])
+    assert odd == [False, False, False, False]
+
+
+@needs_node
+def test_two_squares_are_the_same_square_only_when_they_are(exports):
+    same = exports(ANSWERS, "sameSquare", [
+        [{"lat": 22.75, "lon": 88.25}, {"lat": 22.75, "lon": 88.25}],
+        [{"lat": 22.75, "lon": 88.25}, {"lat": 22.75, "lon": 88.5}],
+        [{"lat": 22.75, "lon": 88.25}, {"lat": 22.5, "lon": 88.25}],
+        [{"lat": 0, "lon": 0}, {"lat": 0, "lon": 0}],
+    ])
+    assert same == [True, False, False, True]
+
+
+def test_the_panel_cannot_draw_numbers_for_another_square():
+    """SPEC 11.30, in the page's own structure.
+
+    Two defences, because one of them is a rule about time and the other is
+    a rule about identity: the request that answers must be the latest one,
+    and what is on the screen must be about the square that is chosen.
+    """
+    app = APP.read_text("utf-8")
+    panel = PANEL.read_text("utf-8")
+
+    # The ticket, and the three places it is checked.
+    assert "const ticket = asked.current + 1;" in app
+    assert app.count("ticket !== asked.current") >= 2
+    assert "keepAnswer(ticket, asked.current" in app
+    # The old numbers go the moment a new square is picked, before the
+    # request for the new ones is even sent.
+    sent = app.index("`/api/place?lat=${encodeURIComponent(lat)}`")
+    assert app.index("setPlace(null);") < sent
+
+    # And the panel will not render numbers whose square is not the chosen
+    # one, whatever reaches it.
+    assert "sameSquare(place.square.asked, square)" in panel
+    assert "if (!place || !answered)" in panel
+    assert "Loading {squareText(square.lat, square.lon)}…" in panel
+
+
+def test_the_city_a_unit_is_labelled_with_follows_the_three_times_rule():
+    """SPEC 11.30. The capital, unless a neighbour has outgrown it.
+
+    Gandhinagar is 195,891 beside Ahmedabad's 5,375,000; Dispur is 16,140
+    beside Guwahati's 983,000; New Delhi is 317,797 beside Delhi's
+    15,926,000. Three times is wide enough that a capital merely smaller than
+    a neighbour keeps its label — Bhopal over Indore, Lucknow over Kanpur,
+    Thiruvananthapuram over Kochi, Raipur over Bhilai, Ranchi over Jamshedpur.
+    """
+    labelled = {unit["name"]: unit["city"]["name"] for unit in load_units()}
+
+    assert labelled["Gujarat"] == "Ahmedabad"
+    assert labelled["Assam"] == "Guwahati"
+    assert labelled["Delhi"] == "Delhi"
+
+    # The ones the rule deliberately leaves alone.
+    assert labelled["Madhya Pradesh"] == "Bhopal"
+    assert labelled["Uttar Pradesh"] == "Lucknow"
+    assert labelled["Kerala"] == "Thiruvananthapuram"
+    assert labelled["Chhattisgarh"] == "Raipur"
+    assert labelled["Jharkhand"] == "Ranchi"
+
+    # Natural Earth's POP_MAX is the figure for the built-up area, which is
+    # why Andhra Pradesh keeps Amaravati: 5,800,000 against
+    # Vishakhapatnam's 1,529,000. The rule is applied to the field this
+    # project uses for size everywhere else, not to a field chosen to move
+    # one label.
+    assert labelled["Andhra Pradesh"] == "Amaravati"
+
+    # Chandigarh is a union territory of its own, so the two states it is the
+    # capital of are labelled with their largest towns.
+    assert labelled["Punjab"] == "Ludhiana"
+    assert labelled["Haryana"] == "Faridabad"
+
+
+def test_the_land_around_india_is_coastline_and_nothing_else():
+    """SPEC 11.30 and the amendment to 11.14.
+
+    Natural Earth's land layer has no border in it of any kind: it is one
+    multipolygon of coastline. That is why it is the layer used. The only
+    line this map draws between India and anywhere else is still the India
+    point-of-view outline.
+    """
+    body = json.loads(LAND_FILE.read_text("utf-8"))
+    about = body["properties"]
+
+    assert about["source"] == "ne_10m_land"
+    assert "coastlines only" in about["note"]
+    assert body["type"] == "FeatureCollection"
+    assert len(body["features"]) > 100
+    for part in body["features"]:
+        assert part["geometry"]["type"] == "Polygon", "fills, never lines"
+        assert part["properties"] == {}, "no name, no country, no border"
+
+    # It covers everywhere the map can be panned to, which is the box
+    # web/src/Map.jsx sets as maxBounds. A coast that stopped inside that box
+    # would be a shoreline that is not there.
+    limits = re.search(
+        r"const LIMITS = \[\[LON_MIN - (\d+), LAT_MIN - (\d+)\], "
+        r"\[LON_MAX \+ (\d+), LAT_MAX \+ (\d+)\]\];",
+        MAP.read_text("utf-8"))
+    assert limits, "web/src/Map.jsx no longer sets LIMITS the expected way"
+    west, south, east, north = (int(n) for n in limits.groups())
+    assert about["box"] == [68.0 - west, 6.0 - south, 98.0 + east, 38.0 + north]
+
+    raw = LAND_FILE.read_bytes().replace(b"\r\n", b"\n")
+    assert len(gzip.compress(raw, 9)) < 40_000, "the land file is in the "\
+        "map's chunk and has a budget"
+
+
+@needs_node
+def test_the_land_the_sea_and_a_square_no_run_reached_are_three_colours(
+        exports):
+    """SPEC 11.30. Neighbouring land used to be painted the sea's colour.
+
+    Nepal, Bangladesh, Myanmar and Pakistan read as ocean, because the page
+    drew no land it has no squares for. The new fill has to be told apart
+    from two colours at once, and they are only so far apart: between a sea
+    at 0.5445 relative luminance and a 0 class at 0.8592, the best any colour
+    can do is the square root of their product, which is 1.237 from both.
+    """
+    zero = exports(PALETTE, "colourOf", [[0]])[0]
+    palette = PALETTE.read_text("utf-8")
+    assert zero == "#eceff1"
+    assert "export const NEIGHBOURS = '#dcd7cb'" in palette
+    assert "export const SEA = '#aec6da'" in palette
+    assert "export const LAND = '#ffffff'" in palette
+
+    land, sea, white = "#dcd7cb", "#aec6da", "#ffffff"
+    assert contrast(land, sea) > 1.2, "the land against the sea"
+    assert contrast(land, zero) > 1.2, "the land against the 0 class"
+    # And against the white squares inside the outline that are not
+    # forecast, which the legend now explains.
+    assert contrast(land, white) > 1.4, "the land against a white square"
+    # As near the best a colour between those two can do as makes no
+    # difference.
+    best = (contrast(sea, zero)) ** 0.5
+    assert abs(contrast(land, sea) - best) < 0.02
+    assert abs(contrast(land, zero) - best) < 0.02
+
+    # The map paints it under India's own fill and draws no line on it.
+    map_src = MAP.read_text("utf-8")
+    assert "id: 'land-fill'" in map_src
+    assert map_src.index("id: 'land-fill'") < map_src.index("id: 'india-fill'")
+    assert "'fill-color': NEIGHBOURS" in map_src
+    assert "type: 'line',\n        source: 'land'" not in map_src
+
+
+def test_the_white_squares_inside_india_are_explained():
+    """SPEC 11.30. A hole in the map with nothing to say what it is.
+
+    A square inside the outline whose land fraction is under the half of
+    SPEC 3.5 is not forecast, so nothing is painted and India's own white
+    shows through. The legend says so in one line.
+    """
+    legend = LEGEND.read_text("utf-8")
+    assert "White: inside India but not forecast at this grid size" in legend
+    assert 'className="legend-white"' in legend
+
+
+def test_the_names_are_placed_cities_first_and_no_unit_is_left_unlabelled():
+    """SPEC 11.30. The order, and the promise that comes with it.
+
+    States first cost too much: 36 unit names took the room and eight city
+    names fitted around them, on a map whose point is the places people look
+    for. Cities go first now, and the price — a unit's name not fitting — is
+    paid in the two letter code, never in no label at all.
+    """
+    map_src = MAP.read_text("utf-8")
+    assert "const items = [chosen, ...cities, ...states];" in map_src
+    # The last resort: a code written at the unit's own point, inside the
+    # canvas, even where it has to sit on something else.
+    assert "how: 'forced'" in map_src
+    assert "if (!put && item.code) {" in map_src
+    assert map_src.index("if (!put && item.code) {") \
+        < map_src.index("if (!put) {\n        hide(item);")
+
+
+def test_the_twenty_city_list_is_gone_and_nothing_looks_for_it():
+    """SPEC 11.30. web/src/cities.json is deleted.
+
+    It was replaced by one city per state and union territory in 11.29 and
+    had been read by nothing since. Earlier parts of section 11 still
+    describe it, which is history and stays: 11.30 records the deletion.
+    """
+    assert not (ROOT / "web" / "src" / "cities.json").exists()
+    here = Path(__file__).resolve()
+    for folder, suffixes in ((ROOT / "web" / "src", (".js", ".jsx")),
+                             (ROOT / "api", (".mjs",)),
+                             (ROOT / "tests", (".py",))):
+        for path in folder.rglob("*"):
+            # Every file but this one, which has to name it to say it is
+            # gone.
+            if path.suffix not in suffixes or path.resolve() == here:
+                continue
+            assert "cities.json" not in path.read_text("utf-8"), path

@@ -71,10 +71,14 @@ actually happened, and there is not one yet.
 - **NASA IMERG is a satellite estimate, not ground truth.** It is what the
   forecast will be checked against; it is not a measurement of what fell.
 - **There is no basemap.** Nothing on the map comes from a third party: the
-  outline, the state lines, the state names and the town names are all
-  Natural Earth, public domain, and the squares are ours. Land outside India
-  is drawn in the same colour as the sea, because the site draws no country
-  it does not forecast.
+  outline, the state lines, the state names, the town names and the land
+  around India are all Natural Earth, public domain, and the squares are
+  ours. The land around India is shaded so it does not read as ocean, from a
+  layer that is coastline only: the one national boundary this site draws is
+  India's own outline.
+- **Some squares inside India are white.** They are inside the outline and
+  not forecast, because the model's own land fraction for them is under a
+  half — mostly a coast or a narrow island. The legend says so.
 - **Not an official warning.** For warnings and advisories, see the
   [India Meteorological Department](https://mausam.imd.gov.in/).
 
