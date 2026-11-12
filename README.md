@@ -73,6 +73,48 @@ Stopping is safe at any moment. A date that was partway through leaves no done
 record, its part-downloaded files are thrown away on the next start, and that
 date is redone from the beginning. Finished dates are never redone.
 
+### The supervisor
+
+On the night of 11-12 November 2026 a Wi-Fi drop at 02:05 froze Pile A for
+7 hours 24 minutes. The socket read timeout did not catch it: the part-files
+stopped growing and nothing moved or errored until the sockets finally
+aborted, hours later.
+
+`scripts/supervise.py` watches for exactly that. It runs as its own detached
+process so the download code is never edited while a run is using it, and it
+only ever kills and relaunches. It never touches data.
+
+Every 2 minutes it looks at the newest of the pile's log file and any growing
+part-file. If nothing has moved for 10 minutes it kills the pile by its PID
+file, logs `watchdog restart` with the reason, and relaunches the same command,
+which resumes from the done records. It gives up after 10 restarts.
+
+If the pile ends with failures that are **all** network errors, the supervisor
+archives those records and relaunches once more. Any other kind of error is
+left alone for you to look at. It stops when every date is done.
+
+**Start** (one per pile; `a` or `b`):
+
+```powershell
+$p = Start-Process -FilePath "$r\.venv\Scripts\python.exe" -ArgumentList "scripts\supervise.py","a" -WorkingDirectory $r -WindowStyle Hidden -RedirectStandardOutput "$r\data\logs\supervisor_a.out" -RedirectStandardError "$r\data\logs\supervisor_a.err" -PassThru
+$p.Id | Set-Content -Encoding ascii "$r\data\logs\supervisor_a.pid"
+```
+
+**Progress:**
+
+```powershell
+"{0} restarts | {1}" -f (Select-String -Path "$r\data\logs\supervisor.log" -Pattern 'watchdog restart' -SimpleMatch).Count,(Get-Content "$r\data\logs\supervisor.log" -Tail 1)
+```
+
+**Stop:**
+
+```powershell
+Stop-Process -Id (Get-Content "$r\data\logs\supervisor_a.pid") -Force
+```
+
+Stop the supervisor **before** stopping a pile by hand, otherwise it will
+restart the pile you just stopped.
+
 ### If something goes wrong
 
 - Full history: `Get-Content "$r\data\logs\pile_a.log"`. It is appended to, not

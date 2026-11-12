@@ -755,6 +755,334 @@ pass. 50 of 51 members is not publishable. There is no partial publish.
 
 ---
 
+## 5. Verification method
+
+Draft, 12 November 2026. Items marked **[proposal]** are mine and need your
+decision; everything else follows from decisions you have already made.
+
+### 5.1 What a case is
+
+One case is one combination of:
+
+- a Pile A 00 UTC run date
+- an India square (section 3.5)
+- a lead day, 1 to 5
+- a threshold, 1 mm, 10 mm or 50 mm
+
+Each case has two sides:
+
+| Side | Value |
+|---|---|
+| Forecast | `count / 51`, the share of model runs reaching the threshold |
+| Observed | 1 if the event happened, 0 if it did not |
+
+The event is the same on both sides: the **square-average daily total reaches
+the threshold**, using the same "greater than or equal to" rule as section 4.2.
+On the forecast side that is each member's own daily total for the square. On
+the observed side it is the IMERG value remapped to that square by the
+area-weighted overlap of section 3.3.
+
+`count / 51` is a share of model runs. It is used here as a probability for
+scoring only. That does not make it a calibrated probability, and the site
+never presents it as one (section 1.5).
+
+### 5.2 What is excluded
+
+- Any box-day that is not usable under section 3.4, meaning complete IMERG
+  pixels cover less than 90% of the square.
+- Every lead day of a Pile A date that failed (section 3.6).
+
+Exclusions are **counted and published**, never silently dropped. The report
+card states how many cases were possible, how many were used, and why the rest
+were not.
+
+### 5.3 Score
+
+The Brier score, the mean squared difference between the forecast share and
+the observed 0 or 1:
+
+```
+BS = mean over cases of (forecast - observed)^2
+```
+
+Lower is better. 0 is perfect.
+
+#### The reference forecast
+
+Skill is measured against a reference that **uses hindsight**: the observed
+event frequency for that square and that calendar month, taken from our own
+sample, unsmoothed.
+
+This is the best constant forecast that group could have had, and it could
+only be built after seeing the answers. Our skill against it is therefore a
+**conservative lower bound**, and the site says so wherever skill is shown.
+A forecast that beats it has beaten a reference it could never have had in
+advance.
+
+**[proposal]** The calendar month is the month of the **day being forecast**,
+in UTC, not the month of the run date. The climatology describes the weather
+of the observed day, so that is the day it should be keyed to. This matters
+only for runs within 5 days of a month end.
+
+#### Computing it per square-month before pooling
+
+The reference is worked out **per square and calendar month first**, and only
+then pooled:
+
+```
+BSS = 1 - (sum of case Brier scores) / (sum of case reference Brier scores)
+```
+
+summed over the cases in the group, with each case's reference being its own
+square-month frequency.
+
+Pooling squares with different climates before computing the reference
+manufactures skill that is not there: a forecast can look skilful merely by
+knowing that Cherrapunji is wetter than Jaisalmer, which is geography, not
+forecasting. Computing the reference per square-month first removes that
+(Hamill and Juras, 2006).
+
+### 5.4 Groups
+
+Results are reported per **region x lead day x threshold**.
+
+**Lead days are never mixed.** A Day 1 forecast and a Day 5 forecast are
+different products and pooling them hides the decay that matters most.
+
+#### Regions **[proposal]**
+
+Eight climate-based regions. The rules below are applied **in order to India
+squares only, first match wins**, so every India square lands in exactly one
+region.
+
+| # | Region | Rule |
+|---|---|---|
+| 1 | Northeast | `lon >= 89.0` |
+| 2 | Himalaya & foothills | `lat >= 29.0` |
+| 3 | West coast & Western Ghats | `lat <= 22.0` and `lon <= 76.5` (or `<= 77.25` where `lat < 13.0`) |
+| 4 | Dry northwest | `lat >= 22.0` and `lon <= 76.0` |
+| 5 | Indo-Gangetic plains | `lat >= 24.0` |
+| 6 | East coast | `lat <= 23.0` and `lon >= 79.5` |
+| 7 | Peninsula interior | `lat <= 19.0` |
+| 8 | Central India | everything else |
+
+The wider longitude cutoff in rule 3 below 13 N is because the peninsula
+narrows and the Ghats crest sits further east there.
+
+These boundaries are **straight lines on a grid, not climate science**. They
+are a starting point. Before any results are produced:
+
+- the square count per region is printed and reviewed,
+- the boundaries are checked by someone who knows Indian climatology,
+- and a handful of named places are asserted into the region they belong to,
+  as was done for the mask in section 3.5.
+
+A region with too few squares to be meaningful is merged into its neighbour
+rather than reported thinly.
+
+### 5.5 Uncertainty
+
+Bootstrap by resampling **whole start dates**, with replacement, 1000 times.
+A resample takes all squares and all lead days of a chosen date together.
+
+Reported as the 2.5th and 97.5th percentiles of the resampled statistic, a
+95% range.
+
+Whole dates are the unit because squares on the same day are strongly
+correlated, and so are lead days from the same run. Resampling individual
+cases would treat one weather system as thousands of independent facts and
+would make the range far too narrow.
+
+### 5.6 Tier 1
+
+| Output | What it shows |
+|---|---|
+| Reliability diagram | per bucket: mean forecast, observed frequency, and the number of cases |
+| 8 mm / 12 mm sensitivity | everything recomputed at 8 mm and 12 mm, to see whether the 10 mm labels survive a small change in where the line sits |
+| 2-degree base-rate map | how often the event actually happened, aggregated to 2-degree boxes |
+
+The case count per bucket is shown **next to** every point on the reliability
+diagram, not in a footnote. A bucket holding 30 cases and one holding 30,000
+look identical otherwise.
+
+If a label changes between 8 mm and 12 mm, that is published next to the
+label. A result that only holds at exactly 10 mm is not a result.
+
+**[proposal]** Reliability buckets: `count = 0` on its own, `count = 51` on its
+own, and the remaining values in 10 equal-width buckets of 0.1. The two
+extremes are separated because they are by far the most common forecasts and
+burying them in a 0-0.1 bucket would hide most of the behaviour.
+
+### 5.7 Tier 2
+
+| Output | Note |
+|---|---|
+| CRPS | on the ensemble of daily totals, not on the thresholded events |
+| Brier decomposition | on the exact `k/51` values, so reliability, resolution and uncertainty **add up exactly** |
+| CORP isotonic diagnostic | labelled clearly as a **different decomposition**, not a second opinion on the first |
+| High-randomError sensitivity | results recomputed with squares of high IMERG `randomError` removed |
+| Per-block skill | skill by contiguous blocks of dates, to show whether it is steady or driven by one period |
+| Control vs 50 | report card published with all 51 members and with the 50 perturbed members only (section 2.1) |
+
+The Brier decomposition uses the exact `k/51` values as its bins, 52 of them,
+because that is what makes the three terms sum to the Brier score exactly.
+Binning first would leave a within-bin remainder, and a decomposition that
+does not add up is not a decomposition.
+
+CORP and the classical decomposition answer different questions and can
+disagree without either being wrong. Both are shown, each labelled with what
+it is.
+
+### 5.8 Tier 3
+
+A long-term "usual chance" from IMERG **Final**, earlier years.
+
+If that data is not present, the site shows **no** "usual chance" at all. It
+does not fall back to the hindsight reference of section 5.3, because a
+figure built from our own 177 days is not a long-term normal and presenting it
+as one would be dishonest.
+
+### 5.9 Wording
+
+Verification language is always "**agreed with the satellite estimate**".
+Never "correct", never "right", never "accurate".
+
+IMERG is an estimate from space with its own errors (section 2.3). When the
+forecast and IMERG disagree, we do not know which one was wrong, and the
+wording must not imply that we do.
+
+---
+
+## 6. Trust labels
+
+Draft, 12 November 2026. Items marked **[proposal]** are mine.
+
+### 6.1 Scope
+
+A label is assigned per **region x lead day x threshold**, from 00 UTC runs
+only.
+
+The **Brier score decides** the label. If CRPS disagrees, pointing the other
+way, the label still follows Brier but the disagreement is **disclosed next to
+the label**. Picking whichever score flatters the result would make the label
+meaningless.
+
+### 6.2 Good track record
+
+Requires **all four** conditions. Any one failing drops the group to a lower
+label.
+
+| # | Condition |
+|---|---|
+| 1 | Enough data (6.3) |
+| 2 | The 95% range for skill has its **lower end above 0** |
+| 3 | That range has a **half-width of 0.10 or less** |
+| 4 | Small honesty error (6.4) |
+
+Condition 2 says the forecast beat the hindsight reference. Condition 3 says
+we know that well enough to say it out loud; a range of plus or minus 0.4 that
+happens to sit above 0 is not knowledge.
+
+### 6.3 Enough data **[proposal]**
+
+All three:
+
+| Requirement | Figure |
+|---|---|
+| Cases in the group, as defined in 5.1, with a usable observed box-day | at least **1,000** |
+| Distinct start dates contributing any case | at least **30** |
+| Distinct start dates on which the event was **observed** at least once | at least **20** |
+
+The third is yours and is the one that actually binds. The other two are mine.
+
+The case count is deliberately the weakest of the three. With about 4,613
+India squares and 177 dates, even a small region reaches tens of thousands of
+cases, so a case minimum is close to free. Cases on the same day are not
+independent, so the real guard against a thin sample is the bootstrap
+half-width of condition 3, which is computed over dates.
+
+The 20-dates rule is what stops a label resting on one freak week. A region
+can have 80,000 cases and still have seen 50 mm of rain on only three days,
+and that group must not be called a good track record.
+
+### 6.4 Small honesty error **[proposal]**
+
+Every reliability bucket holding at least **100 cases** has its observed
+frequency within **0.10** of its mean forecast.
+
+Buckets below 100 cases are ignored for this test and are **still drawn** on
+the diagram with their counts, so a reader can see what was set aside.
+
+0.10 matches the rounding used for display. A "Good track record" label shows
+"About 40%", rounded to the nearest 10, so an error up to 0.10 is the largest
+error that rounding can still absorb. Allowing more would print a number the
+data does not support.
+
+### 6.5 Rough guide
+
+Enough data under 6.3, but **any** of conditions 2, 3 or 4 fails.
+
+When the 95% range **includes 0**, the wording is exactly:
+
+> slightly better than the usual rain for this place and month, but the
+> difference could be luck
+
+That sentence is fixed. It says what was measured and admits what is not
+known, and it is not to be reworded into something more confident.
+
+### 6.6 Not enough past data
+
+Everything else. The group has not earned a statement about its skill, so no
+statement is made.
+
+### 6.7 Display
+
+| Label | Shows | Colour |
+|---|---|---|
+| Good track record | "About 40%", rounded to the nearest 10 | green |
+| Rough guide | "20 of 51 runs" **and** "came true about 2 times in 10" | amber |
+| Not enough past data | the count only, "20 of 51 runs" | grey |
+
+**Never two competing percentages.** The two numbers on a rough guide are
+different quantities, not two estimates of the same thing, and they are
+labelled so:
+
+- "20 of 51 runs" is what the model said.
+- "came true about 2 times in 10" is what happened in the past when it said
+  something like that.
+
+**[proposal]** "came true about N times in 10" is the observed frequency of
+the reliability bucket this forecast falls into, for this region, lead day and
+threshold, rounded to the nearest whole number out of 10. If that bucket holds
+fewer than 100 cases the phrase is **omitted** and only the count is shown,
+because the same 100-case floor that governs 6.4 governs what we are willing
+to say.
+
+A "Good track record" percentage is only ever shown with a green label.
+Without that label the site shows the count out of 51 instead. A large
+percentage implies reliability, so it has to be earned by the record rather
+than printed by default.
+
+### 6.8 Rules fixed before results
+
+Every rule in sections 5 and 6 is fixed **before** any verification output is
+produced. Nothing is tuned after seeing the scores.
+
+`results/verification_meta.json` records, for the run that produced the
+figures:
+
+- the SHA256 of `SPEC.md` as committed
+- the git commit hash
+- the date range of Pile A used, and the number of dates that failed
+- the IMERG version
+- counts of cases possible, used and excluded, with reasons
+
+If `SPEC.md` changes after results are published, the hash no longer matches
+and that is visible. The point is that nobody, including me, can quietly move
+a threshold after seeing which side of it the answer fell.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:
@@ -773,8 +1101,6 @@ Nothing in sections 1-4 is now blocked.
 
 ## Sections still to draft
 
-5. Verification method
-6. Labels and track record
 7. Pipeline stages and file layout
 8. Website and API
 9. Automation and failure handling
