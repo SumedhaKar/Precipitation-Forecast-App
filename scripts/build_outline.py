@@ -56,10 +56,45 @@ from pipeline import config as cfg  # noqa: E402
 NE = cfg.RAW / "ne"
 ADMIN0 = NE / "ne_10m_admin_0_countries_ind"
 ADMIN1 = NE / "ne_10m_admin_1_states_provinces"
+LAND = NE / "ne_10m_land"
 
 OUT_DIR = cfg.ROOT / "web" / "src" / "geo"
 OUTLINE = OUT_DIR / "india.geo.json"
 STATES = OUT_DIR / "states.geo.json"
+LAND_FILE = OUT_DIR / "land.geo.json"
+
+# SPEC 11.30. The land around India, so that Nepal and Bangladesh do not read
+# as ocean. Coastlines only: ne_10m_land has no borders in it at all, which
+# is the point of using it. The only line between India and its neighbours
+# stays the India point-of-view outline above.
+LAND_URL = "https://naturalearth.s3.amazonaws.com/10m_physical/ne_10m_land.zip"
+LAND_SHA256 = "e547d749445eaa0964aba76738090ec88f5e63c4585122170f98c67a7ea922dc"
+LAND_VERSION = "5.1.1"
+
+# The box the map can ever show: the India box of SPEC 1.4 grown by the same
+# amounts as `LIMITS` in web/src/Map.jsx, which is what maxBounds allows
+# anyone to pan to. A test keeps the two the same.
+LAND_BOX = (cfg.LON_MIN - 40, cfg.LAT_MIN - 24, cfg.LON_MAX + 40,
+            cfg.LAT_MAX + 14)
+
+# Degrees. 0.05 is about 5.5 km. This is background, not data: no number on
+# the page is read off it, nothing is clicked on it, and India's own coast is
+# drawn from india.geo.json at five times this detail.
+LAND_SIMPLIFY = 0.05
+
+# Square degrees. About 120 km2 near this latitude. Below it an island is
+# smaller than two of our forecast squares and is a speck at every zoom the
+# whole country fits in; keeping all 2,328 of them would cost three times the
+# file for coastline nobody can see. India's own islands are not affected:
+# they are drawn from the outline, which is not filtered at all.
+LAND_MIN_AREA = 0.01
+
+# Decimal places in the written coordinates. 2 is about 1.1 km, a fifth of
+# the simplification above, so it cannot move a coast anywhere the
+# simplification has not already moved it.
+LAND_PLACES = 2
+
+LAND_GZIP_BUDGET = 40_000
 
 # Degrees. 0.01 is about 1.1 km, which is finer than the 0.25 degree squares
 # the map is actually about by a factor of 25, so simplifying this far cannot
@@ -195,6 +230,107 @@ def sizes(text: str) -> tuple[int, int]:
     return len(raw), len(gzip.compress(raw, 9))
 
 
+def fetch_land() -> None:
+    """Download ne_10m_land if it is not already here, by its hash."""
+    import hashlib
+    import zipfile
+
+    import requests
+
+    if LAND.with_suffix(".shp").exists():
+        return
+    NE.mkdir(parents=True, exist_ok=True)
+    target = LAND.with_suffix(".zip")
+    print(f"fetching {LAND_URL}")
+    answer = requests.get(LAND_URL, timeout=180)
+    answer.raise_for_status()
+    got = hashlib.sha256(answer.content).hexdigest()
+    if got != LAND_SHA256:
+        raise SystemExit(
+            f"ne_10m_land.zip is sha256 {got}, not {LAND_SHA256}")
+    target.write_bytes(answer.content)
+    with zipfile.ZipFile(target) as archive:
+        archive.extractall(NE)
+    print(f"  {len(answer.content)} bytes, sha256 {got}")
+
+
+def land_background() -> tuple[str, dict]:
+    """The land around India, clipped to the box the map can show.
+
+    SPEC 11.30. Nothing here is a border and nothing here is data: it is one
+    fill, in one colour, drawn under India's own white fill so that the
+    country still ends exactly where the point-of-view outline says it does.
+    What it fixes is that Nepal, Bangladesh, Myanmar and Pakistan were
+    painted the same colour as the Arabian Sea, because the page drew no
+    land it does not forecast.
+    """
+    if not LAND.with_suffix(".shp").exists():
+        raise SystemExit(f"missing shapefile: {LAND}.shp")
+    west, south, east, north = LAND_BOX
+    window = shape({
+        "type": "Polygon",
+        "coordinates": [[[west, south], [east, south], [east, north],
+                         [west, north], [west, south]]],
+    })
+
+    reader = shapefile.Reader(str(LAND))
+    kept = []
+    seen = 0
+    dropped = 0
+    dropped_area = 0.0
+    for item in reader.iterShapes():
+        geometry = shape(item.__geo_interface__)
+        if not geometry.intersects(window):
+            continue
+        clipped = geometry.intersection(window)
+        for piece in getattr(clipped, "geoms", [clipped]):
+            if piece.geom_type != "Polygon" or piece.is_empty:
+                continue
+            seen += 1
+            if piece.area < LAND_MIN_AREA:
+                dropped += 1
+                dropped_area += piece.area
+                continue
+            simple = piece.simplify(LAND_SIMPLIFY, preserve_topology=True)
+            if not simple.is_empty:
+                kept.append(simple)
+
+    body = {
+        "type": "FeatureCollection",
+        # The box is written down so a test can hold it against the map's own
+        # maxBounds: land that stops inside the area a reader can pan to
+        # would be a coastline that is not there.
+        "properties": {
+            "note": "SPEC 11.30. Natural Earth 1:10m land, public domain, "
+                    "coastlines only and no boundary of any kind, clipped to "
+                    "the box the map can show, simplified to "
+                    f"{LAND_SIMPLIFY} degrees. Background: nothing is read "
+                    "off it. Built by scripts/build_outline.py.",
+            "source": "ne_10m_land",
+            "version": LAND_VERSION,
+            "box": list(LAND_BOX),
+            "simplify_degrees": LAND_SIMPLIFY,
+            "min_area_square_degrees": LAND_MIN_AREA,
+        },
+        "features": [
+            {"type": "Feature", "properties": {}, "geometry": mapping(part)}
+            for part in kept
+        ],
+    }
+    text = round_coords(json.dumps(body, separators=(",", ":")),
+                        places=LAND_PLACES)
+    raw, gz = sizes(text)
+    facts = {
+        "land_parts": len(kept),
+        "land_seen": seen,
+        "land_dropped": dropped,
+        "land_dropped_area": dropped_area,
+        "land_points": sum(len(part.exterior.coords) for part in kept),
+        "land_bytes": (raw, gz),
+    }
+    return text, facts
+
+
 def build() -> tuple[str, str, dict]:
     """Return the two files' contents and everything worth printing."""
     india = unary_union(load(ADMIN0, "NAME", "India"))
@@ -312,8 +448,12 @@ def main() -> int:
     args = ap.parse_args()
 
     outline_json, states_json, f = build()
+    fetch_land()
+    land_json, land_facts = land_background()
+    f.update(land_facts)
     o_raw, o_gz = f["outline_bytes"]
     s_raw, s_gz = f["state_bytes"]
+    l_raw, l_gz = f["land_bytes"]
 
     print(f"outline: {f['outline_points']} points in {f['outline_parts']} "
           f"parts, {o_raw} bytes, {o_gz} gzipped")
@@ -327,6 +467,12 @@ def main() -> int:
           f"{f['sharing_pairs']} pairs of the {f['units']} units, out of "
           f"{f['every_line_degrees']:.1f} degrees of unit outline")
     print(f"total:   {o_gz + s_gz} bytes gzipped, budget {GZIP_BUDGET}")
+    print(f"land:    {f['land_parts']} parts of {f['land_seen']} in the box, "
+          f"{f['land_points']} points, {l_raw} bytes, {l_gz} gzipped, "
+          f"budget {LAND_GZIP_BUDGET}")
+    print(f"         {f['land_dropped']} parts under {LAND_MIN_AREA} "
+          f"square degrees dropped, {f['land_dropped_area']:.3f} square "
+          f"degrees of island in all")
     print(f"north:   outline {f['outline_north']:.4f}, state lines "
           f"{f['state_north']:.4f}, admin-1 coverage ends "
           f"{f['admin1_north']:.4f}")
@@ -346,6 +492,11 @@ def main() -> int:
             f"more than the {GRID} grid it is written on")
     if o_gz + s_gz > GZIP_BUDGET:
         raise SystemExit(f"{o_gz + s_gz} gzipped bytes is over the budget")
+    if l_gz > LAND_GZIP_BUDGET:
+        raise SystemExit(f"{l_gz} gzipped bytes of land is over the budget")
+    if f["land_parts"] < 100:
+        raise SystemExit(f"only {f['land_parts']} land parts: the clip box "
+                         "or the source has changed")
 
     # SPEC 11.14: nothing in states.geo.json may contradict the outline.
     if list(f["must_share_present"]) != list(MUST_SHARE):
@@ -365,20 +516,24 @@ def main() -> int:
     if f["state_north"] > f["admin1_north"] + 1e-9:
         raise SystemExit("a state line runs north of the admin-1 data")
 
+    three = ((OUTLINE, outline_json), (STATES, states_json),
+             (LAND_FILE, land_json))
     if args.check:
-        for path, text in ((OUTLINE, outline_json), (STATES, states_json)):
+        for path, text in three:
             if not path.exists():
                 raise SystemExit(f"{path} does not exist")
             if path.read_text(encoding="utf-8") != text:
                 raise SystemExit(f"{path} is not what this script builds")
-        print("check: both files match what this script builds")
+        print("check: all three files match what this script builds")
         return 0
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    OUTLINE.write_text(outline_json, encoding="utf-8")
-    STATES.write_text(states_json, encoding="utf-8")
-    print(f"wrote {OUTLINE.relative_to(cfg.ROOT)} and "
-          f"{STATES.relative_to(cfg.ROOT)}")
+    for path, text in three:
+        # write_bytes, not write_text: on Windows write_text turns every
+        # newline into CRLF, and this repository stores LF.
+        path.write_bytes(text.encode("utf-8"))
+    print("wrote " + ", ".join(str(path.relative_to(cfg.ROOT))
+                               for path, _ in three))
     return 0
 
 

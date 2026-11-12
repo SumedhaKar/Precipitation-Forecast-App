@@ -84,6 +84,23 @@ export function labelOf(count) {
 export const SEA = '#aec6da';
 export const LAND = '#ffffff';
 
+// The land this site does not forecast. SPEC 11.30.
+//
+// Everything outside the India outline used to be painted the sea colour,
+// because the page drew no land it has no squares for, so Nepal, Bangladesh,
+// Myanmar and Pakistan read as ocean. This is the fill for all of it, under
+// India's own white, from Natural Earth's coastlines and with no boundary of
+// any kind in it.
+//
+// It has to be told apart from two colours at once, and they are only so far
+// apart: the sea's relative luminance is 0.5445 and the 0 class's is 0.8592,
+// so a colour between them can be at most 1.237 from both, which is the
+// square root of their product. This one is 1.230 against the sea and 1.243
+// against the 0 class, as near that limit as makes no difference, and 1.436
+// against India's white fill. Lightness alone could not carry it, so it is
+// warm against a cool sea and a cool grey class: the hue does the rest.
+export const NEIGHBOURS = '#dcd7cb';
+
 // SPEC 11.21, amended twice (11.28). The sentence under the legend and under
 // the counts. It first read "These are model-run counts, not probabilities.";
 // then "N of 51 model runs, which is not a calibrated probability.", which

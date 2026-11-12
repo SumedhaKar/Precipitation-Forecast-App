@@ -30,6 +30,14 @@ export default function Legend({ threshold }) {
           </li>
         ))}
       </ul>
+      {/* SPEC 11.30. Some squares inside the outline are white: they are
+          inside India and not forecast, because the model's own land
+          fraction for them is under the half SPEC 3.5 asks for. Without
+          this line they are a hole in the map with no explanation. */}
+      <p className="legend-white">
+        <span className="swatch" />
+        White: inside India but not forecast at this grid size
+      </p>
       <p className="legend-foot">{notProbability()}</p>
     </div>
   );
