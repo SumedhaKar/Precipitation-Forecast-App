@@ -1,14 +1,13 @@
 # Precipitation Forecast App
 
-India precipitation forecast from the ECMWF AIFS ENS 51-member ensemble,
-verified against NASA IMERG satellite estimates, with a published track record.
+**India rain forecast: how many of 51 model runs say rain.**
+
+India precipitation forecast from the ECMWF AIFS ENS 51-member ensemble, to
+be checked against NASA IMERG satellite estimates. The point of the project is
+an honest, published track record: it does not exist yet, and the site says so
+rather than implying one.
 
 **Live: <https://precipitation-forecast-app.vercel.app>**
-
-How many of 51 model runs give 1 mm, 10 mm and 50 mm of rain over the next
-five days, for one 0.25 degree square of India. Model-run counts, not
-probabilities, and not an official warning. The forecast is published once a
-day by `.github/workflows/forecast.yml` from the 00 UTC run.
 
 | | |
 |---|---|
@@ -16,9 +15,83 @@ day by `.github/workflows/forecast.yml` from the 00 UTC run.
 | what is published now | <https://precipitation-forecast-app.vercel.app/api/health> |
 | one square | `/api/place?lat=28.5&lon=77.25` |
 
+## What the site shows
+
+A map of India in 0.25 degree squares, about 28 km across, 4,613 of them.
+Every square is coloured by **how many of the 51 model runs** give at least
+the chosen amount of rain in the chosen day: 1 mm, 10 mm or 50 mm, over the
+next five days. Darker is more runs.
+
+The model is ECMWF's AIFS ENS, run 51 times a day from slightly different
+starting points. The 00 UTC run is downloaded, totalled into five IST days,
+counted against the three thresholds and published once a day by
+`.github/workflows/forecast.yml`.
+
+Choose a square by clicking it, by searching one of 215 Indian towns, by
+typing a latitude and longitude, or with "use my location". The panel then
+says, in words and numbers:
+
+- the three counts for that day, out of 51, and the five days together
+- one sentence saying what the counts mean
+- a dot for each of the 51 runs
+- what each of the 51 runs gives, in whole millimetres
+
+Everything the map shows is also written in the panel, so nothing is only
+available by clicking a picture. If the map cannot be drawn at all — an old
+browser, no WebGL 2 — the page says so and all of that still works.
+
+## How to read it
+
+**A square is the smallest place this site can answer about.** The forecast
+has no detail finer than 0.25 degrees, so a town is shown as the square it
+falls in, and two towns in one square get the same numbers.
+
+**The colour is a count, not a probability.** "18 of 51" means 18 of the 51
+runs reached 1 mm in that square on that day. It is not the same thing as a
+35 in 100 chance of rain: turning counts into chances takes a record of what
+actually happened, and there is not one yet.
+
+**Every time on the page is IST.** The model's day runs 5:30 am to 5:30 am.
+
+## The limits, in full
+
+- **0.25 degree squares.** Nothing finer exists in this forecast. Hills,
+  cities and coastlines inside one square are not distinguished.
+- **Lakshadweep is not forecast.** Of the 209 squares covering the group, not
+  one has its centre on land: every island there is far smaller than one
+  square. Searching Kavaratti says so.
+- **Port Blair is not forecast.** Its square is inside the drawn outline, but
+  the model's own land fraction for it is 0.0469, under the 0.5 the mask
+  needs, as are all eight squares around it. Three other squares in the
+  Andaman and Nicobar Islands are land on this grid and are forecast.
+- **Counts are not probabilities,** and no percentage is shown anywhere.
+- **No track record is published yet.** The verification against NASA IMERG
+  (section 5 of `SPEC.md`) has not been run, so there is no report card and
+  no trust label. When there is, it will say which period it covers.
+- **NASA IMERG is a satellite estimate, not ground truth.** It is what the
+  forecast will be checked against; it is not a measurement of what fell.
+- **There is no basemap.** Nothing on the map comes from a third party: the
+  outline, the state lines, the state names and the town names are all
+  Natural Earth, public domain, and the squares are ours. Land outside India
+  is drawn in the same colour as the sea, because the site draws no country
+  it does not forecast.
+- **Not an official warning.** For warnings and advisories, see the
+  [India Meteorological Department](https://mausam.imd.gov.in/).
+
+## How it is put together
+
+| | |
+|---|---|
+| `pipeline/` | download, process, mask, check, publish — one run a day |
+| `api/` | `health` and `place`, two Vercel functions, no token, no database |
+| `web/` | React, Vite and MapLibre GL JS; the map is a chunk of its own |
+| `tests/` | the test suite, run with `pytest` |
+| `handchecks/` | checks run by hand against the original files |
+| `data/` | never committed |
+
 See `SPEC.md` for what the project does and `CLAUDE.md` for the working rules.
 Section 11 of `SPEC.md` covers the page and the two functions; section 8
-covers publishing.
+covers publishing. `CREDITS.md` has the licences in full.
 
 ---
 

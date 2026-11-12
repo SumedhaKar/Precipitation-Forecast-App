@@ -22,6 +22,7 @@ from __future__ import annotations
 import http.server
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -1150,3 +1151,298 @@ def test_every_class_is_written_in_an_ink_that_can_be_read_on_it(exports):
         assert ratio >= 4.5, (count, colour, ink, round(ratio, 2))
 
     assert exports(PALETTE, "inkOf", [[52], [-1], [None]]) == [None] * 3
+
+
+# ------------- SPEC 11.29: the names the map draws, and what it says when
+# ------------- something it does not control fails
+
+UNITS_FILE = ROOT / "web" / "src" / "units.json"
+UNITLIST = ROOT / "web" / "src" / "unitlist.js"
+MESSAGES = ROOT / "web" / "src" / "messages.js"
+APP = ROOT / "web" / "src" / "App.jsx"
+MAP = ROOT / "web" / "src" / "Map.jsx"
+CONTROLS = ROOT / "web" / "src" / "Controls.jsx"
+INDEX_HTML = ROOT / "web" / "index.html"
+
+
+def load_units() -> list[dict]:
+    return json.loads(UNITS_FILE.read_text("utf-8"))["units"]
+
+
+def test_the_unit_list_is_the_natural_earth_list_it_says_it_is():
+    body = json.loads(UNITS_FILE.read_text("utf-8"))
+    assert body["source"]["units"] == "ne_10m_admin_1_states_provinces"
+    assert body["source"]["cities"] == "ne_10m_populated_places"
+    assert body["source"]["licence"] == "public domain"
+
+    units = body["units"]
+    assert len(units) == 36          # 28 states and 8 union territories
+    for unit in units:
+        assert unit["name"] and unit["code"], unit
+        assert len(unit["code"]) == 2, unit
+        assert 6.0 <= unit["lat"] <= 38.0, unit
+        assert 68.0 <= unit["lon"] <= 98.0, unit
+        assert unit["span"] > 0, unit
+        assert unit["city"]["name"], unit
+
+    # Largest polygon first, which is the order the map places names in.
+    assert units[0]["name"] == "Rajasthan"
+    assert units[-1]["name"] == "Lakshadweep"
+
+
+def test_a_unit_s_city_is_a_square_the_page_can_already_answer_for():
+    """SPEC 11.29. The map's city labels are towns, not a second list.
+
+    Every city the map labels is in towns.json, snapped to the same square by
+    the same rule, so clicking its dot and searching its name land on one set
+    of numbers. The two that have no square at all are the two of SPEC 11.28,
+    and they are labelled anyway, because the islands are there.
+    """
+    towns = {t["name"]: t for t in load_towns()}
+    missing = {}
+    for unit in load_units():
+        city = unit["city"]
+        town = towns.get(city["name"])
+        assert town is not None, city
+        assert (city["lat"], city["lon"]) == (town["lat"], town["lon"]), city
+        assert city.get("moved_from") == town.get("moved_from"), city
+        if city.get("not_forecast"):
+            missing[city["name"]] = city["not_forecast"]
+    assert missing == {"Kavaratti": "Lakshadweep",
+                       "Port Blair": "Andaman & Nicobar"}
+
+
+def test_the_unit_list_holds_no_position_finer_than_a_square():
+    """A city's own position never reaches the bundle. SPEC 11.19.
+
+    The unit's own label point is not a place anybody is: it is where a word
+    is written. The city's is a square centre, like every other coordinate
+    the page holds.
+    """
+    for unit in load_units():
+        city = unit["city"]
+        assert abs(round(city["lat"] * 4) / 4 - city["lat"]) < 1e-9, unit
+        assert abs(round(city["lon"] * 4) / 4 - city["lon"]) < 1e-9, unit
+
+
+@needs_node
+def test_the_map_is_given_the_names_in_the_order_it_places_them(exports):
+    """SPEC 11.29. Largest unit first, largest city first.
+
+    The order is the whole of the "which name matters" question. There is no
+    list of important places: a unit's name is tried before a smaller unit's,
+    a city's before a smaller city's, and what does not fit is not drawn.
+    """
+    units = load_units()
+    labels = exports(UNITLIST, "unitLabels", [[units]])[0]
+    cities = exports(UNITLIST, "cityLabels", [[units]])[0]
+
+    assert [u["name"] for u in labels] == [u["name"] for u in units]
+    for label in labels:
+        # The room there is to write the name in has to reach the map, or it
+        # cannot tell a name from a word written across the neighbours.
+        assert label["span"] > 0, label
+        assert label["code"], label
+
+    pops = [c["pop"] for c in cities]
+    assert pops == sorted(pops, reverse=True)
+    assert len(cities) == len(units)
+    assert cities[0]["name"] == "Mumbai"
+    absent = [c["name"] for c in cities if not c["forecast"]]
+    assert sorted(absent) == ["Kavaratti", "Port Blair"]
+
+
+@needs_node
+def test_a_misspelled_town_is_offered_the_nearest_names_and_never_given_one(
+        exports):
+    """SPEC 11.29. "Did you mean", as buttons, and nothing chosen for you.
+
+    Natural Earth's spellings are its own — Simla, Dehra Dun — so a reader
+    who types the name they know gets nothing from a search that only matches
+    the start of a name. The offer is the fix. Choosing for them is not: it
+    would put one place's numbers under another place's name.
+    """
+    towns = load_towns()
+    asked = ["Kavarati", "Chenai", "Dehli", "Bengalore", "Shimla",
+             "Dehradun", "Kolkota", "zzzzzz", "go", ""]
+    near = exports(TOWNLIST, "nearTowns", [[towns, word] for word in asked])
+    found = exports(TOWNLIST, "findTowns", [[towns, word] for word in asked])
+
+    offered = {word: [t["name"] for t in answer]
+               for word, answer in zip(asked, near)}
+    assert offered["Kavarati"] == ["Kavaratti"]
+    assert offered["Chenai"] == ["Chennai"]
+    assert offered["Dehli"] == ["Delhi"]
+    assert offered["Bengalore"] == ["Bengaluru"]
+    assert offered["Shimla"] == ["Simla"]
+    assert offered["Dehradun"] == ["Dehra Dun"]
+    assert offered["Kolkota"] == ["Kolkata"]
+    # Nothing near enough, and nothing to be near: no guesses from two
+    # letters, and none at all from gibberish.
+    assert offered["zzzzzz"] == []
+    assert offered["go"] == []
+    assert offered[""] == []
+
+    # Never more than three, and never an answer: the ones that are offered
+    # a near miss are exactly the ones the search itself could not match, so
+    # the page is always asking rather than resolving.
+    for word, answer, matches in zip(asked, near, found):
+        assert len(answer) <= 3, word
+        if answer:
+            assert matches == [], word
+
+
+@needs_node
+def test_the_edit_distance_is_the_plain_one_and_stops_when_told(exports):
+    pairs = [["", ""], ["delhi", "delhi"], ["dehli", "delhi"],
+             ["chenai", "chennai"], ["goa", "goal"], ["kavaratti", "x"],
+             ["abc", "abcdefghij"]]
+    away = exports(TOWNLIST, "editDistance", pairs)
+    assert away[0] == 0
+    assert away[1] == 0
+    assert away[2] == 2          # one transposition, two single edits
+    assert away[3] == 1
+    assert away[4] == 1
+    assert away[5] == 4          # over the limit of 3, reported as 4
+    assert away[6] == 4          # the lengths alone are further than 3
+
+
+@needs_node
+def test_every_way_a_location_can_fail_says_one_clear_line(exports):
+    """SPEC 11.29. The three failures of the standard, and no browser text.
+
+    Permission refused, position unavailable, timed out. Each gets a line of
+    its own that says what happened and what to do instead. The browser's own
+    `message` is never shown: it is written for a developer.
+    """
+    codes = [[1], [2], [3], [0], [None], [99]]
+    said = exports(MESSAGES, "locationProblem", codes)
+    for line in said:
+        assert line and "\n" not in line
+        assert line.endswith(".")
+        assert len(line) < 160
+        # Every one of them leaves the reader somewhere to go.
+        assert "town" in line
+
+    assert said[0] != said[1] != said[2]
+    assert "permission" in said[0].lower()
+    assert "too long" in said[2]
+    # Anything that is not one of the three is the no-location line.
+    assert said[3] == said[4] == said[5]
+
+
+@needs_node
+def test_the_map_failing_says_the_numbers_are_still_there(exports):
+    """SPEC 11.29. No WebGL 2, no MapLibre, or no chunk: the same promise.
+
+    A reader cannot act on which of them it was, so each line says the two
+    things that matter: the map is not drawn, and everything it would have
+    shown is in words and numbers below.
+    """
+    said = exports(MESSAGES, "mapProblem",
+                   [["webgl2"], ["maplibre"], ["chunk"], ["anything else"]])
+    for line in said:
+        assert "\n" not in line
+        assert "search for a town" in line
+        assert "latitude and longitude" in line
+    assert "WebGL 2" in said[0]
+    assert said[0] != said[1] != said[2]
+
+
+def test_the_page_draws_the_map_only_when_it_can_and_says_so_when_it_cannot():
+    """SPEC 11.29, in the page's own structure.
+
+    `canDraw` is asked before MapLibre is constructed, the constructor is
+    caught, and React's lazy chunk is behind an error boundary — three ways
+    the map can fail to appear, all three ending in a message in the map's
+    own area rather than an empty rectangle.
+    """
+    map_src = MAP.read_text("utf-8")
+    app = APP.read_text("utf-8")
+
+    assert "export function canDraw()" in map_src
+    assert "getContext('webgl2')" in map_src
+    assert "onProblem('webgl2')" in map_src
+    assert "onProblem('maplibre')" in map_src
+    assert "catch (error) {" in map_src
+
+    assert "class MapFrame extends Component" in app
+    assert "getDerivedStateFromError" in app
+    assert "onProblem('chunk')" in app
+    assert "mapProblem(noMap)" in app
+    # The search and the panel are outside the map's area, so they are drawn
+    # whatever happened to it.
+    assert app.index("mapProblem(noMap)") < app.index("<Search")
+
+
+@needs_node
+def test_the_grid_and_the_mark_are_not_data_and_say_so(exports):
+    """SPEC 11.25 and 11.29. What HC8 may sample, and what it may not.
+
+    The grid lines and everything that marks the chosen square are drawn in
+    colours that are not in the palette, and they are named in one exported
+    list so the hand check can assert it is not sampling them rather than
+    being trusted not to.
+    """
+    map_src = MAP.read_text("utf-8")
+    palette = PALETTE.read_text("utf-8")
+
+    assert "export const NOT_DATA_LAYERS" in map_src
+    for layer in ["squares-grid", "picked-casing", "picked-line",
+                  "picked-ring-halo", "picked-ring"]:
+        assert f"id: '{layer}'" in map_src
+        assert f"'{layer}'" in map_src.split("NOT_DATA_LAYERS")[1]
+
+    # The grid appears only where a square is at least twelve pixels across,
+    # and the whole-India view is nowhere near that.
+    assert "const GRID_VISIBLE_PX = 12;" in map_src
+    assert "export const GRID_FROM_ZOOM" in map_src
+    assert map_src.count("GRID_FROM_ZOOM") >= 6
+
+    # None of the marks is a palette colour. The palette is asked for its
+    # own colours rather than read with a regular expression, which would
+    # also have found the hexes written down in its comments.
+    hexes = {colour for colour in exports(PALETTE, "colourOf",
+                                          [[count] for count in range(52)])}
+    marks = re.findall(r"const (?:MARK|GRID_LINE|HALO) = '(#[0-9a-f]{6})'",
+                       map_src)
+    assert len(marks) == 3, marks
+    for colour in marks:
+        assert colour not in hexes, colour
+
+
+def test_the_title_in_the_tab_is_the_title_on_the_page():
+    """SPEC 11.29. One sentence, in both places, word for word."""
+    wanted = "India rain forecast: how many of 51 model runs say rain"
+    html = INDEX_HTML.read_text("utf-8")
+    app = APP.read_text("utf-8")
+
+    assert f"<title>{wanted}</title>" in html
+    # The page's own <h1> is the same sentence in two spans, so that a phone
+    # can drop the clause.
+    assert '<span className="title-what">India rain forecast</span>' in app
+    assert ": how many of 51 model runs say rain" in app
+    # The noscript page, which is all a reader without JavaScript sees, says
+    # it too.
+    assert f"<h1>{wanted}</h1>" in html
+
+
+def test_the_day_buttons_are_short_and_the_window_is_not():
+    """SPEC 11.29. "Fri 13" on the button, the whole window under it.
+
+    Five buttons reading "Fri 13 Nov" came to 418 pixels on a 390 pixel
+    phone, so the row scrolled sideways and days 4 and 5 were off the edge.
+    Nothing is lost by shortening the button: the line under it carries the
+    month, the times and IST, and api/place repeats the whole label for the
+    chosen day in the panel.
+    """
+    controls = CONTROLS.read_text("utf-8")
+    styles = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+
+    assert "export function dayTab(" in controls
+    assert "{dayTab(entry.short_ist, entry.lead_day)}" in controls
+    assert "`${chosen.label} IST`" in controls
+    # And the row is laid out so that it cannot overflow however wide the
+    # words turn out to be.
+    assert ".days .radios button { flex: 1 1 0;" in styles
+    assert "overflow-x: auto" not in styles

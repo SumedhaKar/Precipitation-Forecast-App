@@ -4098,6 +4098,242 @@ The outline and state-line decisions of 11.14 stand exactly as approved, and
 
 ---
 
+### 11.29 The polish round: names on the map, a visible grid, and what is said when something fails
+
+The second reading of the built page. Thirteen things, in three groups: the
+layout and the names on the map, four faults, and the documents. As in 11.28,
+every one of them is recorded with what was measured, nothing about the data
+or the method changes, and where this amends something an earlier part of
+section 11 settled the amendment is written out.
+
+Everything measured here was measured on the local production build serving
+`web/dist` and reading the real public store, in Chrome, at two sizes: a
+1,440 by 709 desktop window with a 1,060 by 536 map, and a 390 by 844 phone
+viewport.
+
+#### The title
+
+One sentence, in the browser tab and in the page's own `<h1>`, word for word:
+
+> India rain forecast: how many of 51 model runs say rain
+
+On a screen 560 pixels wide or less the clause after the colon is dropped and
+the title is **India rain forecast**. Nothing is lost by dropping it: the
+legend in the bar says "N of 51 model runs reach 1 mm" at every width, the
+panel says it again in words, and the tab keeps the whole sentence. A test
+holds the two copies together and `<noscript>`'s heading as well.
+
+#### The phone, measured before and after
+
+A 390 by 844 viewport, the default view, nothing chosen:
+
+| | before | after |
+|---|---|---|
+| header | 0 to 147 | 0 to 89 |
+| controls | 147 to 368 | 89 to 254 |
+| of which the legend | 53 px | 44 px |
+| **the map starts at** | **367 px** | **254 px** |
+| the map is | 439 px tall | 464 px tall |
+| the day row | 418 px of buttons in 371 px, scrolling sideways | 371 px in 371 px |
+
+The middle of the screen is 422 pixels down. The map used to start 55 pixels
+above it, after two cards of controls; it now starts 168 pixels above it.
+
+Nothing was removed to get there except the title's second clause. The
+warning sits beside the title instead of under it, the word "Day" over the
+five dates is hidden (the radio group still names itself with it through
+`aria-labelledby`, which works on a hidden element), the run line is 0.7rem,
+and the legend's swatches are 0.6rem tall instead of 0.8. The map's share of
+the screen went from 52vh to 55vh.
+
+**The day buttons.** Five buttons reading "Fri 13 Nov" came to 418 pixels on
+a 390 pixel phone, so the row had a horizontal scrollbar and days 4 and 5
+were off the edge of the screen with nothing to say they were there. The
+buttons read "Fri 13" now — `dayTab()` in `Controls.jsx`, which drops the
+month from the manifest's own `short_ist` and nothing else — and each takes a
+fifth of whatever width there is, so the row cannot overflow however wide the
+words turn out to be. The whole window, with the month, the times and IST, is
+the line underneath it, unchanged, and `api/place` repeats the full label for
+the chosen day in the panel. `overflow-x: auto` is gone from the stylesheet
+and a test keeps it gone.
+
+#### The names on the map
+
+`web/src/units.json`, built by `scripts/build_towns.py` alongside the town
+list, from `ne_10m_admin_1_states_provinces` and the same populated places.
+36 units — `admin == "India"`, which is 28 states and 8 union territories —
+8,351 bytes, 2,185 gzipped. Each carries:
+
+| field | what it is |
+|---|---|
+| `name`, `code` | Natural Earth's own `name` and `postal`; Gujarat has no `postal` and falls back to its `iso_3166_2` |
+| `lat`, `lon` | where the name is written, **inside the unit** |
+| `span` | how wide the unit is, in degrees of longitude, along the line through that point |
+| `city` | the one town the map labels in that unit, as the 0.25 degree square the page shows |
+
+**Where a unit's name goes.** Natural Earth publishes a label point per unit
+in its `latitude` and `longitude` fields, placed by eye, and it is used where
+it is actually inside the polygon. For two units it is not — Andhra Pradesh
+and Jammu and Kashmir — and those fall back to shapely's representative point
+of the largest part, which is inside by construction. The script fails rather
+than writes if that set of two ever changes.
+
+**Which city.** The unit's capital where Natural Earth marks one inside the
+unit's polygon, and otherwise the largest town inside it by `POP_MAX`. 34 of
+the 36 are capitals. The two that are not are Punjab and Haryana, whose
+capital is Chandigarh, which is a union territory in its own right and gets
+its own entry; they are labelled Ludhiana and Faridabad, their largest towns.
+Three capitals are much smaller than the city a reader may expect — Gujarat is
+labelled Gandhinagar and not Ahmedabad, Assam Dispur and not Guwahati, Andhra
+Pradesh Amaravati — because the rule is the capital first. Dispur and Guwahati
+are the same 0.25 degree square in any case. The spellings are Natural
+Earth's: Simla, Dehra Dun.
+
+Both island capitals have no square to forecast (11.28): Kavaratti and Port
+Blair are labelled anyway, in the quiet ink and with a hollow dot, because the
+islands are there and the panel says why there are no numbers for them.
+
+**How many fit.** Largest unit first, then one city per unit largest
+population first, each tried in every placement before it is given up on: a
+unit's name centred on its point and then nudged 8 or 16 pixels in each
+direction, a city's name at 8 or 18 pixels on each of the four sides. A name
+is drawn only if its whole box is inside the canvas, and a city's dot claims
+its own 8 by 8 pixels before any name is placed, so no word is ever written
+through a dot. The dot belongs to the name: where the name is hidden, so is
+the dot.
+
+| default view | unit names in full | as a two letter code | not drawn | city names |
+|---|---|---|---|---|
+| desktop, 1,060 by 536 map | 21 | 14 | 1 (Assam) | 8 |
+| phone, 390 by 844 | 15 | 17 | 4 | 9 |
+
+**The two letter code, and why.** A name is written across its unit, so what
+decides whether it can be written at all is how much unit there is to write it
+on. `span` is measured from the polygon itself — 7.58 degrees for Madhya
+Pradesh, 0.10 for Dadra and Nagar Haveli and Daman and Diu — and a name may be
+up to four times that wide, which lets a small state's name cross its borders
+the way it does on every printed map. Beyond that it is not a name for the
+unit any more but a word written across its neighbours: the first build drew
+DADRA AND NAGAR HAVELI AND DAMAN AND DIU across 230 pixels of the Arabian Sea
+for a union territory 7 pixels wide. Those units are marked with Natural
+Earth's own two letter code until the reader zooms in far enough for the name
+to fit inside them, which is the same rule and not a different one.
+
+**This replaces the twenty city dots of 11.8 and 11.28.** `web/src/cities.json`
+is no longer read by anything. It has not been deleted: it is data, and
+deleting data needs approval.
+
+#### The grid, and the mark on the chosen square
+
+A 0.25 degree square is `(0.25 / 360) * 512 * 2^zoom` pixels across in Web
+Mercator — 0.3556 at zoom 0, about four pixels at the zoom that fits India,
+182 at the closest zoom. Twelve pixels is where an edge is worth drawing, so
+
+    GRID_FROM_ZOOM = log2(12 / 0.3556) = 5.0768
+
+decides two opposite things:
+
+| | below 5.0768 | above |
+|---|---|---|
+| the chosen square | an 18 px ring, dark with a white halo, no fill | its own square outline, white casing under a dark line |
+| every other square | nothing | its own edges, `#8a97a3` at 0.4 opacity, 0.5 px |
+
+The ring is now one number rather than the exponential interpolation of
+11.28: it exists only where the square is too small to see, and above that
+the square itself is the mark. This amends 11.28's ring, which grew with the
+square; the square's own outline does that job better.
+
+**HC8 samples none of it.** `NOT_DATA_LAYERS` names the five layers that are
+marks rather than measurements — `squares-grid`, `picked-casing`,
+`picked-line`, `picked-ring-halo`, `picked-ring` — and is exported so the hand
+check can assert it rather than be trusted. HC8 samples at the default view,
+where the zoom is below `GRID_FROM_ZOOM` and not one of them draws a pixel,
+with nothing chosen. The assertions of 11.25 and 11.28 are unchanged:
+`SLOT_BASEMAP` holds no layer, `SQUARE_OPACITY` is 1, and none of the three
+mark colours (`#1f2933`, `#ffffff`, `#8a97a3`) is in the palette, which a test
+checks by asking the palette for its own colours.
+
+#### The four faults
+
+**"Your location" was written twice, and stayed.** The control under the
+search box said "Your location: square 28.50 N 77.25 E. Your exact position
+was not sent anywhere." and so did the panel, and the control's copy was
+still there after the reader had gone on to search for Kavaratti. The panel
+says it, once; the search box shows the square, as it shows whatever is being
+shown (11.28); and the control now only ever reports what went wrong, and
+clears that when some other place is chosen. Measured on the page: the words
+"Your location" appear exactly once after a location is picked, and zero times
+after searching for a town.
+
+**A misspelling got nothing.** The search matches the start of a name and
+then anything containing it, and Natural Earth's spellings are its own, so
+"Shimla", "Dehradun" and "Chenai" all matched nothing at all. They are now
+answered with up to three near names as buttons — "Did you mean Simla?" —
+using plain Levenshtein distance with a limit that grows with the length of
+what was typed: one edit for a short word, three for a long one. Nothing is
+ever chosen automatically. Showing one place's numbers under another place's
+name is the single worst thing this page could do, and a page that corrects
+spelling silently does exactly that.
+
+**A refused location said nothing useful.** The three failures of the
+geolocation standard each get a line of their own in `web/src/messages.js`:
+permission denied, position unavailable, timed out. The browser's own
+`message` is never shown — it is written for a developer and differs between
+browsers. A browser with no geolocation at all, or a page that is not on
+https, gets the same line as "I do not know where you are".
+
+**The map could fail silently.** Three ways: no WebGL 2, MapLibre refusing to
+start, and the 325 KB chunk not arriving. The first is now asked before
+MapLibre is constructed (`canDraw()`), the second is caught, and the third is
+caught by the page's one error boundary, because React's `lazy` throws during
+a render and would otherwise take the whole page down with it. All three end
+in one line in the map's own area saying the map is not drawn and that
+everything it would have shown is in words and numbers below — which is true:
+the search, the panel, the five days and all 51 values come from `api/place`
+and never touch the map (11.22).
+
+`?nomap=webgl2`, `=maplibre` or `=chunk` draws the page as it is drawn for a
+reader whose browser cannot show the map, which is how that case was checked
+and photographed without having to find such a browser. Checked on the page:
+no canvas, the message in the map's area, and searching "Chenai" still gives
+"Did you mean Chennai?", which still gives 18 of 51 model runs reach 1 mm for
+13.00 N 80.25 E.
+
+**Confirmed, not changed:** where all 51 runs give the same whole number the
+panel writes one line — "All 51 runs: 0 mm, which means under 1 mm" — with
+"Show all 51 values" under it and the grid of 51 behind that button. Checked
+at 26.25 N 81.00 E on the real run.
+
+#### Tests
+
+Twelve more, in `tests/test_api_consistency.py`, and ten sabotages run against
+them: every one failed the test it was aimed at and no other.
+
+| what it holds |
+|---|
+| `units.json` is the Natural Earth list it says it is: 36 units, a code and a span and a city each |
+| every unit's city is a town in `towns.json`, on the same square, or one of the two with no square |
+| no position in `units.json` is finer than a 0.25 degree square |
+| the map is handed the units largest first and the cities largest first, with the span |
+| a misspelling is offered up to three near names, and only ever offered them |
+| the edit distance is the plain one and stops at its limit |
+| each of the three location failures says a different clear line |
+| each of the three map failures says the numbers are still there |
+| the page asks for WebGL 2, catches MapLibre, and has an error boundary |
+| the grid and the mark are named as not-data and are not palette colours |
+| the tab title is the page title, word for word |
+| the day button is short and the window line is not |
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/`, `scripts/publish/`, `.github/workflows/` and
+`config/store.json`. `web/src/geo/` is untouched; the outline and state-line
+decisions of 11.14 stand as approved. The only script that changed is
+`scripts/build_towns.py`, which now writes a second file.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:
@@ -4124,7 +4360,8 @@ Nothing in sections 1-4 is now blocked.
 **Section 11 is drafted and approved in two parts.** Part one, 11.1 to
 11.11, is the plain page with `api/health` and `api/place`, live since 12
 November 2026. Part two, 11.12 to 11.27, is the map and the real site,
-approved the same day. The track record pages and the display rules that go
+approved the same day; 11.28 and 11.29 record what reading the built page
+changed, with the measurement behind each change. The track record pages and the display rules that go
 with a "Good track record" label are section 6, after the verification of
 section 5 has run.
 
