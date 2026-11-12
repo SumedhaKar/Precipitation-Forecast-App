@@ -328,8 +328,6 @@ header {
 }
 
 .legend-white .swatch {
-  width: 0.8rem;
-  height: 0.8rem;
   background: #ffffff;
 }
 
@@ -361,13 +359,23 @@ header {
 
 .legend-rows li:first-child .swatch { border-left-width: 1px; }
 
+/* SPEC 11.31. A colour, and nothing that can be pressed.
+   These were 0.95rem squares with a hairline border and a 2px radius, which
+   is what an empty checkbox looks like in every browser there is -- and the
+   one in the panel sits inside a row that really is a radio button, so it
+   read as a tick box that would not tick. A swatch is wider than it is tall
+   with square corners now: the shape of a colour chip, which is not the
+   shape of a control. None of them has ever been focusable or had a handler;
+   `pointer-events: none` says so in the stylesheet as well, and a click that
+   lands on one goes to whatever is behind it. */
 .swatch {
   display: inline-block;
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.5rem;
+  height: 0.6rem;
   border: 1px solid rgba(31, 41, 51, 0.25);
-  border-radius: 2px;
+  border-radius: 0;
   flex: none;
+  pointer-events: none;
 }
 
 /* ------------------------------------------------------------ the panel */
@@ -600,8 +608,6 @@ header {
 .rowband { font-size: 0.78rem; color: var(--quiet); white-space: nowrap; }
 
 .rowband .swatch {
-  width: 0.8rem;
-  height: 0.8rem;
   margin-right: 0.3rem;
   vertical-align: -1px;
 }
@@ -677,7 +683,7 @@ header {
   font-variant-numeric: tabular-nums;
 }
 
-.dotkey .swatch { width: 0.8rem; height: 0.8rem; border-radius: 50%; }
+.dotkey .swatch { width: 0.8rem; height: 0.8rem; border-radius: 50%; }  /* round on purpose: it is the key to the dots */
 
 /* ------------------------------------------------------------ the members */
 

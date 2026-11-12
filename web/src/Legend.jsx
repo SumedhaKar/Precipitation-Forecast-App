@@ -25,7 +25,11 @@ export default function Legend({ threshold }) {
       <ul className="legend-rows">
         {CLASSES.map((band) => (
           <li key={band.label}>
-            <span className="swatch" style={{ background: band.colour }} />
+            <span
+              className="swatch"
+              aria-hidden="true"
+              style={{ background: band.colour }}
+            />
             {band.label}
           </li>
         ))}
@@ -35,7 +39,7 @@ export default function Legend({ threshold }) {
           fraction for them is under the half SPEC 3.5 asks for. Without
           this line they are a hole in the map with no explanation. */}
       <p className="legend-white">
-        <span className="swatch" />
+        <span className="swatch" aria-hidden="true" />
         White: inside India but not forecast at this grid size
       </p>
       <p className="legend-foot">{notProbability()}</p>

@@ -141,6 +141,7 @@ export function Counts({ place, day, threshold, onThreshold }) {
                 <span className="rowband">
                   <span
                     className="swatch"
+                    aria-hidden="true"
                     style={{ background: colourOf(count) }}
                   />
                   {labelOf(count)}
@@ -175,6 +176,7 @@ export function Dots({ place, day }) {
           <li key={name}>
             <span
               className="swatch"
+              aria-hidden="true"
               style={{ background: DOT_COLOURS[category] }}
             />
             {sentenceCase(name)}: {day.dots[category]}
