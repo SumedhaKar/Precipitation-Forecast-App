@@ -18,7 +18,9 @@
 // No percentages, anywhere. A percentage implies a reliability that has to be
 // earned by the record (SPEC 6), and no track record exists yet.
 
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import {
+  Component, Suspense, lazy, useCallback, useEffect, useState,
+} from 'react';
 
 import Panel from './Panel';
 import Legend from './Legend';
@@ -27,6 +29,7 @@ import { countKey } from './palette';
 import { inBox, snap, squareText } from './snap';
 import { nameOfSquare } from './places';
 import { notFoundNote } from './islands';
+import { OUTSIDE, mapProblem } from './messages';
 
 // SPEC 11.16: MapLibre is 295 KB gzipped, so it is a chunk of its own and
 // the run line, the stale banner and the panel paint without waiting for it.
@@ -41,8 +44,17 @@ const STALE_HOURS = 36; // SPEC 11.8
 const FIRST_DAY = 1;
 const FIRST_THRESHOLD = 1;
 
-const handcheck = typeof window !== 'undefined'
-  && new URLSearchParams(window.location.search).get('handcheck') === '1';
+const search = typeof window !== 'undefined'
+  ? new URLSearchParams(window.location.search) : new URLSearchParams();
+
+const handcheck = search.get('handcheck') === '1';
+
+// SPEC 11.29. `?nomap=webgl2`, `=maplibre` or `=chunk` draws the page as it
+// is drawn for a reader whose browser cannot show the map, without having to
+// find a browser that cannot. It is how the browser check for that case is
+// made, and how its screenshot was taken: the map is simply never asked for,
+// which is what happens for real when canDraw() says no.
+const forced = search.get('nomap');
 
 function istText(stamp) {
   // "2026-11-12T05:30:00+05:30" -> "12 Nov 2026, 5:30 am"
@@ -162,6 +174,35 @@ function Footer() {
   );
 }
 
+/**
+ * The map's own failures, caught. SPEC 11.29.
+ *
+ * React's `lazy` throws when the chunk does not arrive, and a throw during a
+ * render takes the whole page down with it unless something catches it —
+ * which would mean a network hiccup over 325 KB of map code costing a reader
+ * the numbers as well as the picture. This is the only class component on the
+ * site, because an error boundary cannot be written any other way.
+ */
+class MapFrame extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { broken: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { broken: true };
+  }
+
+  componentDidCatch() {
+    this.props.onProblem('chunk');
+  }
+
+  render() {
+    if (this.state.broken) return null;
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState(null);
@@ -177,6 +218,8 @@ export default function App() {
   const [from, setFrom] = useState(null);
   const [shown, setShown] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
+  const [noMap, setNoMap] = useState(forced || null);
 
   // One request to our own origin: the run, the day labels, the staleness,
   // and where the store is.
@@ -289,11 +332,7 @@ export default function App() {
       setPlace(null);
       setSquare(null);
       setNotice(null);
-      setPlaceError({
-        said: 'That is outside the forecast area.',
-        detail: 'The forecast covers 6 to 38 degrees north and 68 to 98 '
-          + 'degrees east.',
-      });
+      setPlaceError({ said: OUTSIDE, detail: null });
       return;
     }
     const here = snap(lat, lon);
@@ -315,9 +354,14 @@ export default function App() {
     const name = nameOfSquare(here.lat, here.lon);
     // SPEC 11.28: the square, never the fix, and a name only when the square
     // is exactly that town's own square.
+    //
+    // SPEC 11.29: the box shows the square, and the sentence that says it is
+    // your location and that your position was not sent anywhere is written
+    // once, in the panel. It used to be written by this control as well as
+    // by the panel, so it appeared twice, and the control's copy stayed on
+    // screen after the reader had gone on to search for somewhere else.
     show(lat, lon, 'location',
-      `Your location: square ${squareText(here.lat, here.lon)}`
-      + (name ? ` (${name})` : ''));
+      squareText(here.lat, here.lon) + (name ? ` (${name})` : ''));
   }, [show]);
 
   /** A town from the search list, which may be one the grid cannot carry. */
@@ -352,7 +396,18 @@ export default function App() {
     <div className={sheetOpen ? 'shell open' : 'shell'}>
       <header>
         <div className="titles">
-          <h1>How many model runs say rain</h1>
+          {/* SPEC 11.29. The whole title on a desktop; on a phone the
+              clause is dropped, because at 390 pixels it costs two lines the
+              map needs more. Nothing is lost by dropping it: the legend in
+              the bar says "N of 51 model runs reach 1 mm" at every width,
+              the panel says it again in words, and the browser tab keeps the
+              whole sentence. */}
+          <h1>
+            <span className="title-what">India rain forecast</span>
+            <span className="title-rest">
+              : how many of 51 model runs say rain
+            </span>
+          </h1>
           <RunLine run={run} />
         </div>
         {/* SPEC 11.28: this was in the footer only, below the fold on every
@@ -389,26 +444,41 @@ export default function App() {
 
       <div className="stage">
         <div className="mapwrap">
-          {counts && health ? (
-            <Suspense fallback={<p className="loading">Drawing the map…</p>}>
-              <ForecastMap
-                counts={counts}
-                grid={health.source.grid}
-                threshold={threshold}
-                day={day}
-                square={square}
-                squareName={squareName}
-                onPick={pick}
-                handcheck={handcheck}
-              />
-            </Suspense>
-          ) : (
+          {/* SPEC 11.29. Three states, in this order: the map could not be
+              drawn, the numbers have not arrived yet, or the map. The first
+              one is a message in the map's own area and nothing else on the
+              page changes, because nothing else on the page needs the map:
+              the search, the panel, the five days and all 51 values come
+              from api/place. */}
+          {noMap ? (
+            <p className="loading mapgone" role="status">
+              <span>{mapProblem(noMap)}</span>
+            </p>
+          ) : null}
+          {!noMap && counts && health ? (
+            <MapFrame onProblem={setNoMap}>
+              <Suspense fallback={<p className="loading">Drawing the map…</p>}>
+                <ForecastMap
+                  counts={counts}
+                  grid={health.source.grid}
+                  threshold={threshold}
+                  day={day}
+                  square={square}
+                  squareName={squareName}
+                  onPick={pick}
+                  onProblem={setNoMap}
+                  handcheck={handcheck}
+                />
+              </Suspense>
+            </MapFrame>
+          ) : null}
+          {!noMap && !(counts && health) ? (
             <p className="loading">
               {countsError
                 ? `The forecast could not be read: ${countsError}`
                 : 'Reading the forecast…'}
             </p>
-          )}
+          ) : null}
         </div>
 
         <aside className="panel" aria-label="The square you chose">
@@ -427,7 +497,9 @@ export default function App() {
               busy={busy}
               shown={shown}
             />
-            <MyLocation onLocation={located} snapTo={snapTo} />
+            {/* `from` is passed so that this control's own message clears
+                when some other place is chosen. SPEC 11.29. */}
+            <MyLocation onLocation={located} snapTo={snapTo} from={from} />
           </div>
           <Panel
             place={place}

@@ -47,6 +47,11 @@ body {
 
 h1, h2, h3 { line-height: 1.25; margin: 0 0 0.4rem; }
 h1 { font-size: 1.25rem; letter-spacing: -0.01em; }
+
+/* SPEC 11.29. The title is one sentence in two pieces so that the phone can
+   drop the second one, where it would cost two lines of a 390 pixel screen
+   that the map needs more. */
+.title-rest { font-weight: 400; color: var(--quiet); }
 h2 { font-size: 1.05rem; }
 h3 { font-size: 0.95rem; }
 p { margin: 0 0 0.6rem; }
@@ -168,6 +173,20 @@ header {
   font-size: 0.9rem;
 }
 
+/* SPEC 11.29. The map could not be drawn. The message is in the map's own
+   area, because that is the part of the page that is missing; everything
+   else still works and the message says so. */
+.mapgone { padding: 1rem; color: var(--ink); }
+
+.mapgone span {
+  max-width: 34ch;
+  text-align: center;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
 /* --------------------------------------------------------- the controls */
 
 /* SPEC 11.28. A bar above the map, at every width. As a card floating on the
@@ -215,10 +234,11 @@ header {
 
 /* ----------------------------------------------------- the place labels */
 
-/* SPEC 11.28. Twenty city names over the canvas. MapLibre draws text from
-   glyph files fetched from a font server, and there is no font server here on
-   purpose, so these are elements and the halo is four text shadows. Above
-   the canvas, below MapLibre's own controls and the legend. */
+/* SPEC 11.28 and 11.29. The names over the canvas: 36 states and union
+   territories, one city in each, and the chosen square's own. MapLibre draws
+   text from glyph files fetched from a font server, and there is no font
+   server here on purpose, so these are elements and the halo is four text
+   shadows. Above the canvas, below MapLibre's own controls. */
 .maplabels {
   position: absolute;
   inset: 0;
@@ -241,6 +261,43 @@ header {
 }
 
 .maplabel.chosen { font-weight: 700; font-size: 0.78rem; }
+
+/* The unit's own name, inside the unit: quieter than a town, and in small
+   capitals, so a reader can tell at a glance which words are a state and
+   which are a place that has numbers. */
+.maplabel.state {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--quiet);
+  text-shadow:
+    0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff, 0 0 5px #ffffff;
+}
+
+/* The city's dot, drawn at the point the name belongs to. It belongs to the
+   name: the same item owns both, so a dot is never drawn where its name was
+   hidden (SPEC 11.29). Six pixels across, in a white ring of its own. */
+.mapdot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5b6b7b;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+/* Kavaratti and Port Blair: a place the grid has no square for (SPEC 11.28).
+   The name is there because the islands are, and the dot is hollow because
+   there is no count behind it. */
+.maplabel.city.absent { color: var(--quiet); font-weight: 400; }
+
+.mapdot.absent {
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px #5b6b7b;
+}
 
 /* ----------------------------------------------------------- the legend */
 
@@ -368,6 +425,36 @@ header {
 }
 
 .matches li:last-child button { border-bottom: 0; }
+
+/* SPEC 11.29. Nothing matched, so the nearest few names are offered as
+   buttons. Offered, never chosen: one tap away, and never a tap the reader
+   did not make. */
+.didyoumean {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.4rem;
+  margin-top: 0.4rem;
+}
+
+.didyoumean ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+}
+
+.didyoumean button {
+  padding: 0.2rem 0.55rem;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.didyoumean button:hover { background: var(--card); }
 
 .placeline h2 {
   display: flex;
@@ -623,14 +710,20 @@ footer p { max-width: 70ch; }
 
   .controls { gap: 0.4rem 1rem; padding: 0.45rem 0.6rem; }
 
-  .radios {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: thin;
-  }
+  .radios { flex-wrap: nowrap; }
 
   .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
+
+  /* SPEC 11.29. The five days share the width instead of scrolling off it.
+     Five buttons reading "Fri 13 Nov" come to 418 pixels on a 390 pixel
+     phone, so the row had a horizontal scrollbar and days 4 and 5 were off
+     the edge with nothing to say they existed. The labels are "Fri 13" now
+     (Controls.jsx), and each button takes a fifth of whatever width there
+     is, so the row cannot overflow however wide the words are. The full
+     window, with the month and the times and IST, is the line below. */
+  .days { flex: 1 1 100%; }
+  .days .radios { display: flex; gap: 0.2rem; }
+  .days .radios button { flex: 1 1 0; min-width: 0; padding: 0.3rem 0.1rem; }
 
   .panel {
     order: 3;
@@ -677,6 +770,57 @@ footer p { max-width: 70ch; }
   .legend-foot { display: none; }
 
   .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
+}
+
+/* ------------------------------------------- phone: the map is the hero */
+
+/* SPEC 11.29. On a 390 by 844 screen the map used to start 367 pixels down,
+   which is 55 pixels above the middle of the screen: a reader's first sight
+   of the site was two cards of controls with a strip of India under them.
+   Nothing here is removed except the title's second clause; the rest is the
+   same information set smaller and arranged in fewer lines, and the measured
+   result is in SPEC 11.29. */
+@media (max-width: 560px) {
+  .title-rest { display: none; }
+
+  header {
+    align-items: center;
+    gap: 0.15rem 0.5rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  h1 { font-size: 1.02rem; margin: 0; }
+
+  /* The warning sits beside the title rather than under it, which is one
+     line rather than two, and it is still the first thing on the page after
+     the title itself. */
+  .headwarn { width: auto; font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+
+  .titles { flex: 1 1 auto; gap: 0 0.6rem; }
+  .run { font-size: 0.7rem; line-height: 1.35; }
+  .runid { margin-left: 0.4rem; font-size: 0.66rem; }
+
+  .controls { gap: 0.35rem 0.6rem; padding: 0.4rem 0.6rem; }
+
+  /* "Day" is hidden, not dropped: the radio group still names itself with
+     it through aria-labelledby, which works on a hidden element. Five dates
+     in a row do not need a word over them. */
+  .days .grouplabel { display: none; }
+  .days .radios button { font-size: 0.76rem; }
+  .window { font-size: 0.7rem; line-height: 1.3; }
+
+  .group { gap: 0.15rem; }
+  .grouplabel { font-size: 0.66rem; letter-spacing: 0.02em; }
+
+  /* A thinner legend: the same seven classes and the same seven numbers,
+     in two thirds of the height. */
+  .legend { gap: 0.15rem; }
+  .legend .grouplabel { font-size: 0.72rem; }
+  .legend-rows .swatch { height: 0.6rem; }
+  .legend-rows li { font-size: 0.58rem; min-width: 0; }
+
+  .mapwrap { flex: 0 0 55vh; min-height: 55vh; }
+  .shell.open .mapwrap { flex-basis: 28vh; min-height: 28vh; }
 }
 
 @media (prefers-reduced-motion: reduce) {
