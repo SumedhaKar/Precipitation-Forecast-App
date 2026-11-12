@@ -83,6 +83,8 @@ PLACES_URL = (
 )
 PLACES_SHA256 = "cd149186f03d2603e0410da399b980a4357d0ac32d3a2305a49ed3dffcc41d7b"
 PLACES_VERSION = "5.1.2"
+# Natural Earth versions each layer's own VERSION.txt, and they differ.
+ADMIN1_VERSION = "5.1.1"
 
 MASK_FILE = cfg.ROOT / "config" / "india_mask.json"
 OUT = cfg.ROOT / "web" / "src" / "towns.json"
@@ -116,12 +118,15 @@ EXPECT_NOT_FORECAST = {"Kavaratti": "Lakshadweep",
 # page falls back to when a long name will not fit inside a small unit.
 #
 # The city is the unit's capital where Natural Earth marks one inside the
-# unit's polygon, and otherwise the largest town inside it by `POP_MAX`. Two
-# units have no capital of their own inside them, because Chandigarh is the
-# capital of both Punjab and Haryana and is a union territory in its own
-# right, so those two get their largest town instead: Ludhiana and Faridabad.
+# unit's polygon, unless the largest town inside it is more than three times
+# the size, and otherwise the largest town inside it by `POP_MAX`. Five of
+# the 36 are not their unit's capital. Two have no capital of their own
+# inside them, because Chandigarh is the capital of both Punjab and Haryana
+# and is a union territory in its own right, so those two get Ludhiana and
+# Faridabad; and three are outgrown by a neighbour under the three times
+# rule: Gujarat gets Ahmedabad, Assam gets Guwahati, Delhi gets Delhi.
 UNITS_EXPECT = 36
-UNITS_EXPECT_CAPITALS = 34
+UNITS_EXPECT_CAPITALS = 31
 UNITS_EXPECT_REP_POINT = {"Andhra Pradesh", "Jammu and Kashmir"}
 UNITS_GZIP_BUDGET = 2_500
 
@@ -359,19 +364,36 @@ def main_city(mine: list[dict]) -> dict | None:
     """The one city the map labels in a unit, or None if it has no town.
 
     The capital if Natural Earth marks one inside the unit -- the national
-    capital first, so Delhi gets New Delhi -- and otherwise the largest town
-    by population. Every town considered here is already in towns.json, so
-    "the capital is not in the town list" and "the unit has no capital inside
-    it" are the same case and both land on the largest town.
+    capital first -- **unless** the largest town inside the unit has more
+    than three times the capital's population, when it is that town instead.
+    A unit with no capital inside it gets its largest town, which is the same
+    rule with nothing to compare against.
+
+    The three in the middle are what the rule is for: a capital nobody would
+    look for on a map of rain. Gandhinagar is 195,891 beside Ahmedabad's
+    5,375,000, Dispur is 16,140 beside Guwahati's 983,000, and New Delhi is
+    317,797 beside Delhi's 15,926,000. Three times is wide enough that a
+    capital which is merely smaller than a neighbour keeps the label -- Bhopal
+    over Indore, Lucknow over Kanpur, Thiruvananthapuram over Kochi.
+
+    The population is Natural Earth's own `POP_MAX`, and it is the figure for
+    the built-up area rather than the town, which is why Andhra Pradesh keeps
+    Amaravati: `POP_MAX` calls it 5,800,000, the capital region around
+    Vijayawada and Guntur, against Vishakhapatnam's 1,529,000. The field this
+    project trusts for size is the one it uses everywhere else; swapping to
+    `POP_MIN` to move that one label would put Assam's largest town at
+    Guwahati's `POP_MIN` of 17,516, which is worse.
     """
     caps = [town for town in mine if "capital" in town["kind"].lower()]
-    if caps:
-        caps.sort(key=lambda town: (0 if "admin-0" in town["kind"].lower()
-                                    else 1, -town["pop"], town["name"]))
-        return caps[0]
     if not mine:
         return None
-    return sorted(mine, key=lambda town: (-town["pop"], town["name"]))[0]
+    biggest = sorted(mine, key=lambda town: (-town["pop"], town["name"]))[0]
+    if not caps:
+        return biggest
+    caps.sort(key=lambda town: (0 if "admin-0" in town["kind"].lower()
+                                else 1, -town["pop"], town["name"]))
+    capital = caps[0]
+    return biggest if biggest["pop"] > 3 * capital["pop"] else capital
 
 
 def build_units(found: list[dict]) -> tuple[dict, dict]:
@@ -426,8 +448,9 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
         ),
         "source": {
             "units": "ne_10m_admin_1_states_provinces",
+            "units_version": ADMIN1_VERSION,
             "cities": "ne_10m_populated_places",
-            "version": PLACES_VERSION,
+            "cities_version": PLACES_VERSION,
             "licence": "public domain",
             "rule": "admin = India, and the town's point inside the unit's "
                     "own polygon",

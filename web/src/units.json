@@ -2,8 +2,9 @@
  "note": "SPEC 11.29. The 28 states and 8 union territories of Natural Earth 1:10m admin-1, `admin = India`, listed largest polygon first, which is the order the map tries to place their names in. `lat` and `lon` are where the unit's name is written and are inside the unit. `code` is Natural Earth's own `postal` field, shown instead of the name where the name does not fit. `city` is the one town the map labels in that unit -- its capital where Natural Earth marks one inside the unit, otherwise the largest town inside it by population -- and its `lat` and `lon` are the 0.25 degree square the page shows, never the town's own position. Built by scripts/build_towns.py.",
  "source": {
   "units": "ne_10m_admin_1_states_provinces",
+  "units_version": "5.1.1",
   "cities": "ne_10m_populated_places",
-  "version": "5.1.2",
+  "cities_version": "5.1.2",
   "licence": "public domain",
   "rule": "admin = India, and the town's point inside the unit's own polygon"
  },
@@ -71,10 +72,10 @@
    "lon": 71.301,
    "span": 4.13,
    "city": {
-    "name": "Gandhinagar",
-    "pop": 195891,
-    "lat": 23.25,
-    "lon": 72.75
+    "name": "Ahmedabad",
+    "pop": 5375000,
+    "lat": 23.0,
+    "lon": 72.5
    }
   },
   {
@@ -201,8 +202,8 @@
    "lon": 92.993,
    "span": 4.3,
    "city": {
-    "name": "Dispur",
-    "pop": 16140,
+    "name": "Guwahati",
+    "pop": 983000,
     "lat": 26.25,
     "lon": 91.75
    }
@@ -427,9 +428,9 @@
    "lon": 77.086,
    "span": 0.37,
    "city": {
-    "name": "New Delhi",
-    "pop": 317797,
-    "lat": 28.5,
+    "name": "Delhi",
+    "pop": 15926000,
+    "lat": 28.75,
     "lon": 77.25
    }
   },
