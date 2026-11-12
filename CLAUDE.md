@@ -47,7 +47,7 @@ pipeline/            config, ecmwf_download, nasa_download, ecmwf_process,
                      nasa_process, india_mask, checks, verify, labels,
                      publish, run_live
 scripts/             run_pile_a, run_pile_b, supervise, build_report_card,
-                     freeze
+                     freeze, build_outline
 scripts/publish/     package.json, package-lock.json, blob.mjs
 tests/               sample/, test_lead_days, test_ecmwf_process, test_remap,
                      test_india_mask, test_nasa_process, test_connections,

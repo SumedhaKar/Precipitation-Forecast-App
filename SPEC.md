@@ -662,8 +662,18 @@ raster + vector map data found on this website are in the public domain" and
 "No permission is needed to use Natural Earth. Crediting the authors is
 unnecessary." It is credited in CREDITS.md anyway.
 
-The outline decides only which grid squares count as India. The published map
-does not draw national borders.
+The outline decides which grid squares count as India, and the map draws it
+(11.14). It is the only national boundary the site draws, it is the India
+point-of-view edition, and it is the same geometry the mask was cut with, so
+the country on screen and the squares we forecast are the same shape. No
+other country's borders are drawn, and no boundary comes from a third-party
+basemap.
+
+**Amended 12 November 2026.** This paragraph used to end "The published map
+does not draw national borders", which was true of the plain G2 page and
+stopped being true when the map was built. The reason the sentence existed —
+that this project does not take a boundary from somewhere else and does not
+draw borders it has not checked — is the reason 11.14 refuses a basemap.
 
 #### Coastal squares
 
@@ -2791,7 +2801,7 @@ It is also not a constant of the code, because a store can be recreated.
 |---|---|---|
 | `api/health.mjs`, `api/place.mjs` | `process.env.STORE_BASE_URL` if set, else `base_url` from `config/store.json` | none; a function with neither answers 500 and says which |
 | `tests/test_api_consistency.py` | sets `STORE_BASE_URL` to its own local HTTP server | — |
-| the page | **nothing.** It never learns the URL | — |
+| the page | `store.base_url` in the `api/health` response, at runtime. **Amended 12 November 2026** for the map (11.23): it was "nothing, it never learns the URL", which was true while the page read only `api/`. The point of the rule was that the store URL is not baked into the built site, and that still holds — the page is given it by its own origin, from this same file | — |
 | `pipeline/publish.py` | still nothing: it finds the manifest with `list` (8.6), as before | — |
 
 `config/store.json` is committed, holds `{"base_url": …, "manifest":
@@ -2971,7 +2981,7 @@ written out so they cannot drift:
 | Where | Exactly |
 |---|---|
 | under the counts table | `0 mm means under 1 mm.` |
-| under the counts table | `These are model-run counts, not probabilities.` |
+| under the counts table | `N of 51 model runs, which is not a calibrated probability.` **Amended 12 November 2026** (11.21). This row used to read `These are model-run counts, not probabilities.`, and the page also carried "a count of 40 out of 51 is not a chance of rain", which can be read as "there is no chance of rain". One sentence now carries the point for both |
 | footer, prominent | `Not an official warning. For warnings and advisories, see the India Meteorological Department.` linking to `https://mausam.imd.gov.in/` |
 | footer, forecast credit | `Copyright © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF)` |
 | footer, forecast credit | `This data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0)` |
@@ -3035,6 +3045,649 @@ Open:
 | 3 | ~~whether the repository is connected to a Vercel project~~ | **imported and live, 12 November 2026**, at `https://precipitation-forecast-app.vercel.app`, functions in `bom1`, with the Blob store deliberately not connected to it (8.9) |
 | 4 | ~~the Node version in Project Settings~~ | **26.x**, Vercel's default, kept (11.3) |
 
+### 11.12 Part two: the real site
+
+**This is part two of section 11, G3.** Part one (11.1 to 11.11) is live and
+unchanged: `api/health`, `api/place`, the plain page, the wording and the
+tests all stay. Part two adds the map, makes the map the page, and moves the
+place panel beside it. Nothing in `pipeline/`, nothing in publishing and
+nothing in the workflow changes; the store already holds every byte the map
+needs (8.4), published and verified, and this part only reads it.
+
+| In G3 | Out of G3, and where it goes |
+|---|---|
+| a MapLibre map of India, the 4,613 squares coloured by count | — |
+| day 1 to 5 and threshold 1 / 10 / 50 mm controls | — |
+| city search, a typed latitude and longitude, and "use my location" | — |
+| click or pick a square: counts, the 51 dots, the member millimetres, a five-day strip | — |
+| the legend, reading `N of 51 model runs` | — |
+| everything from G2: the run line, the stale banner, the three sentences, the credits | — |
+| a basemap with roads and labels | not planned; 11.14 says why |
+| percentages, probabilities, reliability diagrams, the report card | sections 5, 6 and 12 |
+| the track record pages | section 6, after the verification of section 5 runs |
+| IMERG observations drawn on the map | not planned for G3 |
+
+G3 is finished when the map is live on the same Vercel URL, every one of the
+4,613 squares is coloured by the published count for the chosen day and
+threshold, a square can be reached by clicking the map **and** by keyboard
+without the map, HC8 passes on the deployed site, and the screenshots at
+desktop and phone width have been looked at. The tag is **`g3-map-live`**.
+
+### 11.13 What was measured before deciding anything, part two
+
+Run from this laptop on 12 November 2026 against the real store and the real
+published run `20261112T00Z`, with no token, plus the npm registry and the
+Natural Earth shapefile already in `data/raw/ne/`.
+
+| Measured | Result | What it decides |
+|---|---|---|
+| one counts file over the wire, with `Accept-Encoding: br` | **1,295 bytes** for `ge1mm_day1.u8`, of 15,609 raw, `Content-Encoding: br`, `Cache-Control: public, max-age=2592000`, `Access-Control-Allow-Origin: *` | the map can read the store directly and cheaply |
+| **all fifteen** counts files over the wire | **14,441 bytes** in total, of 234,135 raw. The largest is `ge1mm_day3.u8` at 1,967 and the smallest `ge50mm_day1.u8` at 508 | the map fetches **all fifteen at load**, so changing day or threshold needs no network at all (11.16) |
+| the 255 bytes of a counts file against `india.u8` | the 4,613 non-255 bytes are **exactly** the 1 bytes of `india.u8`, byte for byte | one counts file carries the mask as well as the values, so `india.u8` need not be fetched and the geometry can be built from the first file that arrives |
+| the India mask's extent | 4,613 squares, from **37.0 N down to 8.25 N** and 68.5 E to 97.25 E, with **226 squares at 34.25 N and above** | those squares sit north of the boundary an OpenStreetMap basemap would draw. 11.14 |
+| the OpenFreeMap Liberty style | HTTP 200, 43,311 bytes, no key, 111 layers, two sources, and three boundary layers: `boundary_2`, `boundary_3` and **`boundary_disputed`** | a basemap brings a national boundary that is not the one our mask came from, and the style itself provides for boundaries its source data calls disputed |
+| the India outline, Natural Earth India POV, simplified at 0.01 degrees and written with 3 decimal places | **2,752 points in 35 parts, 44,010 bytes, 14,827 gzipped**, bounding box identical to the source, **99.9947%** of the area kept | an outline is affordable if we want one. 11.14 recommends not drawing one, and deciding from the screenshots |
+| `maplibre-gl` on the npm registry | latest **6.18.0**, published 11 Nov 2026 21:28 UTC; **6.17.0** published 7 Nov 2026; BSD-3-Clause; about a release a week through October and November | pin 6.17.0, not the build published the evening before (11.15) |
+| `maplibre-gl@6.17.0` `dist/maplibre-gl.mjs` and `.css` | **1,110,272 bytes raw, 295,327 gzipped** for the script; 71,596 and 10,191 for the stylesheet | the map is the heaviest thing on the site by far, against 72 KB gzipped for all of G2. 11.16 code-splits it so the text does not wait for it |
+| 4,613 square polygons with all fifteen counts as properties, built in Python the way the browser will build them | **1,531,279 bytes** as compact JSON | what the browser holds in memory, built from 14,441 bytes over the wire and never transferred |
+| the day-1, 1 mm counts over the seven legend classes of 11.17 | 0 → **3,660** squares, 1-10 → 457, 11-20 → 79, 21-30 → 50, 31-40 → 57, 41-50 → 115, 51 → **195** | every class is used, and in November most of India is 0. The map will look pale, and that is the forecast |
+
+Nothing about frame rate or build size is claimed here. Those are measured
+when the thing exists, and reported with the screenshots (11.26).
+
+### 11.14 No basemap. India's own outline, and its state lines
+
+The question was a free keyless basemap with its attribution, or no basemap
+and just the Natural Earth outline. **The answer is the outline**: no
+basemap, India drawn from the same source the forecast mask comes from, with
+thin light internal state boundaries for orientation, and nothing else but
+city dots.
+
+#### Why no basemap
+
+OpenFreeMap works, needs no key and would be easy. It is not used, for five
+reasons, the first of which is decisive:
+
+1. **It draws a boundary we did not choose, under squares we did.** Our mask
+   comes from the Natural Earth **India point-of-view** edition, verified in
+   3.5, which reaches 37.05 N; the mask has **226 squares at 34.25 N and
+   above**. OpenStreetMap's boundary through that area is a different line,
+   and the Liberty style carries a `boundary_disputed` layer because its
+   source data marks some boundaries as disputed. Our coloured squares would
+   overhang the drawn border, which reads as a bug, and the page would be
+   publishing a boundary claim as a side effect of picking a tile server.
+   Drawing India ourselves, from the file the mask already uses, means the
+   drawn country and the forecast squares cannot disagree.
+2. **Weight.** A basemap is a sprite sheet, a glyph set and a vector tile for
+   every viewport on every pan and zoom. Our entire data layer is 14,441
+   bytes and the two outline files are 31,904 gzipped, all fetched once.
+3. **A dependency we do not need.** OpenFreeMap is free and generous and runs
+   on donated infrastructure. If it is down, our map is blank for a reason
+   that has nothing to do with our forecast. The store is ours and is already
+   on the critical path.
+4. **Clutter.** The brief asks for calm. 111 layers of roads, landuse and
+   place labels under a semi-transparent choropleth is the opposite, and a
+   choropleth that has to be semi-transparent to let a basemap through is a
+   choropleth whose colours no longer match its legend.
+5. **No attribution burden and no third-party terms.** With no basemap there
+   is no OpenStreetMap or OpenFreeMap credit to carry, and the page fetches
+   nothing outside our own origin and our own store.
+
+#### What is drawn, and what it cost
+
+Built by **`scripts/build_outline.py`** from the shapefiles already in
+`data/raw/ne/`, and committed as two files under `web/src/geo/`. `data/` is
+never committed, so the generated outlines are, and the script is rerun only
+when Natural Earth changes. Measured by the script itself on 12 November
+2026:
+
+| File | From | Geometry | Bytes | Gzipped |
+|---|---|---|---|---|
+| `web/src/geo/india.geo.json` | `ne_10m_admin_0_countries_ind`, the `India` feature, **the same file and edition the mask of 3.5 is built from** | MultiPolygon, 2,745 points in 35 parts | 44,179 | **15,169** |
+| `web/src/geo/states.geo.json` | `ne_10m_admin_1_states_provinces`, `admin = India`, the same file the IMD regions of 5.4 use | MultiLineString, 3,011 points in 77 parts, 229.6 degrees of line | 48,717 | **16,735** |
+| | | | | **31,904 total**, against the 60,000 you allowed |
+
+The outline keeps **99.9947%** of the source area and its bounding box is
+identical to the shapefile's, 68.1434 to 97.3623 E and 6.7456 to 37.0545 N;
+the script fails rather than writes if simplifying ever moves that box. Both
+are simplified at **0.01 degrees**, about 1.1 km, and written to three
+decimal places, about 110 m. A grid square is 0.25 degrees, so the drawn
+lines are finer than the data they sit under by a factor of twenty-five and
+cannot be nudged into the wrong square by this.
+
+| Layer | Paint |
+|---|---|
+| India, fill | `#ffffff` over the page's `#f4f6f8`, so the country is a sheet of paper and the sea is not |
+| the counts squares | 11.17, over that fill |
+| state lines | `#c9d2da`, 0.6 px, under the national line and over the squares: thin and light enough to orient without competing with the palette |
+| India, line | `#aab6c0`, 1 px, drawn last so the coast stays crisp where squares meet the sea |
+
+#### The state lines are internal only, and make no claim
+
+`states.geo.json` holds the boundary of each of the 36 India state polygons
+**with everything that runs along the national edge removed**. The script
+takes every state's own boundary, which is 429.9 degrees of line, and keeps
+only the 229.6 degrees that are still inside India after the national outline
+is pulled inward by 0.02 degrees, about 2 km. A line that follows the coast
+or the national border falls outside the shrunken outline and is dropped.
+
+That matters because, as 5.4 already records, **Natural Earth publishes no
+point-of-view edition of admin-1**. Taking the external edge from admin-1
+would have drawn a different border from the one the mask uses. Taking only
+the internal lines means the single boundary this map draws is the India POV
+outline of 3.5, and the admin-1 file contributes nothing but lines between
+Indian states.
+
+Where admin-1 has no polygon at all there is simply no state line. That is
+the same gap 5.4's rule 3 exists for, 183 squares in the northwest, and the
+honest result is an area inside India's outline with no internal subdivision
+drawn, rather than a line invented to fill it.
+
+#### Amending 3.5
+
+3.5 said "The outline decides only which grid squares count as India. The
+published map does not draw national borders." **The second sentence is now
+wrong and is replaced**, approved 12 November 2026:
+
+> The outline decides which grid squares count as India, and the map draws
+> it (11.14). It is the only national boundary the site draws, it is the
+> India point-of-view edition, and it is the same geometry the mask was cut
+> with, so the country on screen and the squares we forecast are the same
+> shape. No other country's borders are drawn, and no boundary comes from a
+> third-party basemap.
+
+#### What else gives the reader their bearings
+
+| | |
+|---|---|
+| The squares | outside the mask there is **no feature at all**, so the coloured area is exactly the area we forecast. The 0 class is a visible pale fill (11.17), so an India square with no model runs still shows that it is a square we stand behind |
+| Cities | the 20 dots of `web/src/cities.json`, drawn as small circles, no labels. Tapping or focusing one selects that square and names it in the panel. 20 labels on a phone is clutter; 20 dots is orientation |
+| The selected square | its own outline layer, one feature, drawn on top of everything |
+| Panning off the edge | `maxBounds` set to the India box of 1.4, so the map cannot be dragged into an empty grey plain |
+
+### 11.15 Versions, pinned
+
+| Package | Version | Why exactly this |
+|---|---|---|
+| `maplibre-gl` | **6.17.0** | published 7 November 2026 and the latest for five days. 6.18.0 landed at 21:28 UTC on 11 November, the evening before this was drafted, and nothing here needs it. BSD-3-Clause |
+| `react`, `react-dom` | 19.3.1 | unchanged from G2 |
+| `vite` | 8.3.8 | unchanged |
+| `@vitejs/plugin-react` | 6.3.0 | unchanged |
+
+No React wrapper for MapLibre. `maplibre-gl` is used directly from one
+`useEffect` that creates the map once and never recreates it: React owns the
+panel and the controls, MapLibre owns the canvas. A wrapper would be a fifth
+pinned dependency to keep in step with both of them, for an API that is three
+calls wide.
+
+**MapLibre 6 is ESM only**, which changes how it is imported. From the 6.0.0
+changelog and the v5-to-v6 migration guide, checked 12 November 2026:
+
+| Changed in 6 | What we write |
+|---|---|
+| no default export | `import * as maplibregl from 'maplibre-gl'`, never `import maplibregl from 'maplibre-gl'` |
+| UMD and CSP bundles no longer published | irrelevant to us; Vite bundles the `.mjs` |
+| the worker is a real URL, so `worker-src blob:` is no longer needed | one fewer thing to configure, and nothing in `vercel.json` changes |
+| style-spec v25; `setPaintProperty` and `setLayoutProperty` are typed | the property names and value shapes in 11.16 are the typed ones, not strings |
+| stylesheet | `import 'maplibre-gl/dist/maplibre-gl.css'` |
+
+### 11.16 How the map gets the counts, and how it stays smooth
+
+**Directly from the store, all fifteen files, once.** Not through `api/`.
+11.4's table already promised this, and 11.1 measured the CORS that allows
+it. Through `api/` it would be fifteen function invocations that do nothing
+but copy bytes, each with a possible cold start between the reader and data
+that is already on a CDN in `bom1` and already immutable for a month.
+
+The page learns where the store is from **`api/health`**, on its own origin,
+at runtime: that response gains a `store` block with the base URL and the
+run's `paths` (11.23). So `config/store.json` is still the single source of
+truth (11.5), the page still has no build-time knowledge of the store, and a
+change of store is still one commit.
+
+The whole map contract, on first load:
+
+| # | Request | Bytes on the wire | When |
+|---|---|---|---|
+| 1 | `/api/health`, our own origin | about 1 KB | at load. The run id, the day labels, the staleness, the store base URL and the paths |
+| 2 | 15 x `runs/<run_id>/counts/ge<T>mm_day<d>.u8` | **14,441 total**, measured | at load, in parallel. Immutable for a month |
+| 3 | `/api/place?lat=&lon=` | about 2 KB | when a square is chosen |
+| 4 | nothing else | | the panel's numbers all come from 3, the map's from 2 |
+
+The India outline and the state lines of 11.14 are **not** in that table:
+they are imported by the map module, so they travel inside the map's own
+JavaScript chunk and add **31,904 gzipped bytes** to it rather than two more
+requests. They are build-time constants of the site, not data of a run, and
+they change only when `scripts/build_outline.py` is rerun.
+
+Smoothness, with 4,613 squares on a phone:
+
+1. **The geometry is built once and never rebuilt.** One GeoJSON
+   `FeatureCollection` of 4,613 square polygons, each feature carrying **all
+   fifteen counts as properties** (`ge1_d1` through `ge50_d5`) and its own
+   `i` and `j`. Measured at 1,531,279 bytes of compact JSON, built in the
+   browser from the 14 KB of step 2 and never transferred.
+2. **Changing day or threshold changes one paint property.** The fill is a
+   `step` expression over `['get', 'ge10_d3']`, and switching calls
+   `map.setPaintProperty('squares', 'fill-color', …)` with the same
+   expression over a different key. **No `setData`, no re-tessellation, no
+   fetch, no request.** This is the whole reason all fifteen files are
+   fetched up front: the controls are the thing a reader will press most, and
+   they should cost nothing.
+3. **Outside India has no feature.** The 255 squares are never built, so
+   "outside India is transparent" is a property of the data rather than a
+   colour that could be got wrong. Measured in 11.13: a counts file's
+   non-255 bytes are exactly `india.u8`, so the first file to arrive gives
+   both the mask and the first colouring.
+4. **The map is code-split.** The map component is a dynamic `import()`, so
+   the title, the run line, the stale banner and the panel render from
+   `/api/health` while the 295 KB of MapLibre is still arriving. On a slow
+   link the honest content appears first and the map fills in.
+5. **`fill-antialias: false`** on the squares layer: a 0.25 degree square has
+   a hard edge in the data, and an antialiased one costs a blend per edge
+   pixel to blur a boundary that is real.
+6. **No tiles, no sprite, no glyphs, no fonts.** Because of 11.14 the only
+   network traffic after load is one `/api/place` per square chosen. The
+   outline and the state lines are two static sources tessellated once at
+   startup and never touched again: they carry no per-day property, so no
+   control can make them redraw.
+7. `maxBounds` on the India box and `minZoom` at the whole-country fit, so
+   there is no zoom level at which the browser is asked to draw something we
+   do not have.
+
+**Rejected: drawing the counts as a raster.** A 121 x 129 canvas with one
+pixel a square, as an `ImageSource` with `raster-resampling: nearest`, would
+be far cheaper than 4,613 polygons and was the first idea. It is wrong, not
+slow: an image source is placed by its four corner coordinates and
+interpolated in Mercator space, while our rows are equally spaced in
+**latitude**. Over 8.25 N to 37.0 N those are not the same spacing, so rows
+in the middle of the country would be drawn a fraction of a square away from
+where they belong. A silent, plausible-looking misplacement of data is
+exactly what this project refuses, and no performance gain buys it.
+
+The frame cost of a day or threshold switch, the first-paint time and the
+real bundle size are **measured when it is built** and reported with the
+screenshots. Nothing is claimed for them here.
+
+### 11.17 The colour scale and the legend
+
+**ColorBrewer YlGnBu**, which ColorBrewer itself marks colour-blind safe,
+with 0 given its own near-neutral class and 51 its own darkest one.
+
+| Count | Fill | Legend row |
+|---|---|---|
+| 0 | `#eceff1` | `0` |
+| 1 to 10 | `#c7e9b4` | `1-10` |
+| 11 to 20 | `#7fcdbb` | `11-20` |
+| 21 to 30 | `#41b6c4` | `21-30` |
+| 31 to 40 | `#1d91c0` | `31-40` |
+| 41 to 50 | `#225ea8` | `41-50` |
+| 51 | `#0c2c84` | `51` |
+| 255 | no feature | not in the legend |
+
+The legend heading is **`N of 51 model runs`** and its caption is the fixed
+sentence of 11.21. The seven swatches each carry a hairline border so the
+palest two are visible against the page.
+
+Why these classes:
+
+- **Equal width of ten, between two endpoints of their own.** The legend's
+  arithmetic is then obvious: a square two classes darker is roughly twenty
+  more model runs. A quantile scale, or anything tuned to make the map look
+  interesting, would imply that the distance between classes means something
+  about likelihood. It does not, and section 6 is where that question is
+  earned.
+- **0 is its own class** because "no model run gives this" is a different
+  statement from "a few do", and in November it is most of the map: 3,660 of
+  4,613 squares on day 1 at 1 mm (11.13). It is drawn rather than left blank
+  so that an India square with no rain is visibly a square we forecast.
+- **51 is its own class** because "every model run" is also a different
+  statement, and it is 195 squares on that same day.
+- A sequential ramp, not a diverging one: a count has a low end and a high
+  end and no meaningful middle.
+
+`web/src/palette.js` holds this table as the only copy, exports
+`classOf(count)` and `colourOf(count)`, and is plain enough for `node` to
+import, which is what makes the legend testable (11.24) and HC8 possible
+(11.25).
+
+Contrast is checked rather than assumed: every text colour against its
+background, and the legend labels against their swatches, measured as a
+contrast ratio at build time and reported. The two darkest classes take white
+labels; the rest take the page's ink colour.
+
+### 11.18 The layout
+
+Light theme only, declared with `color-scheme: light`, because the palette is
+chosen against a white page and an automatic dark inversion would change what
+the colours mean.
+
+One font: the **system UI stack**
+(`ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`).
+No webfont download, no flash of unstyled text, and it renders Indian
+language text correctly if the city list ever carries it. Counts are set with
+`font-variant-numeric: tabular-nums` so columns of numbers line up.
+
+**Desktop, 1024 px and wider.** The map is the hero and fills the viewport.
+
+```
++--------------------------------------------------------------+
+| India precipitation forecast        run line, stale banner    |  header
++---------------------------------------------+----------------+
+|                                             |  place         |
+|                                             |  counts        |
+|            map, fills the rest              |  dots          |
+|                                             |  members       |
+|  [day 1..5]  [1 / 10 / 50 mm]   legend      |  5-day strip   |
++---------------------------------------------+----------------+
+|  the three sentences, IMD link, credits                       |  footer
++--------------------------------------------------------------+
+```
+
+The panel is a fixed 380 px column on the right. The day and threshold
+controls and the legend float over the map's bottom-left on a translucent
+white card: over the map because they change the map, and bottom-left because
+that corner of the India box is the Arabian Sea.
+
+**Phone and tablet, under 1024 px.** The map takes the top 55% of the
+viewport and the panel becomes a bottom sheet with two heights: a peek that
+shows the place line and the three counts, and an expanded state at 85% that
+shows everything. The sheet is moved by dragging its handle **and** by a real
+`<button>` with `aria-expanded`, so it is not gesture-only. The day and
+threshold controls sit in the sheet's header, so they are reachable at either
+height, and the legend collapses to one row of swatches with the end labels
+only.
+
+Nothing in either layout overlaps anything: the controls card and the sheet
+have their own space, and MapLibre is told about the panel with `padding`, so
+`fitBounds` centres India in the part of the canvas that is actually visible.
+
+### 11.19 The controls
+
+| Control | Behaviour | Keyboard |
+|---|---|---|
+| Day 1 to 5 | five buttons showing the short IST label, `Fri 13 Nov`, from `short_ist` (11.23). The full window, `5:30 am Fri 13 Nov to 5:30 am Sat 14 Nov`, is printed under the group for the chosen day | `role="radiogroup"`, arrow keys move, one tab stop |
+| Threshold | three buttons, `1 mm`, `10 mm`, `50 mm`, described once as "at least this much rain in the day" | the same |
+| Search | one text box. Typing filters the 20 cities; typing two numbers, `28.5, 77.25`, is taken as a latitude and longitude | `role="combobox"`, arrow keys through the list, Enter picks, Escape closes |
+| Use my location | a button, so it is always a deliberate act. `navigator.geolocation.getCurrentPosition` once, no watching | a button |
+| The map | click a square to select it | MapLibre's own keys pan and zoom. **A square is never selectable only by clicking**: search and the typed coordinates reach every square without the map (11.22) |
+
+**The location never leaves the device at full precision.** The browser's fix
+is snapped to the 0.25 degree square **in the page** before anything is sent,
+and only the square's centre goes to `/api/place`. `api/place` would snap it
+to that same square anyway, so the answer is identical, and the finest thing
+that ever appears in a request URL or a server log is a 28 km square rather
+than somebody's position. The same snap is applied to a map click.
+
+That duplicates arithmetic which 11.4 said should live in one place, so it is
+**tested rather than trusted**: `web/src/snap.js` exports the snap, plain
+`node` can import it, and a test drives it and `api/place.mjs` over a grid of
+points and fails if they ever disagree about which square a point is in
+(11.24). One copy with a test that the two agree is honest; two copies that
+merely look alike is not.
+
+A denied permission, a browser with no geolocation, and a fix outside the
+India box each get one plain sentence and no retry loop. A fix inside the box
+on a sea square goes through the one-square rule of 11.7 and the page says
+which square it moved to, exactly as a typed coordinate does.
+
+### 11.20 The place panel
+
+In order down the panel, for the chosen square and the chosen day:
+
+| Part | Content |
+|---|---|
+| Place | `28.50 N 77.25 E`, with the city name only when the square **is** that city's square in `cities.json`. No city name is invented for a square that merely sits near one |
+| Moved | when the square used is not the square asked for: `19.08 N 72.88 E is sea on this 0.25 degree grid. Showing 19.25 N 73.00 E, one square north.` (11.7) |
+| **The day in one sentence** | one plain sentence for the chosen day, built only from that day's three counts: `18 of 51 model runs reach 1 mm, none reach 10 mm.` The rule is below |
+| Counts | three rows for 1, 10 and 50 mm, each `40 of 51 model runs`, the chosen threshold emphasised. The published numbers, from `api/place` |
+| The sentence | `40 of 51 model runs, which is not a calibrated probability.` once, under the counts, for the chosen threshold |
+| Dots | 51 dots, one a member, in the four categories of 4.3, with the category counts beside them and member 0 marked as the control (2.1). Laid out so 51 dots are countable rather than decorative |
+| Members | the 51 values as whole millimetres rounded down, in member order, with the lowest, middle and highest called out, and `0 mm means under 1 mm.` under them |
+| Five-day strip | five cells, one a day, each filled with the palette colour for that day's count at the chosen threshold and printing the count. Clicking a cell changes the day. Each cell's accessible name is **that day's sentence**, so a screen reader gets five readable days rather than five numbers. One square's whole five days without touching the day control |
+| The square used | `i = 15, j = 22, tile 32N_72E`, in small type, so a reader can repeat the arithmetic by hand the way HC7 and HC8 do |
+
+The dots, the counts, the sentences and the five-day strip all come from the
+single `/api/place` response, which already carries all five days (11.7), so
+changing the day changes no request.
+
+#### The one-sentence rule
+
+Added 12 November 2026. The counts table is correct and it is also four
+numbers in a grid; a reader who wants to know what a day looks like should
+not have to assemble it. So each day gets one sentence, **derived from
+nothing but that day's three published counts**, by a rule with no choices
+in it.
+
+Built in `api/place` as `days[].sentence`, so there is one copy of the rule
+and a test can hold it (11.24). Never built in the browser.
+
+Let `c1`, `c10` and `c50` be that day's counts at 1, 10 and 50 mm.
+
+| Case | Sentence |
+|---|---|
+| `c1 = 0` | `0 of 51 model runs reach 1 mm.` and nothing more: nothing can reach 10 mm without reaching 1 mm |
+| `c1 > 0`, `c10 = 0` | `18 of 51 model runs reach 1 mm, none reach 10 mm.` |
+| `c1 > 0`, `c10 > 0`, `c50 = 0` | `40 of 51 model runs reach 1 mm, 12 reach 10 mm, none reach 50 mm.` |
+| `c1 > 0`, `c10 > 0`, `c50 > 0` | `51 of 51 model runs reach 1 mm, 48 reach 10 mm, 3 reach 50 mm.` |
+| a count of exactly 1 | the verb agrees: `1 of 51 model runs reaches 1 mm`, and `1 reaches 10 mm` |
+
+What the rule deliberately does not contain:
+
+- **No adjectives and no weather words.** Not "dry", not "wet", not "heavy",
+  not "likely", not "chance", not "expected", not "risk". The sentence names
+  a count, a threshold and a number of model runs, and stops. A rule that
+  said "dry" below some count would be a forecast of its own, made up by the
+  website rather than by the ensemble, and `0 of 51` reaching 1 mm is not the
+  same claim as "it will be dry".
+- **No thresholds it cannot support.** A higher threshold is mentioned only
+  once a lower one is reached, because `c1 >= c10 >= c50` always holds
+  (4.2) and saying "none reach 50 mm" after "0 reach 1 mm" is noise.
+- **No percentages, ever**, as everywhere else on the page.
+- **No rounding, no banding, no "about".** The counts go in as integers.
+
+The published counts are monotone by construction, so the test asserts
+`c1 >= c10 >= c50` on every square of the synthetic run as well as checking
+the sentence, and a day that broke that would fail rather than produce a
+sentence that reads backwards.
+
+### 11.21 Wording, and what G2 keeps
+
+Everything in 11.9 stays, with **one replacement**. The G2 page carried
+`a count of 40 out of 51 is not a chance of rain`, which can be read as
+"there is no chance of rain". It is replaced, everywhere it appears, by the
+sentence this part is built around:
+
+| Where | Exactly |
+|---|---|
+| legend heading | `N of 51 model runs` |
+| legend caption, and under the panel's counts with the real number | `N of 51 model runs, which is not a calibrated probability.` |
+| under the member values | `0 mm means under 1 mm.` |
+| **removed** | `These are model-run counts, not probabilities.` and `a count of 40 out of 51 is not a chance of rain` |
+| footer | `Not an official warning. For warnings and advisories, see the India Meteorological Department.` linking to `https://mausam.imd.gov.in/` |
+| footer | the three ECMWF lines of 11.9, verbatim |
+| footer | the NASA IMERG line of 11.9, verbatim |
+| footer, new | `Map rendering: MapLibre GL JS 6.17.0, BSD-3-Clause.` |
+| footer | the link to `CREDITS.md` and to the repository |
+
+One sentence carrying the point is better than two, and the replacement says
+what the old pair said while also naming the thing these numbers are not: a
+calibrated probability. **This amends 11.9**, which needs your nod.
+
+There is no OpenStreetMap or basemap credit because there is no basemap
+(11.14), and the Natural Earth credit in `CREDITS.md` is unchanged: the
+outline still decides the mask, it is simply not drawn.
+
+Kept from G2 without change: the run id and the run time in IST, the publish
+time, the stale banner at 36 hours recomputed in the page from
+`run_time_utc`, the day labels taken from the manifest rather than formatted
+in the browser, and no percentage anywhere.
+
+### 11.22 Keyboard, screen readers and the promise about the map
+
+A `<canvas>` is not readable. So the rule for this page is written down as a
+promise rather than left to chance:
+
+**No information on this site is available only by clicking the map.**
+
+| | |
+|---|---|
+| Reaching a square | the search box takes a city or a typed latitude and longitude, both without the map |
+| Reading a square | everything the map shows for the selected square is text in the panel, including its count and its legend class by name |
+| The map element | `aria-label` naming what it is, MapLibre's own keyboard pan and zoom, one tab stop, and `aria-hidden` on its decorative sub-elements |
+| Announcing a change | the place line is an `aria-live="polite"` region, so picking a square or changing the day says so once rather than silently repainting |
+| Focus | a visible focus ring on every control, never removed |
+| Motion | `prefers-reduced-motion` is respected; MapLibre's `respectPrefersReducedMotion` default is left on, and the page's own fly-to becomes a jump |
+| Contrast | every text and swatch pair measured at build time, 4.5:1 or better |
+| No JavaScript | a `<noscript>` block saying the page needs JavaScript and giving the raw `/api/place?lat=&lon=` route, which answers JSON with no script at all |
+
+### 11.23 The two small additions to `api/health` and `api/place`
+
+Both are additive. No field changes meaning, no status code changes, and the
+60 second `Cache-Control` of 11.6 and 11.7 stays.
+
+**`api/health` gains a `store` block**, so the page can fetch bytes from the
+store after exactly one request to its own origin:
+
+| Field | From |
+|---|---|
+| `store.base_url` | the same resolution as today: `STORE_BASE_URL`, then `config/store.json` (11.5) |
+| `store.paths` | the manifest's own `paths`: `counts`, `tiles`, `india` |
+| `store.counts_files` | the manifest's 15 names, `ge1mm_day1.u8` and the rest |
+| `store.grid` | the manifest's `grid`: `n_lat`, `n_lon`, `grid_step_degrees`, `not_india`, `order` |
+
+The `grid` block matters more than it looks: the page then never hardcodes
+121, 129 or 255, so it reads the byte at `i * n_lon + j` using the numbers
+the run itself published. A grid that ever changed would move the colours
+correctly or fail loudly, rather than quietly painting the wrong squares.
+
+**Both functions gain `days[].short_ist`**, `Fri 13 Nov`, derived server side
+from `from_ist`, which the manifest already carries. The browser does no date
+formatting at all, which keeps every date on the page in IST by construction
+rather than by the reader's time zone.
+
+**`api/place` gains two more fields per square**:
+
+| Field | What |
+|---|---|
+| `days[].sentence` | the one-sentence rule of 11.20, built from that day's three counts and nothing else. Server side so there is one copy of the rule and a test can hold it |
+| `nearest_city` | set **only** when the square is exactly a city's square in `cities.json`, and absent otherwise. It never names a city merely near the square |
+
+**This amends 11.5's table**: the page's row changes from "**nothing.** It
+never learns the URL" to "learns it from `api/health` at runtime, never from
+a build-time value". The point of that row was that the store URL is not
+baked into the site, and that still holds.
+
+### 11.24 Tests
+
+All of it extends `tests/test_api_consistency.py`, which already publishes a
+synthetic run through `FakeStore`, serves it on `127.0.0.1` and drives the
+functions under plain `node` (11.10). No network, no token, no browser.
+
+| Test | What it holds |
+|---|---|
+| the `store` block | `base_url` is the server the test set, and `paths`, `counts_files` and `grid` are the manifest's own values, unchanged |
+| `short_ist` | all five days match a fixed expected string for the frozen synthetic run, with no timezone library involved |
+| **the map byte against the panel count** | for **every** India square and **all fifteen** day-threshold combinations: the byte at `i * n_lon + j` of `counts/ge<T>mm_day<d>.u8` equals the count `api/place` returns for that day and that threshold. Part one checked one combination; the map reads all fifteen, so all fifteen are checked |
+| the mask across the counts files | the set of non-255 positions is identical in all fifteen files and equal to `india.u8`, which is what lets the geometry be built from whichever file arrives first |
+| the palette, in `node` | `palette.js` for every count 0 to 51: each falls in exactly one class, the classes are contiguous and cover 0 to 51 with no gap and no overlap, the boundaries are the published table of 11.17, and 255 produces no fill |
+| the snap agreement, in `node` | `web/src/snap.js` and `api/place.mjs` are given the same grid of points and must name the same square every time. This is what makes it safe for the page to round a location before sending it (11.19) |
+| the legend class of a count | `classOf` agrees with the class the panel names in text, so the colour on the map and the words in the panel cannot drift |
+| **the day sentence**, in `node` | the rule of 11.20 against every square of the synthetic run: the sentence names the day's real counts, it stops at `1 mm` when `c1` is 0, it says `none reach` rather than `0 reach` for a higher threshold, the verb agrees when a count is 1, and it contains **none** of the words `dry`, `wet`, `heavy`, `likely`, `chance`, `expected`, `risk`, `probability` or `%`. The forbidden words are a list in the test, so adding a cheerful adjective later fails it |
+| the counts are monotone | `c1 >= c10 >= c50` on every square and every day of the synthetic run, which is what lets the sentence mention a higher threshold only after a lower one |
+| `web/src/geo/india.geo.json` and `states.geo.json` | in `tests/test_india_mask.py`: every one of the 4,613 India square centres lies inside the committed outline; the outline's bounding box equals the shapefile's; the state lines are all inside the outline; and `scripts/build_outline.py --check` reproduces both files byte for byte, so a committed outline can never drift from the source it claims to come from |
+| everything from part one | unchanged. Today's 193 tests must still pass, and nothing in `pipeline/` moves for G3 |
+
+Skipped with a printed reason when `node` is not on `PATH`, as before. The
+number of new tests is not predicted here; it is reported when they are
+written and run.
+
+### 11.25 HC8
+
+**For one square, five independent things must give the same answer.** HC7
+compared two copies of the same run; HC8 compares the published bytes, the
+API, the rendered page and the drawn pixel.
+
+`handchecks/hc8_map_square.py`, anonymous HTTPS only, no project imports, the
+arithmetic written out longhand the way HC7 does it:
+
+| # | The thing | How it is got |
+|---|---|---|
+| 1 | **the store byte** | `i = (38.0 - lat) / 0.25`, `j = (lon - 68.0) / 0.25`, `byte = i * 121 + j`, read from `runs/<run_id>/counts/ge<T>mm_day<d>.u8` |
+| 2 | **the tile** | `c[day - 1][k]` from `runs/<run_id>/tiles/<tile>.json`, with `tile = floor(lat / 4) * 4, floor(lon / 4) * 4` |
+| 3 | **`/api/place`** | `counts_by_threshold[k].count` from the live site |
+| 4 | **the panel** | the number in the panel's count row, read out of the page's DOM in Chrome |
+| 5 | **the map colour and the legend class** | the pixel sampled from the map canvas at that square's centre, and the legend row the page marks active |
+
+It passes when 1, 2, 3 and 4 are the same integer, **and** the sampled pixel
+is exactly the palette hex of 11.17 for the class that contains that integer,
+**and** the active legend row is that class. Anything else is a failure with
+all five values printed.
+
+Reading a pixel back from a WebGL canvas needs `preserveDrawingBuffer`, which
+costs performance on every frame for every reader. So the map sets it **only
+when the page is loaded with `?handcheck=1`**, and the production map never
+carries it. The hand check therefore runs against the same deployed code with
+one flag, not against a special build.
+
+Run on five squares, though one is the requirement: the HC6 and HC7 square at
+**34.25 N 73.5 E**, a square whose count is 0, one whose count is 51, and one
+in each of two middle classes, so every part of the palette table is
+exercised. Results to `handchecks/results/hc8_map_square.csv` with the run
+id, and the screenshot kept beside it.
+
+It is shown to bite before it is believed: moving one palette boundary by one
+count, or changing one hex digit, must fail it.
+
+### 11.26 The order of work, and the tag
+
+1. `api/health` and `api/place`: the `store` block, `short_ist`,
+   `nearest_city`. Tests first, then the change.
+2. `web/src/palette.js` and `web/src/snap.js` with their `node` tests, before
+   anything draws.
+3. The map: source, layers, controls, legend.
+4. The panel and the layout, desktop then bottom sheet.
+5. `npm run build`, then the measurements this draft refused to guess: bundle
+   size, first paint, the cost of a day and threshold switch, and the
+   contrast ratios.
+6. Deploy, then **screenshots at 1440 x 900 and 390 x 844, shown to you**.
+7. HC8 on the deployed site, shown to bite.
+8. Only then the tag **`g3-map-live`**.
+
+Each step is its own commit, staged by name.
+
+### 11.27 Settled, and what is open
+
+Settled in this draft:
+
+| Question | Decision |
+|---|---|
+| basemap | **none**, and no outline either: the 4,613 squares are the map, with city dots for orientation. 11.14, five reasons, the first being that a basemap draws a boundary that is not the one our mask came from |
+| MapLibre version | 6.17.0 exact, ESM-only import, style-spec v25 (11.15) |
+| where the counts come from | the store directly, all fifteen files, 14,441 bytes measured, with the base URL learned from `api/health` (11.16) |
+| smoothness | geometry built once, day and threshold switch by one paint property with no fetch and no re-tessellation, the map code-split so text paints first (11.16) |
+| the palette | ColorBrewer YlGnBu, colour-blind safe, seven classes with 0 and 51 their own (11.17) |
+| the raster shortcut | rejected for correctness, not for speed (11.16) |
+| percentages | still none, anywhere, until section 6 earns one |
+| the tag | `g3-map-live` |
+
+**Answered by you on 12 November 2026**, and built that way:
+
+| # | Was open | Your answer |
+|---|---|---|
+| 1 | **Draw the India outline?** | **Yes**, from the same Natural Earth India point-of-view file the mask is cut from, **plus thin light internal state lines** from the admin-1 file the IMD regions already use, if they stayed under about 60 KB gzipped. Measured: **15,169 + 16,735 = 31,904 gzipped**, about half the budget, so both are drawn (11.14). `scripts/build_outline.py` is **approved into the fixed structure**, and 3.5's "the published map does not draw national borders" is amended there and in 11.14. Still no basemap |
+| 2 | replacing both old sentences with `N of 51 model runs, which is not a calibrated probability.` | **yes.** 11.9's row is amended and 11.21 holds the replacement |
+| 3 | the page learning the store base URL from `api/health` at runtime | **yes.** 11.5's table row is amended |
+| 4 | **one plain sentence a day in the panel, above the counts** | **added**, built from that day's three counts and nothing else, with no weather words at all: the rule is 11.20 and the test that holds it, including a list of forbidden words, is 11.24 |
+| 5 | New files under `web/src/` | no approval needed: the fixed structure says `web/` is React, Vite and MapLibre and names no files inside it. `scripts/build_outline.py` is the one structure change, and it is approved |
+| 6 | City dots with no labels | yes for G3. Labels need either a glyph server or 20 DOM markers, and both are clutter on a phone |
+| 7 | Dark mode | no. The palette is calibrated against white, and 11.18 declares `color-scheme: light` so a browser cannot invert it |
+
+Nothing in part two is open. What is left is building it, in the order of
+11.26, and the one decision that can only be made from a picture: whether
+the state lines at `#c9d2da` are too strong or too faint, which is a colour
+to adjust after the screenshots rather than a question to settle in prose.
+
 ---
 
 ## Open questions
@@ -3060,10 +3713,12 @@ Nothing in sections 1-4 is now blocked.
 10. Testing strategy
 12. Tiers and acceptance tests
 
-**Section 11 is drafted for G2** (the plain page, `api/health` and
-`api/place`). The map, the track record pages and the display rules that go
-with a "Good track record" label are part two of that section, drafted when
-G3 starts.
+**Section 11 is drafted and approved in two parts.** Part one, 11.1 to
+11.11, is the plain page with `api/health` and `api/place`, live since 12
+November 2026. Part two, 11.12 to 11.27, is the map and the real site,
+approved the same day. The track record pages and the display rules that go
+with a "Good track record" label are section 6, after the verification of
+section 5 has run.
 
 ### Requirements already fixed for later sections
 
