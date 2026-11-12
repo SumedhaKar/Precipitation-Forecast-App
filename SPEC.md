@@ -3,8 +3,8 @@
 India precipitation forecast website.
 
 Status: sections 1-4 drafted and revised 12 November 2026, with all five open
-questions resolved. Sections 5-12 to be drafted before any verification results
-are produced.
+questions resolved. Sections 5 and 6 decided 12 November 2026. Sections 7-12 to
+be drafted before any verification results are produced.
 
 Every claim marked **[verified]** was checked against a real download or the
 ECMWF documentation on 12 November 2026. Claims marked **[open]** are not
@@ -757,8 +757,8 @@ pass. 50 of 51 members is not publishable. There is no partial publish.
 
 ## 5. Verification method
 
-Draft, 12 November 2026. Items marked **[proposal]** are mine and need your
-decision; everything else follows from decisions you have already made.
+Decided 12 November 2026. Every rule below is fixed; nothing here is still
+an open proposal.
 
 ### 5.1 What a case is
 
@@ -810,8 +810,19 @@ Lower is better. 0 is perfect.
 #### The reference forecast
 
 Skill is measured against a reference that **uses hindsight**: the observed
-event frequency for that square and that calendar month, taken from our own
-sample, unsmoothed.
+event frequency within one **reference group**, taken from our own sample,
+unsmoothed. A reference group is one combination of:
+
+- an India square
+- the calendar month of the **day being forecast**
+- the lead day, 1 to 5
+- the threshold, 1 mm, 10 mm or 50 mm
+
+The reference for a case is the share of that group's own cases in which the
+event was observed. Because the group is keyed on exactly the four things
+that define a case apart from the run date, that share is **exactly the best
+constant forecast for those cases**: no other single number has a lower
+Brier score over them.
 
 This is the best constant forecast that group could have had, and it could
 only be built after seeing the answers. Our skill against it is therefore a
@@ -819,14 +830,22 @@ only be built after seeing the answers. Our skill against it is therefore a
 A forecast that beats it has beaten a reference it could never have had in
 advance.
 
-**[proposal]** The calendar month is the month of the **day being forecast**,
-in UTC, not the month of the run date. The climatology describes the weather
-of the observed day, so that is the day it should be keyed to. This matters
-only for runs within 5 days of a month end.
+The calendar month is the month of the **day being forecast**, in UTC, not
+the month of the run date. The climatology describes the weather of the
+observed day, so that is the day it should be keyed to. This matters only for
+runs within 5 days of a month end.
 
-#### Computing it per square-month before pooling
+Keying the reference on lead day and threshold as well as square and month
+costs nothing in fairness and removes two more ways of manufacturing skill.
+The observed frequency of a square-month does not depend on lead day, so in
+a complete sample the lead-day keys would hold near-identical values; they
+differ only through the exclusions of section 5.2, which fall differently on
+different lead days. Keying on them means the reference is computed from the
+same cases the forecast is scored on, never a different set.
 
-The reference is worked out **per square and calendar month first**, and only
+#### Computing it per reference group before pooling
+
+The reference is worked out **per reference group first**, and only
 then pooled:
 
 ```
@@ -834,12 +853,12 @@ BSS = 1 - (sum of case Brier scores) / (sum of case reference Brier scores)
 ```
 
 summed over the cases in the group, with each case's reference being its own
-square-month frequency.
+reference-group frequency.
 
 Pooling squares with different climates before computing the reference
 manufactures skill that is not there: a forecast can look skilful merely by
 knowing that Cherrapunji is wetter than Jaisalmer, which is geography, not
-forecasting. Computing the reference per square-month first removes that
+forecasting. Computing the reference per reference group first removes that
 (Hamill and Juras, 2006).
 
 ### 5.4 Groups
@@ -849,36 +868,127 @@ Results are reported per **region x lead day x threshold**.
 **Lead days are never mixed.** A Day 1 forecast and a Day 5 forecast are
 different products and pooling them hides the decay that matters most.
 
-#### Regions **[proposal]**
+#### Regions
 
-Eight climate-based regions. The rules below are applied **in order to India
-squares only, first match wins**, so every India square lands in exactly one
-region.
+The four **homogeneous rainfall regions** the India Meteorological Department
+uses for its own rainfall reporting: **Northwest India**, **Central India**,
+**South Peninsula** and **East & Northeast India**.
 
-| # | Region | Rule |
-|---|---|---|
-| 1 | Northeast | `lon >= 89.0` |
-| 2 | Himalaya & foothills | `lat >= 29.0` |
-| 3 | West coast & Western Ghats | `lat <= 22.0` and `lon <= 76.5` (or `<= 77.25` where `lat < 13.0`) |
-| 4 | Dry northwest | `lat >= 22.0` and `lon <= 76.0` |
-| 5 | Indo-Gangetic plains | `lat >= 24.0` |
-| 6 | East coast | `lat <= 23.0` and `lon >= 79.5` |
-| 7 | Peninsula interior | `lat <= 19.0` |
-| 8 | Central India | everything else |
+They are not our invention and not straight lines on a grid. They are IMD's
+groupings of its 36 meteorological subdivisions, taken from the
+subdivision-wise rainfall table that IMD prints under those four headings:
 
-The wider longitude cutoff in rule 3 below 13 N is because the peninsula
-narrows and the Ghats crest sits further east there.
+> India Meteorological Department, **Annual Report 2025**, Table 1,
+> "Subdivision-wise rainfall (mm) distribution", page 96.
+> <https://metnet.imd.gov.in/docs/imdnews/ANNUAL_REPORT2025English.pdf>
 
-These boundaries are **straight lines on a grid, not climate science**. They
-are a starting point. Before any results are produced:
+| Region | IMD meteorological subdivisions, as printed in that table |
+|---|---|
+| East & Northeast India | Arunachal Pradesh; Assam & Meghalaya; NMMT; SHWB & Sikkim; Gangetic West Bengal; Jharkhand; Bihar |
+| Northwest India | East U.P.; West U.P.; Uttarakhand; Har., Chd & Delhi; Punjab; Himachal Pradesh; J&K and Ladakh; West Rajasthan; East Rajasthan |
+| Central India | Odisha; West Madhya Pradesh; East Madhya Pradesh; Gujarat region; Saurashtra & Kutch; Konkan & Goa; Madhya Maharashtra; Marathwada; Vidarbha; Chhattisgarh |
+| South Peninsula | A & N Island; Coastal A.P. & Yanam; Telangana; Rayalaseema; Tamil., Pudu. & Karaikal; Coastal Karnataka; N.I. Karnataka; S.I. Karnataka; Kerala & Mahe; Lakshadweep |
 
-- the square count per region is printed and reviewed,
-- the boundaries are checked by someone who knows Indian climatology,
-- and a handful of named places are asserted into the region they belong to,
-  as was done for the mask in section 3.5.
+That is 7 + 9 + 10 + 10 = 36 subdivisions, IMD's full set.
 
-A region with too few squares to be meaningful is merged into its neighbour
-rather than reported thinly.
+Two of these placements are IMD's and would not be guessed from the names:
+**Odisha is in Central India**, not in the east, and the **Andaman & Nicobar
+Islands are in South Peninsula**, not in the east. We follow IMD.
+
+#### From subdivisions to states
+
+Subdivisions are not polygons we have, so each one is translated to the
+states and union territories it covers. **No subdivision boundary cuts
+across a state boundary in a way that would split a state between two
+regions**, so no choice had to be made:
+
+| Region | States and union territories |
+|---|---|
+| Northwest India | Uttar Pradesh, Uttarakhand, Haryana, Chandigarh, Delhi, Punjab, Himachal Pradesh, Jammu and Kashmir, Ladakh, Rajasthan |
+| Central India | Odisha, Madhya Pradesh, Gujarat, Dadra and Nagar Haveli and Daman and Diu, Goa, Maharashtra, Chhattisgarh |
+| South Peninsula | Andaman and Nicobar, Andhra Pradesh, Telangana, Tamil Nadu, Puducherry, Karnataka, Kerala, Lakshadweep |
+| East & Northeast India | Arunachal Pradesh, Assam, Meghalaya, Nagaland, Manipur, Mizoram, Tripura, Sikkim, West Bengal, Jharkhand, Bihar |
+
+All 36 Natural Earth admin-1 units with `admin = India` appear exactly once.
+
+Puducherry is the one union territory IMD splits across subdivisions:
+Puducherry and Karaikal go with Tamil Nadu, Yanam with Coastal Andhra
+Pradesh, Mahe with Kerala. All three subdivisions are in South Peninsula, so
+the whole territory lands in one region regardless. The same holds for Daman,
+Diu and Dadra & Nagar Haveli, which IMD divides between Gujarat region and
+Saurashtra & Kutch, both Central India.
+
+#### Assigning a square
+
+| # | Rule |
+|---|---|
+| 1 | An India square (section 3.5) belongs to the region of the **state its centre falls in** |
+| 2 | Inside-or-on-boundary counts, by the same `covers` test as section 3.5 |
+| 3 | A square whose centre is inside the India outline but **in no Indian state polygon** goes to **Northwest India** |
+
+Rule 3 exists because the outline is the India point-of-view edition of
+Natural Earth while admin-1 is not: Gilgit-Baltistan, Pakistan-administered
+Kashmir and Aksai Chin are inside the India outline but have no Indian state
+polygon over them. All of them are in the northwest, so Northwest India is
+where they belong.
+
+Rule 3 is **only** safe while every such square is in that northern area. If
+the fallback ever catches a square elsewhere, for example on a coast where
+the admin-0 and admin-1 coastlines disagree, that is a fault to be fixed and
+not to be absorbed silently. The build therefore prints the latitude and
+longitude range of every square the fallback catches, and whether any of them
+is a coastal square.
+
+**Boundaries source.** Natural Earth 1:10m Admin 1 – States, Provinces,
+`ne_10m_admin_1_states_provinces`, version **5.1.1**, **public domain**,
+SHA256 `efc59726337323058f9446210adc96673179cd344e053666ee3d28cb58ba2b05`
+for the zip as downloaded. This is a different file from the admin-0 outline
+of section 3.5 and is recorded separately. Natural Earth publishes no
+point-of-view edition of admin-1, which is why rule 3 is needed.
+
+#### Square counts
+
+Measured on 12 November 2026 from `config/india_mask.json` and the admin-1
+file above:
+
+| Region | Squares |
+|---|---|
+| Northwest India | 1,501 |
+| Central India | 1,510 |
+| South Peninsula | 857 |
+| East & Northeast India | 745 |
+| **Total** | **4,613** |
+
+Of the 1,501 Northwest India squares, **183** are there by rule 3. All 183
+have centres between 33.0 N and 37.0 N and between 72.75 E and 80.25 E, and
+**none** is a coastal square, which is what rule 3 requires.
+
+No region is anywhere near too small to report, so the merging rule the
+earlier draft needed is gone.
+
+#### Region tests
+
+Asserted the same way as the mask tests of section 3.5, on the **nearest
+India square** to each place:
+
+| Place | Expected region |
+|---|---|
+| Delhi, Jaipur, Srinagar | Northwest India |
+| Mumbai, Bhopal, Ahmedabad | Central India |
+| Chennai, Bengaluru, Thiruvananthapuram | South Peninsula |
+| Kolkata, Patna, Guwahati | East & Northeast India |
+
+All twelve pass. Two of them are worth knowing about:
+
+- **Mumbai.** The 0.25-degree square that contains the city has its centre at
+  19.00 N, 73.00 E, in the Panvel–Thane creek, so it is not an India square
+  at all under the centre rule of section 3.5. The nearest India square is
+  19.25 N, 73.00 E, in Maharashtra, Central India. The test is written against
+  the nearest India square for exactly this reason.
+- **Delhi.** The square nearest the city centre has its own centre at
+  28.50 N, 77.25 E, which falls in Haryana rather than in Delhi. Both are
+  Northwest India, so the region is right. The state is only a routing device
+  and is never displayed.
 
 ### 5.5 Uncertainty
 
@@ -892,6 +1002,39 @@ Whole dates are the unit because squares on the same day are strongly
 correlated, and so are lead days from the same run. Resampling individual
 cases would treat one weather system as thousands of independent facts and
 would make the range far too narrow.
+
+#### The reference is not resampled
+
+The reference of section 5.3 is computed **once, from the full sample**, and
+then held fixed through all 1000 resamples. It is not recomputed inside each
+resample.
+
+The reference is the yardstick. Recomputing it per resample would let the
+yardstick move with the measurement and would mix two different kinds of
+uncertainty into one range. The range we publish is the uncertainty in **our
+skill against a fixed reference**, and that is what it is labelled as.
+
+#### Adding up per start date first
+
+Before resampling, each group's cases are collapsed to **one row per start
+date** holding three numbers:
+
+| Field | Meaning |
+|---|---|
+| `n` | cases used from that date |
+| `sum_bs` | sum of the case Brier scores |
+| `sum_ref` | sum of the case reference Brier scores |
+
+A resample is then a draw of dates with replacement and a sum of their rows:
+
+```
+BSS = 1 - (sum of sum_bs over drawn dates) / (sum of sum_ref over drawn dates)
+```
+
+This is **exactly** the same number as resampling the cases of those dates
+and recomputing, because the statistic is a ratio of sums over cases and the
+unit of resampling is the whole date. 1000 resamples then cost 1000 sums over
+at most 177 rows instead of 1000 passes over tens of thousands of cases.
 
 ### 5.6 Tier 1
 
@@ -908,7 +1051,7 @@ look identical otherwise.
 If a label changes between 8 mm and 12 mm, that is published next to the
 label. A result that only holds at exactly 10 mm is not a result.
 
-**[proposal]** Reliability buckets: `count = 0` on its own, `count = 51` on its
+Reliability buckets: `count = 0` on its own, `count = 51` on its
 own, and the remaining values in 10 equal-width buckets of 0.1. The two
 extremes are separated because they are by far the most common forecasts and
 burying them in a 0-0.1 bucket would hide most of the behaviour.
@@ -955,7 +1098,7 @@ wording must not imply that we do.
 
 ## 6. Trust labels
 
-Draft, 12 November 2026. Items marked **[proposal]** are mine.
+Decided 12 November 2026. Every rule below is fixed.
 
 ### 6.1 Scope
 
@@ -983,7 +1126,7 @@ Condition 2 says the forecast beat the hindsight reference. Condition 3 says
 we know that well enough to say it out loud; a range of plus or minus 0.4 that
 happens to sit above 0 is not knowledge.
 
-### 6.3 Enough data **[proposal]**
+### 6.3 Enough data
 
 All three:
 
@@ -993,7 +1136,7 @@ All three:
 | Distinct start dates contributing any case | at least **30** |
 | Distinct start dates on which the event was **observed** at least once | at least **20** |
 
-The third is yours and is the one that actually binds. The other two are mine.
+The third condition is the one that actually binds.
 
 The case count is deliberately the weakest of the three. With about 4,613
 India squares and 177 dates, even a small region reaches tens of thousands of
@@ -1005,18 +1148,35 @@ The 20-dates rule is what stops a label resting on one freak week. A region
 can have 80,000 cases and still have seen 50 mm of rain on only three days,
 and that group must not be called a good track record.
 
-### 6.4 Small honesty error **[proposal]**
+### 6.4 Small honesty error
 
-Every reliability bucket holding at least **100 cases** has its observed
-frequency within **0.10** of its mean forecast.
+Every **counted** reliability bucket has its observed frequency within
+**0.10** of its mean forecast.
 
-Buckets below 100 cases are ignored for this test and are **still drawn** on
-the diagram with their counts, so a reader can see what was set aside.
+A bucket is counted only if **both** hold:
 
-0.10 matches the rounding used for display. A "Good track record" label shows
-"About 40%", rounded to the nearest 10, so an error up to 0.10 is the largest
-error that rounding can still absorb. Allowing more would print a number the
-data does not support.
+| # | Requirement |
+|---|---|
+| 1 | at least **100 cases** |
+| 2 | those cases come from at least **10 different start dates** |
+
+Buckets that fail either test are ignored for this test and are **still
+drawn** on the diagram with their counts, so a reader can see what was set
+aside.
+
+The 10-dates requirement is there for the same reason as the 20-dates rule in
+6.3. Cases on one day are not independent, so 100 cases from two weather
+systems say far less than 100 cases from fifty, and a bucket that passed on
+the strength of one wet week would be the easiest way for a wrong label to get
+through.
+
+**0.10 is not a rounding argument.** Displaying "About 40%" rounded to the
+nearest 10 only hides an error of up to 0.05, so rounding would justify 0.05,
+not 0.10. 0.10 is a judgement about what the word "about" can carry: a
+forecast displayed as "About 40%" whose events happened 30% or 50% of the time
+is still recognisably that forecast, while 20% or 60% is not. The figure is
+fixed here, before any results exist, and section 6.8 is what stops it moving
+afterwards.
 
 ### 6.5 Rough guide
 
@@ -1051,12 +1211,13 @@ labelled so:
 - "came true about 2 times in 10" is what happened in the past when it said
   something like that.
 
-**[proposal]** "came true about N times in 10" is the observed frequency of
-the reliability bucket this forecast falls into, for this region, lead day and
-threshold, rounded to the nearest whole number out of 10. If that bucket holds
-fewer than 100 cases the phrase is **omitted** and only the count is shown,
-because the same 100-case floor that governs 6.4 governs what we are willing
-to say.
+"came true about N times in 10" is the observed frequency of the reliability
+bucket this forecast falls into, for this region, lead day and threshold,
+rounded to the nearest whole number out of 10. The phrase is shown only if
+that bucket is a **counted** bucket under 6.4, meaning at least 100 cases from
+at least 10 different start dates. Otherwise the phrase is **omitted** and
+only the count out of 51 is shown, because the floor that governs what we
+test in 6.4 also governs what we are willing to say out loud.
 
 A "Good track record" percentage is only ever shown with a green label.
 Without that label the site shows the count out of 51 instead. A large
