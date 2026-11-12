@@ -2288,11 +2288,25 @@ being touched until it stops.
 #### HC7
 
 After the first real publish, and from this laptop with no token:
-`handchecks/hc7_published.py` fetches the published tile and the published
-counts byte for one square from their public URLs, and compares them against
-that square's numbers in `data/live/<run_id>/squares.npz`, with the index
+`handchecks/hc7_published.py` fetches the published tiles and the published
+counts bytes for two squares from their public URLs, and compares them against
+those squares' numbers in `data/live/<run_id>/squares.npz`, with the index
 arithmetic written out longhand. Saved to
 `handchecks/results/hc7_published.csv`.
+
+Two squares and not one, because a check that only ever reads a 51 would not
+notice a 0 being served as a 255: the wettest India square of lead day 1, and
+one square that is dry in all 51 members. For each of them all 15 counts
+bytes, both tile records in full, the India mask byte, and the 51 member
+integers of each of the 5 days, against `floor(mm * 16)` worked out here and
+not in `pipeline/publish.py`. The bytes the CDN served are also hashed
+against the manifest's own `sha256` record of them.
+
+**Run 20261112T00Z, 12 November 2026: 170 comparisons, 0 different.** The
+store was built by Actions from its own download and the local file by this
+laptop a few hours earlier, so this is two independent builds of one run
+agreeing to the byte, not a file compared with itself. The check was shown to
+bite: a copy with one member integer raised by 1 fails 10 of the 170.
 
 ### 8.14 Settled, and what is still open
 
@@ -2306,11 +2320,13 @@ review, 12 November 2026:
 | a Python-only publisher | **not taken.** `@vercel/blob` 2.9.0 in Node stays, with the decision rules and the tests in Python (8.10) |
 | `robots.txt` in the store | **no action.** Nothing on the site links to a store URL as a page, and a crawler reading a count file costs a few kilobytes |
 
-One thing is still open:
+The fifth was settled by the first publish itself, 12 November 2026:
 
-| # | Open | Note |
-|---|---|---|
-| 1 | the store name and its id | created by hand in the dashboard. Nothing in the repository depends on either: the id is never written down, because the manifest is found with `list` (8.6) |
+| Question | Decision |
+|---|---|
+| the store name and its id | the store id is `zshhfucqsimhyy61`, so the manifest is at `https://zshhfucqsimhyy61.public.blob.vercel-storage.com/manifest.json`. Nothing in `pipeline/` depends on it: the publisher still finds the manifest with `list` (8.6). It is a read-only public address and not a credential, so the publish step logs it, and HC7 and the site in section 11 are given it |
+
+Nothing in section 8 is open.
 
 ---
 

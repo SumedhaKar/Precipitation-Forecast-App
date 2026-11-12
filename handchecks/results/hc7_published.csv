@@ -1,0 +1,198 @@
+# HC7: the published store against this laptop's data/live/<run_id>/squares.npz
+# run,20261112T00Z
+# every read below was an anonymous HTTPS GET of a public URL: no token, no Authorization header
+# i = (38.0 - lat) / 0.25, j = (lon - 68.0) / 0.25, byte = i * 121 + j, row major
+# tile = floor(lat / 4) * 4, floor(lon / 4) * 4, named after its south-west corner
+# member integer = floor(mm / 0.0625) = floor(mm * 16); whole mm shown = integer // 16
+# store base: https://zshhfucqsimhyy61.public.blob.vercel-storage.com
+# manifest:   https://zshhfucqsimhyy61.public.blob.vercel-storage.com/manifest.json
+# the store publishes 20261112T00Z, 57 files, 3463692 bytes
+# local file: C:\Users\Sumedha\Downloads\Projects\Precipitation-forecast\data\live\20261112T00Z\squares.npz
+# india.u8:   15609 bytes fetched, manifest says 15609
+# 
+# wettest square: 34.25 N 73.5 E
+#   i = (38.0 - 34.25) / 0.25 = 15            (numpy index 15)
+#   j = (73.5 - 68.0) / 0.25 = 22            (numpy index 22)
+#   byte = 15 * 121 + 22 = 1837
+#   tile = floor(34.25 / 4) * 4, floor(73.5 / 4) * 4 -> 32N_72E
+#   day 1 members, whole mm as shown: [2, 12, 13, 10, 11, 16, 37, 23, 9, 5, 17, 25, 13, 17, 10, 28, 18, 19, 15, 15, 16, 17, 23, 30, 7, 10, 18, 16, 21, 9, 13, 5, 16, 8, 5, 10, 13, 7, 21, 8, 18, 10, 9, 12, 11, 20, 18, 19, 18, 14, 16]
+#   day 1 counts from the store: [51, 40, 0], dots [0, 11, 40, 0]
+# 
+# dry square: 29.5 N 75.5 E
+#   i = (38.0 - 29.5) / 0.25 = 34            (numpy index 34)
+#   j = (75.5 - 68.0) / 0.25 = 30            (numpy index 30)
+#   byte = 34 * 121 + 30 = 4144
+#   tile = floor(29.5 / 4) * 4, floor(75.5 / 4) * 4 -> 28N_72E
+#   day 1 members, whole mm as shown: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+#   day 1 counts from the store: [0, 0, 0], dots [51, 0, 0, 0]
+square,check,from_store,from_laptop,same,note
+file,sha256 runs/20261112T00Z/india.u8,799787740d329ef7c8c748958583f003ab6e44de6ded9484d997487d16ec3227,799787740d329ef7c8c748958583f003ab6e44de6ded9484d997487d16ec3227,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge1mm_day1.u8,680ace8e6ba510611be8213d48315fcb16070c7c1c213fdaf890dd8812971385,680ace8e6ba510611be8213d48315fcb16070c7c1c213fdaf890dd8812971385,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge1mm_day2.u8,431bfc4e2c13a0c5ab1fca138fd91e7ea7e06b5241d45a0df2ea856a75abbda0,431bfc4e2c13a0c5ab1fca138fd91e7ea7e06b5241d45a0df2ea856a75abbda0,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge1mm_day3.u8,13cfb54e9368d601620f98310ced556eb191d99a91baee32fcf96dcdb61ba01d,13cfb54e9368d601620f98310ced556eb191d99a91baee32fcf96dcdb61ba01d,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge1mm_day4.u8,bf3a89259f1c6cc6777bf978bd4edcebc4c1a0f8e729288e2ef2509b7731c7cd,bf3a89259f1c6cc6777bf978bd4edcebc4c1a0f8e729288e2ef2509b7731c7cd,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge1mm_day5.u8,4591116dac8a0c6ee7bef5b507acb2d9c194e31b66c862b953b44bad90df423f,4591116dac8a0c6ee7bef5b507acb2d9c194e31b66c862b953b44bad90df423f,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge10mm_day1.u8,6fcac113ac3106b740551cc4290be6542a2e83d3da803b4c2aa3e9d83e678946,6fcac113ac3106b740551cc4290be6542a2e83d3da803b4c2aa3e9d83e678946,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge10mm_day2.u8,7e6e7ad3e80c5f0f61a7e6cb1a4d16d2f9b4639e5c6f35e3dc0eb5d708a5b30c,7e6e7ad3e80c5f0f61a7e6cb1a4d16d2f9b4639e5c6f35e3dc0eb5d708a5b30c,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge10mm_day3.u8,cce6c16c04369095e9f48900b9e4ee9f01f2c84fad568b783230eb8af4462930,cce6c16c04369095e9f48900b9e4ee9f01f2c84fad568b783230eb8af4462930,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge10mm_day4.u8,ecdc89ace1c0fa5e8c86bec07a3b3b9ef3d71d7c84041a5d84f39b7f3b3e2804,ecdc89ace1c0fa5e8c86bec07a3b3b9ef3d71d7c84041a5d84f39b7f3b3e2804,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge10mm_day5.u8,9735921f498b2054e83529e1390bb342f662047811b6bc608c4680d31f35f969,9735921f498b2054e83529e1390bb342f662047811b6bc608c4680d31f35f969,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge50mm_day1.u8,1f547326ab9006aa051a41d9eeb5064b4cb1c5948a14cd76ed72699023fbec73,1f547326ab9006aa051a41d9eeb5064b4cb1c5948a14cd76ed72699023fbec73,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge50mm_day2.u8,c294cad5bf7edb7a40cd5f74b582e2bfef1292e2c9be945db5cfd915507a5e7d,c294cad5bf7edb7a40cd5f74b582e2bfef1292e2c9be945db5cfd915507a5e7d,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge50mm_day3.u8,9f1a7db845903e2ca73f25dcd687241cc913d1b9a96b7dcfdcd85f46726f3812,9f1a7db845903e2ca73f25dcd687241cc913d1b9a96b7dcfdcd85f46726f3812,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge50mm_day4.u8,7c9368daa12419c3b3a0f6d6460ea25fd61a92996879f382e563ebc3236233d8,7c9368daa12419c3b3a0f6d6460ea25fd61a92996879f382e563ebc3236233d8,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/counts/ge50mm_day5.u8,d38a1e749d6bf7b073fd96c95d6e1c12469862c96f8e75f0258329a702e6751c,d38a1e749d6bf7b073fd96c95d6e1c12469862c96f8e75f0258329a702e6751c,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/tiles/32N_72E.json,85ba60f8b5f33853d8e19acdce3b34484f70df1302df697c663294f17d2513c0,85ba60f8b5f33853d8e19acdce3b34484f70df1302df697c663294f17d2513c0,1,"the bytes the CDN served, against the manifest's record"
+file,sha256 runs/20261112T00Z/tiles/28N_72E.json,b38b31b16c97cff005a61217aeb9172e911ad3279484925bc5d4c784abf51da0,b38b31b16c97cff005a61217aeb9172e911ad3279484925bc5d4c784abf51da0,1,"the bytes the CDN served, against the manifest's record"
+wettest,india mask byte,1,1,1,byte 1837 of india.u8
+wettest,count >= 1 mm day 1,51,51,1,ge1mm_day1.u8 byte 1837
+wettest,count >= 1 mm day 2,41,41,1,ge1mm_day2.u8 byte 1837
+wettest,count >= 1 mm day 3,9,9,1,ge1mm_day3.u8 byte 1837
+wettest,count >= 1 mm day 4,0,0,1,ge1mm_day4.u8 byte 1837
+wettest,count >= 1 mm day 5,0,0,1,ge1mm_day5.u8 byte 1837
+wettest,count >= 10 mm day 1,40,40,1,ge10mm_day1.u8 byte 1837
+wettest,count >= 10 mm day 2,3,3,1,ge10mm_day2.u8 byte 1837
+wettest,count >= 10 mm day 3,1,1,1,ge10mm_day3.u8 byte 1837
+wettest,count >= 10 mm day 4,0,0,1,ge10mm_day4.u8 byte 1837
+wettest,count >= 10 mm day 5,0,0,1,ge10mm_day5.u8 byte 1837
+wettest,count >= 50 mm day 1,0,0,1,ge50mm_day1.u8 byte 1837
+wettest,count >= 50 mm day 2,0,0,1,ge50mm_day2.u8 byte 1837
+wettest,count >= 50 mm day 3,0,0,1,ge50mm_day3.u8 byte 1837
+wettest,count >= 50 mm day 4,0,0,1,ge50mm_day4.u8 byte 1837
+wettest,count >= 50 mm day 5,0,0,1,ge50mm_day5.u8 byte 1837
+wettest,tile count >= 1 mm day 1,51,51,1,"tile 32N_72E, c[0][0]"
+wettest,tile count >= 10 mm day 1,40,40,1,"tile 32N_72E, c[0][1]"
+wettest,tile count >= 50 mm day 1,0,0,1,"tile 32N_72E, c[0][2]"
+wettest,tile dot 0 day 1,0,0,1,"tile 32N_72E, d[0][0]"
+wettest,tile dot 1 day 1,11,11,1,"tile 32N_72E, d[0][1]"
+wettest,tile dot 2 day 1,40,40,1,"tile 32N_72E, d[0][2]"
+wettest,tile dot 3 day 1,0,0,1,"tile 32N_72E, d[0][3]"
+wettest,members published day 1,51,51,1,51 integers a day a square
+wettest,member integers day 1,"[44, 203, 211, 171, 179, 263, 605, 374, 154, 84, 274, 414, 219, 276, 167, 461, 298, 306, 242, 248, 258, 272, 375, 483, 116, 164, 299, 271, 350, 153, 220, 92, 259, 143, 82, 170, 215, 117, 340, 130, 294, 173, 150, 207, 191, 327, 294, 307, 294, 237, 262]","[44, 203, 211, 171, 179, 263, 605, 374, 154, 84, 274, 414, 219, 276, 167, 461, 298, 306, 242, 248, 258, 272, 375, 483, 116, 164, 299, 271, 350, 153, 220, 92, 259, 143, 82, 170, 215, 117, 340, 130, 294, 173, 150, 207, 191, 327, 294, 307, 294, 237, 262]",1,floor(mm * 16) for all 51 members
+wettest,whole mm shown agrees with >= 1 mm day 1,51,51,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 10 mm day 1,40,40,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 50 mm day 1,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,tile count >= 1 mm day 2,41,41,1,"tile 32N_72E, c[1][0]"
+wettest,tile count >= 10 mm day 2,3,3,1,"tile 32N_72E, c[1][1]"
+wettest,tile count >= 50 mm day 2,0,0,1,"tile 32N_72E, c[1][2]"
+wettest,tile dot 0 day 2,10,10,1,"tile 32N_72E, d[1][0]"
+wettest,tile dot 1 day 2,38,38,1,"tile 32N_72E, d[1][1]"
+wettest,tile dot 2 day 2,3,3,1,"tile 32N_72E, d[1][2]"
+wettest,tile dot 3 day 2,0,0,1,"tile 32N_72E, d[1][3]"
+wettest,members published day 2,51,51,1,51 integers a day a square
+wettest,member integers day 2,"[90, 96, 38, 158, 18, 24, 52, 252, 150, 118, 136, 168, 142, 0, 44, 41, 202, 0, 148, 18, 10, 40, 22, 47, 146, 54, 96, 4, 56, 4, 6, 20, 18, 0, 74, 6, 70, 100, 34, 72, 38, 78, 89, 124, 16, 32, 11, 18, 76, 12, 80]","[90, 96, 38, 158, 18, 24, 52, 252, 150, 118, 136, 168, 142, 0, 44, 41, 202, 0, 148, 18, 10, 40, 22, 47, 146, 54, 96, 4, 56, 4, 6, 20, 18, 0, 74, 6, 70, 100, 34, 72, 38, 78, 89, 124, 16, 32, 11, 18, 76, 12, 80]",1,floor(mm * 16) for all 51 members
+wettest,whole mm shown agrees with >= 1 mm day 2,41,41,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 10 mm day 2,3,3,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 50 mm day 2,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,tile count >= 1 mm day 3,9,9,1,"tile 32N_72E, c[2][0]"
+wettest,tile count >= 10 mm day 3,1,1,1,"tile 32N_72E, c[2][1]"
+wettest,tile count >= 50 mm day 3,0,0,1,"tile 32N_72E, c[2][2]"
+wettest,tile dot 0 day 3,42,42,1,"tile 32N_72E, d[2][0]"
+wettest,tile dot 1 day 3,8,8,1,"tile 32N_72E, d[2][1]"
+wettest,tile dot 2 day 3,1,1,1,"tile 32N_72E, d[2][2]"
+wettest,tile dot 3 day 3,0,0,1,"tile 32N_72E, d[2][3]"
+wettest,members published day 3,51,51,1,51 integers a day a square
+wettest,member integers day 3,"[12, 188, 2, 4, 0, 0, 4, 0, 40, 2, 0, 16, 8, 0, 8, 0, 24, 0, 0, 0, 8, 0, 0, 2, 12, 0, 2, 0, 0, 24, 0, 0, 14, 0, 72, 0, 4, 48, 0, 4, 0, 2, 2, 20, 0, 0, 12, 0, 16, 0, 0]","[12, 188, 2, 4, 0, 0, 4, 0, 40, 2, 0, 16, 8, 0, 8, 0, 24, 0, 0, 0, 8, 0, 0, 2, 12, 0, 2, 0, 0, 24, 0, 0, 14, 0, 72, 0, 4, 48, 0, 4, 0, 2, 2, 20, 0, 0, 12, 0, 16, 0, 0]",1,floor(mm * 16) for all 51 members
+wettest,whole mm shown agrees with >= 1 mm day 3,9,9,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 10 mm day 3,1,1,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 50 mm day 3,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,tile count >= 1 mm day 4,0,0,1,"tile 32N_72E, c[3][0]"
+wettest,tile count >= 10 mm day 4,0,0,1,"tile 32N_72E, c[3][1]"
+wettest,tile count >= 50 mm day 4,0,0,1,"tile 32N_72E, c[3][2]"
+wettest,tile dot 0 day 4,51,51,1,"tile 32N_72E, d[3][0]"
+wettest,tile dot 1 day 4,0,0,1,"tile 32N_72E, d[3][1]"
+wettest,tile dot 2 day 4,0,0,1,"tile 32N_72E, d[3][2]"
+wettest,tile dot 3 day 4,0,0,1,"tile 32N_72E, d[3][3]"
+wettest,members published day 4,51,51,1,51 integers a day a square
+wettest,member integers day 4,"[0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]","[0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",1,floor(mm * 16) for all 51 members
+wettest,whole mm shown agrees with >= 1 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 10 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 50 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,tile count >= 1 mm day 5,0,0,1,"tile 32N_72E, c[4][0]"
+wettest,tile count >= 10 mm day 5,0,0,1,"tile 32N_72E, c[4][1]"
+wettest,tile count >= 50 mm day 5,0,0,1,"tile 32N_72E, c[4][2]"
+wettest,tile dot 0 day 5,51,51,1,"tile 32N_72E, d[4][0]"
+wettest,tile dot 1 day 5,0,0,1,"tile 32N_72E, d[4][1]"
+wettest,tile dot 2 day 5,0,0,1,"tile 32N_72E, d[4][2]"
+wettest,tile dot 3 day 5,0,0,1,"tile 32N_72E, d[4][3]"
+wettest,members published day 5,51,51,1,51 integers a day a square
+wettest,member integers day 5,"[0, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]","[0, 0, 0, 0, 2, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",1,floor(mm * 16) for all 51 members
+wettest,whole mm shown agrees with >= 1 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 10 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+wettest,whole mm shown agrees with >= 50 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,india mask byte,1,1,1,byte 4144 of india.u8
+dry,count >= 1 mm day 1,0,0,1,ge1mm_day1.u8 byte 4144
+dry,count >= 1 mm day 2,13,13,1,ge1mm_day2.u8 byte 4144
+dry,count >= 1 mm day 3,7,7,1,ge1mm_day3.u8 byte 4144
+dry,count >= 1 mm day 4,0,0,1,ge1mm_day4.u8 byte 4144
+dry,count >= 1 mm day 5,0,0,1,ge1mm_day5.u8 byte 4144
+dry,count >= 10 mm day 1,0,0,1,ge10mm_day1.u8 byte 4144
+dry,count >= 10 mm day 2,0,0,1,ge10mm_day2.u8 byte 4144
+dry,count >= 10 mm day 3,0,0,1,ge10mm_day3.u8 byte 4144
+dry,count >= 10 mm day 4,0,0,1,ge10mm_day4.u8 byte 4144
+dry,count >= 10 mm day 5,0,0,1,ge10mm_day5.u8 byte 4144
+dry,count >= 50 mm day 1,0,0,1,ge50mm_day1.u8 byte 4144
+dry,count >= 50 mm day 2,0,0,1,ge50mm_day2.u8 byte 4144
+dry,count >= 50 mm day 3,0,0,1,ge50mm_day3.u8 byte 4144
+dry,count >= 50 mm day 4,0,0,1,ge50mm_day4.u8 byte 4144
+dry,count >= 50 mm day 5,0,0,1,ge50mm_day5.u8 byte 4144
+dry,tile count >= 1 mm day 1,0,0,1,"tile 28N_72E, c[0][0]"
+dry,tile count >= 10 mm day 1,0,0,1,"tile 28N_72E, c[0][1]"
+dry,tile count >= 50 mm day 1,0,0,1,"tile 28N_72E, c[0][2]"
+dry,tile dot 0 day 1,51,51,1,"tile 28N_72E, d[0][0]"
+dry,tile dot 1 day 1,0,0,1,"tile 28N_72E, d[0][1]"
+dry,tile dot 2 day 1,0,0,1,"tile 28N_72E, d[0][2]"
+dry,tile dot 3 day 1,0,0,1,"tile 28N_72E, d[0][3]"
+dry,members published day 1,51,51,1,51 integers a day a square
+dry,member integers day 1,"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]","[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",1,floor(mm * 16) for all 51 members
+dry,whole mm shown agrees with >= 1 mm day 1,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 10 mm day 1,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 50 mm day 1,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,tile count >= 1 mm day 2,13,13,1,"tile 28N_72E, c[1][0]"
+dry,tile count >= 10 mm day 2,0,0,1,"tile 28N_72E, c[1][1]"
+dry,tile count >= 50 mm day 2,0,0,1,"tile 28N_72E, c[1][2]"
+dry,tile dot 0 day 2,38,38,1,"tile 28N_72E, d[1][0]"
+dry,tile dot 1 day 2,13,13,1,"tile 28N_72E, d[1][1]"
+dry,tile dot 2 day 2,0,0,1,"tile 28N_72E, d[1][2]"
+dry,tile dot 3 day 2,0,0,1,"tile 28N_72E, d[1][3]"
+dry,members published day 2,51,51,1,51 integers a day a square
+dry,member integers day 2,"[0, 4, 6, 76, 48, 2, 4, 0, 4, 0, 16, 68, 4, 4, 4, 12, 0, 0, 0, 28, 0, 0, 0, 0, 32, 4, 14, 0, 26, 28, 0, 0, 6, 0, 12, 88, 4, 62, 0, 10, 0, 4, 10, 50, 0, 0, 0, 16, 24, 4, 4]","[0, 4, 6, 76, 48, 2, 4, 0, 4, 0, 16, 68, 4, 4, 4, 12, 0, 0, 0, 28, 0, 0, 0, 0, 32, 4, 14, 0, 26, 28, 0, 0, 6, 0, 12, 88, 4, 62, 0, 10, 0, 4, 10, 50, 0, 0, 0, 16, 24, 4, 4]",1,floor(mm * 16) for all 51 members
+dry,whole mm shown agrees with >= 1 mm day 2,13,13,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 10 mm day 2,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 50 mm day 2,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,tile count >= 1 mm day 3,7,7,1,"tile 28N_72E, c[2][0]"
+dry,tile count >= 10 mm day 3,0,0,1,"tile 28N_72E, c[2][1]"
+dry,tile count >= 50 mm day 3,0,0,1,"tile 28N_72E, c[2][2]"
+dry,tile dot 0 day 3,44,44,1,"tile 28N_72E, d[2][0]"
+dry,tile dot 1 day 3,7,7,1,"tile 28N_72E, d[2][1]"
+dry,tile dot 2 day 3,0,0,1,"tile 28N_72E, d[2][2]"
+dry,tile dot 3 day 3,0,0,1,"tile 28N_72E, d[2][3]"
+dry,members published day 3,51,51,1,51 integers a day a square
+dry,member integers day 3,"[0, 12, 12, 0, 0, 0, 0, 0, 20, 0, 0, 52, 12, 0, 4, 4, 24, 8, 0, 0, 0, 12, 4, 0, 16, 4, 2, 4, 0, 12, 0, 8, 0, 0, 8, 2, 0, 26, 0, 16, 0, 0, 12, 2, 0, 0, 0, 8, 16, 2, 0]","[0, 12, 12, 0, 0, 0, 0, 0, 20, 0, 0, 52, 12, 0, 4, 4, 24, 8, 0, 0, 0, 12, 4, 0, 16, 4, 2, 4, 0, 12, 0, 8, 0, 0, 8, 2, 0, 26, 0, 16, 0, 0, 12, 2, 0, 0, 0, 8, 16, 2, 0]",1,floor(mm * 16) for all 51 members
+dry,whole mm shown agrees with >= 1 mm day 3,7,7,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 10 mm day 3,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 50 mm day 3,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,tile count >= 1 mm day 4,0,0,1,"tile 28N_72E, c[3][0]"
+dry,tile count >= 10 mm day 4,0,0,1,"tile 28N_72E, c[3][1]"
+dry,tile count >= 50 mm day 4,0,0,1,"tile 28N_72E, c[3][2]"
+dry,tile dot 0 day 4,51,51,1,"tile 28N_72E, d[3][0]"
+dry,tile dot 1 day 4,0,0,1,"tile 28N_72E, d[3][1]"
+dry,tile dot 2 day 4,0,0,1,"tile 28N_72E, d[3][2]"
+dry,tile dot 3 day 4,0,0,1,"tile 28N_72E, d[3][3]"
+dry,members published day 4,51,51,1,51 integers a day a square
+dry,member integers day 4,"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]","[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",1,floor(mm * 16) for all 51 members
+dry,whole mm shown agrees with >= 1 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 10 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 50 mm day 4,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,tile count >= 1 mm day 5,0,0,1,"tile 28N_72E, c[4][0]"
+dry,tile count >= 10 mm day 5,0,0,1,"tile 28N_72E, c[4][1]"
+dry,tile count >= 50 mm day 5,0,0,1,"tile 28N_72E, c[4][2]"
+dry,tile dot 0 day 5,51,51,1,"tile 28N_72E, d[4][0]"
+dry,tile dot 1 day 5,0,0,1,"tile 28N_72E, d[4][1]"
+dry,tile dot 2 day 5,0,0,1,"tile 28N_72E, d[4][2]"
+dry,tile dot 3 day 5,0,0,1,"tile 28N_72E, d[4][3]"
+dry,members published day 5,51,51,1,51 integers a day a square
+dry,member integers day 5,"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]","[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]",1,floor(mm * 16) for all 51 members
+dry,whole mm shown agrees with >= 1 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 10 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
+dry,whole mm shown agrees with >= 50 mm day 5,0,0,1,"rounded down, so the number shown and the count cannot disagree"
