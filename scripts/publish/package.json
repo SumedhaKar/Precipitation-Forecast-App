@@ -1,0 +1,13 @@
+{
+  "name": "precipitation-forecast-publish",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Uploads one built forecast run to the Vercel Blob store. SPEC section 8.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@vercel/blob": "2.9.0"
+  }
+}

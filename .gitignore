@@ -1,6 +1,7 @@
 data/
 .venv/
 web/node_modules/
+scripts/publish/node_modules/
 web/dist/
 .vercel/
 .env
