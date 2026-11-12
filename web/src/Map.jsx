@@ -27,8 +27,13 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 
 import indiaOutline from './geo/india.geo.json';
 import stateLines from './geo/states.geo.json';
+// SPEC 11.30. The land around India: Natural Earth's coastlines, clipped to
+// the box maxBounds allows and carrying no boundary of any kind. 34 KB
+// gzipped, in this chunk rather than the first one, so it costs the run line
+// and the panel nothing.
+import landAround from './geo/land.geo.json';
 import { CITY_LABELS, STATE_LABELS } from './places';
-import { LAND, SEA, countKey, fillExpression } from './palette';
+import { LAND, NEIGHBOURS, SEA, countKey, fillExpression } from './palette';
 import { LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, STEP, squareText } from './snap';
 
 maplibregl.setWorkerUrl(workerUrl);
@@ -236,17 +241,33 @@ const EMPTY_STYLE = {
 // from four to the number in SPEC 11.29.
 //
 // A unit's own name is only ever near the middle of the unit, because the
-// point it belongs to is the unit, not a dot: five pixels is a nudge off a
-// neighbour, and a bigger offset would put the name in the wrong state.
+// point it belongs to is the unit and not a dot: eight or sixteen pixels is
+// a nudge off a neighbour, half a degree at the whole-India view, and a
+// bigger offset would start writing the name on the wrong state.
 const CITY_TRIES = [
   ['right', 8], ['left', 8], ['above', 7], ['below', 7],
   ['right', 18], ['left', 18], ['above', 15], ['below', 15],
 ];
-const STATE_TRIES = [
-  ['centre', 0],
-  ['above', 8], ['below', 8], ['left', 8], ['right', 8],
-  ['above', 16], ['below', 16], ['left', 16], ['right', 16],
-];
+const STATE_TRIES = [['centre', 0]];
+for (const away of [8, 16]) {
+  for (const side of ['above', 'below', 'left', 'right',
+    'ne', 'nw', 'se', 'sw']) {
+    STATE_TRIES.push([side, away]);
+  }
+}
+
+// A two letter code is small enough to look for a gap in earnest: eight
+// directions at three distances, as well as the point itself. SPEC 11.30.
+// It is tried only when the name did not fit, and what it saves is a forced
+// label — a code written over whatever is already there because the unit has
+// to be labelled somehow.
+const CODE_TRIES = [['centre', 0]];
+for (const away of [8, 16, 24]) {
+  for (const side of ['above', 'below', 'left', 'right',
+    'ne', 'nw', 'se', 'sw']) {
+    CODE_TRIES.push([side, away]);
+  }
+}
 const CHOSEN_TRIES = [['right', 14], ['left', 14], ['above', 12],
   ['below', 12]];
 
@@ -317,7 +338,16 @@ function makeLabels(container, mapFor) {
 
   const chosen = add('chosen', '', null, { pad: 9, tries: CHOSEN_TRIES });
 
-  const items = [chosen, ...states, ...cities];
+  // The order the names are placed in, and the whole of the "which name
+  // matters" question. SPEC 11.30: the chosen square first, then the cities
+  // largest first, then the units largest first in what is left.
+  //
+  // It was the other way round, and states-first cost too much: 36 unit
+  // names took the room and eight city names fitted around them, on a map
+  // whose point is the places people look for. A unit's name is the quieter
+  // of the two in any case, and no unit loses its label by being last —
+  // whatever is left of it is always at least its two letter code.
+  const items = [chosen, ...cities, ...states];
 
   // Measured, not guessed: the halo and the font are set in CSS and the
   // browser is the only thing that knows how wide a word came out. Measured
@@ -346,6 +376,12 @@ function makeLabels(container, mapFor) {
     if (side === 'left') return [at.x - gap - w, at.y - h / 2];
     if (side === 'above') return [at.x - w / 2, at.y - gap - h];
     if (side === 'below') return [at.x - w / 2, at.y + gap];
+    // The corners, at the same distance from the point along both axes.
+    const step = gap * Math.SQRT1_2;
+    if (side === 'ne') return [at.x + step, at.y - step - h];
+    if (side === 'nw') return [at.x - step - w, at.y - step - h];
+    if (side === 'se') return [at.x + step, at.y + step];
+    if (side === 'sw') return [at.x - step - w, at.y + step];
     return [at.x - w / 2, at.y - h / 2]; // centre
   }
 
@@ -413,21 +449,21 @@ function makeLabels(container, mapFor) {
       if (item.code) {
         const edge = map.project([item.lngLat[0] + item.span, item.lngLat[1]]);
         if (item.w <= (edge.x - at.x) * NAME_OVERHANG) {
-          words.push([item.text, item.w, '']);
+          words.push([item.text, item.w, '', item.tries, item.pad]);
         }
-        words.push([item.code, item.codeW, 'coded']);
+        words.push([item.code, item.codeW, 'coded', CODE_TRIES, 1]);
       } else {
-        words.push([item.text, item.w, '']);
+        words.push([item.text, item.w, '', item.tries, item.pad]);
       }
-      for (const [text, width, how] of words) {
-        for (const [side, gap] of item.tries) {
+      for (const [text, width, how, tries, pad] of words) {
+        for (const [side, gap] of tries) {
           const [left, top] = boxFor(at, width, item.h, gap, side);
           // Inside the canvas, or it is drawn cut in half: Kavaratti sat at
           // the western edge with its name running off the side of the map.
           if (left < 0 || top < 0
             || left + width > wide || top + item.h > high) continue;
-          const box = [left - item.pad, top - item.pad,
-            left + width + item.pad, top + item.h + item.pad];
+          const box = [left - pad, top - pad,
+            left + width + pad, top + item.h + pad];
           // A name is allowed to sit on its own dot, and on nothing else.
           const clash = placed.some(({ owner, box: other }) => owner !== item
             && !(box[2] < other[0] || box[0] > other[2]
@@ -438,6 +474,41 @@ function makeLabels(container, mapFor) {
           }
         }
         if (put) break;
+      }
+
+      // SPEC 11.30. A unit is never left unlabelled: if neither its name nor
+      // its code found a clear place, the code is written at the unit's own
+      // point anyway, clamped inside the canvas. Two letters over a colour
+      // is a worse map than two letters in a gap, and no label at all is a
+      // worse map than either — Assam had no label on it before this.
+      if (!put && item.code) {
+        // Of the placements that are all taken, the one that covers the
+        // least of what is already there. Written over something is the
+        // last resort; written over as little as possible is the least bad
+        // way to do it.
+        let best = null;
+        for (const [side, gap] of CODE_TRIES) {
+          const [left, top] = boxFor(at, item.codeW, item.h, gap, side);
+          const x = Math.min(Math.max(left, 0),
+            Math.max(wide - item.codeW, 0));
+          const y = Math.min(Math.max(top, 0), Math.max(high - item.h, 0));
+          const box = [x, y, x + item.codeW, y + item.h];
+          let over = 0;
+          for (const { owner, box: other } of placed) {
+            if (owner === item) continue;
+            const across = Math.min(box[2], other[2]) - Math.max(box[0],
+              other[0]);
+            const down = Math.min(box[3], other[3]) - Math.max(box[1],
+              other[1]);
+            if (across > 0 && down > 0) over += across * down;
+          }
+          if (!best || over < best.over) {
+            best = { over, text: item.code, left: x, top: y, side,
+              how: 'forced', box };
+          }
+          if (over === 0) break;
+        }
+        put = best;
       }
 
       if (!put) {
@@ -473,10 +544,12 @@ function makeLabels(container, mapFor) {
     remove() { holder.remove(); },
     // For the browser checks: what is actually on screen, by rank.
     shown() {
-      const seen = { states: [], cities: [], coded: [] };
+      const seen = { states: [], cities: [], coded: [], forced: [] };
       for (const item of states) {
         if (item.element.style.display === 'none') continue;
-        if (item.element.dataset.how === 'coded') seen.coded.push(item.code);
+        const how = item.element.dataset.how;
+        if (how === 'forced') seen.forced.push(item.code);
+        else if (how === 'coded') seen.coded.push(item.code);
         else seen.states.push(item.text);
       }
       for (const item of cities) {
@@ -608,12 +681,24 @@ export default function ForecastMap({
     };
 
     created.on('load', () => {
+      created.addSource('land', { type: 'geojson', data: landAround });
       created.addSource('india', { type: 'geojson', data: indiaOutline });
       created.addSource('states', { type: 'geojson', data: stateLines });
       created.addSource('squares', { type: 'geojson', data: NOTHING });
       created.addSource('picked', { type: 'geojson', data: NOTHING });
       created.addSource('picked-centre', { type: 'geojson', data: NOTHING });
 
+      // Everything that is land, including India, in one quiet colour. It
+      // is under India's own fill, so the country still ends exactly where
+      // the point-of-view outline says it does, and it is a fill with no
+      // line on it at all: the only boundary this map draws between India
+      // and anywhere else is that outline (SPEC 11.14 and 11.30).
+      created.addLayer({
+        id: 'land-fill',
+        type: 'fill',
+        source: 'land',
+        paint: { 'fill-color': NEIGHBOURS, 'fill-antialias': true },
+      });
       created.addLayer({
         id: 'india-fill',
         type: 'fill',

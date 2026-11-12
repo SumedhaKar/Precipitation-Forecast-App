@@ -315,6 +315,24 @@ header {
 
 .legend-foot { margin: 0; font-size: 0.7rem; color: var(--quiet); }
 
+/* SPEC 11.30. The white squares inside the outline: inside India, and not
+   forecast, because the model's own land fraction for them is under a half.
+   One line, with the colour beside it, at every width. */
+.legend-white {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--quiet);
+}
+
+.legend-white .swatch {
+  width: 0.8rem;
+  height: 0.8rem;
+  background: #ffffff;
+}
+
 .legend-rows {
   list-style: none;
   margin: 0;
@@ -504,6 +522,20 @@ header {
   border-left: 3px solid var(--picked);
   border-radius: 0 6px 6px 0;
   font-size: 0.9rem;
+}
+
+/* SPEC 11.30. What the panel says while a square's numbers are on their way.
+   It names the square, because the fault it replaces was the panel showing
+   another square's numbers under this square's heading. */
+.loadingsquare {
+  margin: 0 0 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--rule);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
 }
 
 /* An island the grid cannot carry is not an error, and is not red. */
