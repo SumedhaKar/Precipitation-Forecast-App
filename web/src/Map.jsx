@@ -1,4 +1,4 @@
-// The map. SPEC 11.14, 11.16, 11.17 and 11.28.
+// The map. SPEC 11.14, 11.16, 11.17, 11.28 and 11.29.
 //
 // No basemap. India is drawn from web/src/geo/india.geo.json, which is the
 // same Natural Earth India point-of-view geometry the forecast mask was cut
@@ -9,8 +9,10 @@
 // carry all fifteen counts. Changing day or threshold then changes one paint
 // property: no setData, no re-tessellation, no fetch, no request.
 //
-// This module is loaded by a dynamic import(), so MapLibre's 295 KB does not
-// hold up the run line, the stale banner or the panel.
+// This module is loaded by a dynamic import(), so MapLibre's 325 KB does not
+// hold up the run line, the stale banner or the panel. If it never arrives,
+// or the browser cannot draw it, the page says so and every number is still
+// reachable without it (SPEC 11.29).
 
 import { useEffect, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
@@ -25,13 +27,11 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 
 import indiaOutline from './geo/india.geo.json';
 import stateLines from './geo/states.geo.json';
-import cityList from './cities.json';
+import { CITY_LABELS, STATE_LABELS } from './places';
 import { LAND, SEA, countKey, fillExpression } from './palette';
 import { LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, STEP, squareText } from './snap';
 
 maplibregl.setWorkerUrl(workerUrl);
-
-const CITIES = cityList.cities;
 
 // How far the map may be dragged, outside the India box of SPEC 1.4.
 //
@@ -79,7 +79,6 @@ export const SQUARE_OPACITY = 1;
 
 const STATE_LINE = '#c9d2da';
 const COAST = '#8fa0ad';
-const CITY_DOT = '#5b6b7b';
 
 // SPEC 11.28. The chosen square is marked in the page's ink, which is a
 // near-black warm grey and deliberately **not** in the palette: the first
@@ -91,33 +90,54 @@ const CITY_DOT = '#5b6b7b';
 const MARK = '#1f2933';
 const HALO = '#ffffff';
 
-// The ring around the chosen square, in screen pixels.
+// The grid itself. SPEC 11.29.
 //
-// A 0.25 degree square is 0.3556 * 2^zoom pixels across in Web Mercator, so
-// at the zoom that fits India it is about four pixels and at the closest zoom
-// about 182. The ring is the larger of half the square's diagonal and 9, so
-// it encloses the square when the square is big and is an 18 pixel ring when
-// the square is a speck. It is drawn as two circles at the same radius, a
-// white 4 px stroke under a dark 2 px one, which puts the halo on both sides.
+// A 0.25 degree square is (0.25 / 360) * 512 * 2^zoom pixels across in Web
+// Mercator — 0.3556 at zoom 0 — so it is about four pixels at the zoom that
+// fits India and 182 at the closest zoom. Twelve pixels is where an edge is
+// worth drawing: below that the lines are closer together than the squares
+// they separate and the map turns into a grey mesh.
 //
-// Written as a top-level `interpolate` rather than the `max` of a `^` that
-// says the same thing, because the style spec allows `["zoom"]` only as the
-// direct input of a top-level `step` or `interpolate`. The first build used
-// the arithmetic form, MapLibre refused both layers with
-// `"zoom" expression may only be used as input to a top-level "step" or
-// "interpolate" expression`, and the chosen square had no ring at all.
-//
-// An exponential interpolation of base 2 over zoom *is* the square's own
-// growth, so this is exact and not an approximation: flat at MIN_RING until
-// the square's half-diagonal overtakes it, and equal to that half-diagonal
-// from there to the closest zoom.
-const MIN_RING = 9;                                 // 18 px across
-const HALF_DIAGONAL = (STEP / 360) * 512 * Math.SQRT1_2;
-const CROSSES_AT = Math.log2(MIN_RING / HALF_DIAGONAL);
-const RING = ['interpolate', ['exponential', 2], ['zoom'],
-  3, MIN_RING,
-  CROSSES_AT, MIN_RING,
-  9, HALF_DIAGONAL * 2 ** 9];
+// So one zoom decides two things, and they are opposites: below it a square
+// is a speck, and the chosen one is marked with a ring of a fixed size that
+// does not pretend to be the square; above it the square is a shape, and it
+// is marked by its own outline while every square's edges are drawn faintly
+// so the grid can be seen for what it is.
+const SQUARE_AT_ZOOM_0 = (STEP / 360) * 512;
+const GRID_VISIBLE_PX = 12;
+export const GRID_FROM_ZOOM = Math.log2(GRID_VISIBLE_PX / SQUARE_AT_ZOOM_0);
+
+// The ring, in screen pixels, for the zooms where the square is too small to
+// have an edge: 18 pixels across, dark with a white halo and no fill. One
+// number and no expression over zoom, because it only exists below
+// GRID_FROM_ZOOM and above that the square's own outline takes over.
+const RING = 9;
+
+const GRID_LINE = '#8a97a3';
+const GRID_OPACITY = 0.4;
+
+// SPEC 11.25 and 11.29. Nothing in this list is data: it is the mark on the
+// chosen square and the edges of the grid. HC8 samples a square's fill and
+// compares it with the palette, so it samples with nothing chosen, at the
+// default view, where the zoom is below GRID_FROM_ZOOM and not one of these
+// layers draws a pixel. Exported so the hand check can assert that rather
+// than trust it.
+export const NOT_DATA_LAYERS = [
+  'squares-grid', 'picked-casing', 'picked-line',
+  'picked-ring-halo', 'picked-ring',
+];
+
+/** Can this browser draw the map at all? SPEC 11.29. */
+export function canDraw() {
+  if (typeof document === 'undefined') return false;
+  try {
+    // MapLibre 6 needs WebGL 2. Asking for the context is the only honest
+    // test: a machine can support the API and still fail to give one.
+    return Boolean(document.createElement('canvas').getContext('webgl2'));
+  } catch {
+    return false;
+  }
+}
 
 /** One square's corners, from its centre. */
 function squarePolygon(lat, lon) {
@@ -166,17 +186,6 @@ export function buildSquares(counts, grid) {
   return { type: 'FeatureCollection', features };
 }
 
-function cityPoints() {
-  return {
-    type: 'FeatureCollection',
-    features: CITIES.map((city) => ({
-      type: 'Feature',
-      properties: { name: city.name },
-      geometry: { type: 'Point', coordinates: [city.lon, city.lat] },
-    })),
-  };
-}
-
 const NOTHING = { type: 'FeatureCollection', features: [] };
 
 function selectedShape(square) {
@@ -216,23 +225,60 @@ const EMPTY_STYLE = {
   }],
 };
 
+// Where a name may go, relative to the point it belongs to. SPEC 11.29.
+//
+// Each pair is a side and how far from the point, in pixels, and they are
+// tried in this order until one does not clash with a name already placed.
+// The first build had one placement, "to the right of the dot", and hid
+// anything that clashed: Delhi hid Faridabad for no better reason than being
+// first in the file, when there was room for both an inch away. Eight tries
+// per city name took the number of them on screen at the whole-India view
+// from four to the number in SPEC 11.29.
+//
+// A unit's own name is only ever near the middle of the unit, because the
+// point it belongs to is the unit, not a dot: five pixels is a nudge off a
+// neighbour, and a bigger offset would put the name in the wrong state.
+const CITY_TRIES = [
+  ['right', 8], ['left', 8], ['above', 7], ['below', 7],
+  ['right', 18], ['left', 18], ['above', 15], ['below', 15],
+];
+const STATE_TRIES = [
+  ['centre', 0],
+  ['above', 8], ['below', 8], ['left', 8], ['right', 8],
+  ['above', 16], ['below', 16], ['left', 16], ['right', 16],
+];
+const CHOSEN_TRIES = [['right', 14], ['left', 14], ['above', 12],
+  ['below', 12]];
+
+// How wide a unit's name may be, as a multiple of the unit's own width
+// where the name goes. Small states have their names written across their
+// borders on every printed map there is, so this is generous; what it rules
+// out is a name many times longer than the thing it names, which is a name
+// for the neighbours and not for the unit.
+const NAME_OVERHANG = 4;
+
 /**
  * Place names, as elements over the canvas rather than a symbol layer.
  *
- * SPEC 11.28. MapLibre draws text from SDF glyph files it fetches from a
- * `glyphs` URL, and there is no such URL here on purpose: nothing on this map
- * comes from a third party, and a font server would be one. Rasterising the
- * glyphs ourselves would be a new build dependency for twenty words. So the
- * labels are twenty spans in a layer of their own above the canvas, moved by
- * the map's own projection on every frame, with the white halo done by four
- * text shadows. Being above the canvas puts them above every layer, including
- * SLOT_LABELS, which stays for a basemap's own labels.
+ * SPEC 11.28 and 11.29. MapLibre draws text from SDF glyph files it fetches
+ * from a `glyphs` URL, and there is no such URL here on purpose: nothing on
+ * this map comes from a third party, and a font server would be one.
+ * Rasterising the glyphs ourselves would be a new build dependency for a few
+ * dozen words. So the labels are elements in a layer of their own above the
+ * canvas, moved by the map's own projection on every frame, with the white
+ * halo done by four text shadows. Being above the canvas puts them above
+ * every layer, including SLOT_LABELS, which stays for a basemap's own labels.
  *
- * The declutter is a greedy pass in rank order: the chosen square's label
- * first, then the cities in the order cities.json lists them, and any label
- * whose box would touch one already placed is hidden. So the whole-India view
- * shows the few that fit and a close view shows all twenty, without a list of
- * "important" cities to argue about.
+ * Three ranks, in this order: the chosen square's own label, then the 36
+ * states and union territories largest first, then one city per unit with the
+ * largest population first. Each is tried in every placement before it is
+ * hidden, and a state that will not fit under its name is offered its two
+ * letter code before it is given up on. So the whole country shows every
+ * state's name and as many cities as there is room for, and a phone shows
+ * fewer cities rather than a worse map.
+ *
+ * The dot is part of the label, not a separate circle layer, so a city's dot
+ * cannot be drawn where its name was hidden.
  */
 function makeLabels(container, mapFor) {
   const holder = document.createElement('div');
@@ -240,72 +286,210 @@ function makeLabels(container, mapFor) {
   holder.setAttribute('aria-hidden', 'true'); // the panel carries the words
   container.appendChild(holder);
 
-  const items = CITIES.map((city) => {
+  function add(className, text, lngLat, extra) {
     const element = document.createElement('span');
-    element.className = 'maplabel';
-    element.textContent = city.name;
+    element.className = `maplabel ${className}`;
+    element.textContent = text;
     holder.appendChild(element);
-    return { element, lngLat: [city.lon, city.lat], chosen: false };
-  });
+    return { element, text, lngLat, ...extra };
+  }
 
-  const chosen = document.createElement('span');
-  chosen.className = 'maplabel chosen';
-  holder.appendChild(chosen);
-  const chosenItem = { element: chosen, lngLat: null, chosen: true };
+  // The dot is a thing of its own, drawn at the point, rather than something
+  // attached to a side of the word: a name may end up in any of eight places
+  // around its dot, and a dot that had to be glued to the word would have
+  // needed a rule in the stylesheet for each of them. It is still the label's
+  // own dot — the same item owns both, so a hidden name hides its dot.
+  function addDot(forecast) {
+    const dot = document.createElement('i');
+    dot.className = forecast ? 'mapdot' : 'mapdot absent';
+    holder.appendChild(dot);
+    return dot;
+  }
 
-  // Enough space around each name that the whole-India view shows the
-  // handful that fit comfortably and a close view shows all twenty. The
-  // number is the whole of the "which cities are important" question: there
-  // is no list of important cities, only room or no room.
-  const PAD = 9;
+  const states = STATE_LABELS.map((unit) => add(
+    'state', unit.name, [unit.lon, unit.lat],
+    { code: unit.code, span: unit.span, pad: 2, tries: STATE_TRIES }));
+
+  const cities = CITY_LABELS.map((city) => add(
+    city.forecast ? 'city' : 'city absent', city.name,
+    [city.lon, city.lat],
+    { pad: 6, tries: CITY_TRIES, dot: addDot(city.forecast) }));
+
+  const chosen = add('chosen', '', null, { pad: 9, tries: CHOSEN_TRIES });
+
+  const items = [chosen, ...states, ...cities];
+
+  // Measured, not guessed: the halo and the font are set in CSS and the
+  // browser is the only thing that knows how wide a word came out. Measured
+  // once, too — a word's width does not change when the map moves, and
+  // reading offsetWidth after writing a style forces the browser to lay the
+  // page out again, which on every frame of a drag is the one thing here
+  // that could be slow.
+  function measure(item) {
+    const { element } = item;
+    element.style.display = '';
+    element.textContent = item.text;
+    item.w = element.offsetWidth;
+    item.h = element.offsetHeight;
+    if (item.code) {
+      element.textContent = item.code;
+      item.codeW = element.offsetWidth;
+      element.textContent = item.text;
+    }
+  }
+
+  function forget() { for (const item of items) item.w = 0; }
+
+  // Where a word of this size would sit, for one placement.
+  function boxFor(at, w, h, gap, side) {
+    if (side === 'right') return [at.x + gap, at.y - h / 2];
+    if (side === 'left') return [at.x - gap - w, at.y - h / 2];
+    if (side === 'above') return [at.x - w / 2, at.y - gap - h];
+    if (side === 'below') return [at.x - w / 2, at.y + gap];
+    return [at.x - w / 2, at.y - h / 2]; // centre
+  }
 
   function draw() {
     const map = mapFor();
     if (!map) return;
+    const canvas = map.getContainer();
+    const wide = canvas.clientWidth;
+    const high = canvas.clientHeight;
     const placed = [];
-    const order = chosenItem.lngLat ? [chosenItem, ...items] : items;
-    for (const item of order) {
+
+    const hide = (item) => {
+      item.element.style.display = 'none';
+      if (item.dot) item.dot.style.display = 'none';
+    };
+
+    // Where everything is, before anything is placed. Off the canvas is not
+    // drawn, and not allowed to block anything that is.
+    const where = new Map();
+    for (const item of items) {
+      if (!item.lngLat) continue;
+      const point = map.project(item.lngLat);
+      if (point.x < -40 || point.y < -40
+        || point.x > wide + 40 || point.y > high + 40) continue;
+      where.set(item, point);
+    }
+
+    // A dot is at the town, and the town is where it is: a name can move and
+    // a dot cannot, so every dot's box is taken before any name is placed.
+    // Without this a state's name was written straight through the dots of
+    // towns whose own names had been pushed somewhere else — "UTTAR P•ADESH"
+    // was Lucknow's dot sitting in the middle of the word. The box is a
+    // claim, not a drawing: the dot itself still appears only if its own
+    // name found a place.
+    for (const item of cities) {
+      const point = where.get(item);
+      if (!point) continue;
+      placed.push({
+        owner: item,
+        box: [point.x - 4, point.y - 4, point.x + 4, point.y + 4],
+      });
+    }
+
+    for (const item of items) {
+      const at = where.get(item);
+      if (!at) {
+        hide(item);
+        continue;
+      }
+      if (!item.w) measure(item);
+
+      let put = null;
+      // The full name in every placement first, then the code in every
+      // placement. A state is better named in an awkward spot than reduced
+      // to two letters in a tidy one — but only if the name belongs to the
+      // unit it is written on. `span` is how wide the unit is where the name
+      // goes (SPEC 11.29), and a name may hang over that by its own length
+      // again on each side; wider than that and it is not a name for this
+      // unit any more but a word written across its neighbours, so the
+      // two letter code marks the unit until the reader zooms in far enough
+      // for the name to fit. Without this the map wrote DADRA AND NAGAR
+      // HAVELI AND DAMAN AND DIU across 230 pixels of the Arabian Sea for a
+      // union territory seven pixels wide.
+      const words = [];
+      if (item.code) {
+        const edge = map.project([item.lngLat[0] + item.span, item.lngLat[1]]);
+        if (item.w <= (edge.x - at.x) * NAME_OVERHANG) {
+          words.push([item.text, item.w, '']);
+        }
+        words.push([item.code, item.codeW, 'coded']);
+      } else {
+        words.push([item.text, item.w, '']);
+      }
+      for (const [text, width, how] of words) {
+        for (const [side, gap] of item.tries) {
+          const [left, top] = boxFor(at, width, item.h, gap, side);
+          // Inside the canvas, or it is drawn cut in half: Kavaratti sat at
+          // the western edge with its name running off the side of the map.
+          if (left < 0 || top < 0
+            || left + width > wide || top + item.h > high) continue;
+          const box = [left - item.pad, top - item.pad,
+            left + width + item.pad, top + item.h + item.pad];
+          // A name is allowed to sit on its own dot, and on nothing else.
+          const clash = placed.some(({ owner, box: other }) => owner !== item
+            && !(box[2] < other[0] || box[0] > other[2]
+              || box[3] < other[1] || box[1] > other[3]));
+          if (!clash) {
+            put = { text, left, top, side, how, box };
+            break;
+          }
+        }
+        if (put) break;
+      }
+
+      if (!put) {
+        hide(item);
+        continue;
+      }
+      placed.push({ owner: item, box: put.box });
       const { element } = item;
-      if (!item.lngLat) {
-        element.style.display = 'none';
-        continue;
-      }
-      const at = map.project(item.lngLat);
-      // Measured, not guessed: the halo and the font are set in CSS and the
-      // browser is the only thing that knows how wide a word came out.
       element.style.display = '';
-      const width = element.offsetWidth;
-      const height = element.offsetHeight;
-      const left = at.x + (item.chosen ? 13 : 6);
-      const top = at.y - height / 2;
-      const box = [left - PAD, top - PAD, left + width + PAD,
-        top + height + PAD];
-      const clash = placed.some((other) => !(box[2] < other[0]
-        || box[0] > other[2] || box[3] < other[1] || box[1] > other[3]));
-      if (clash) {
-        element.style.display = 'none';
-        continue;
+      element.textContent = put.text;
+      element.dataset.side = put.side;
+      element.dataset.how = put.how;
+      element.style.transform = `translate(${Math.round(put.left)}px, `
+        + `${Math.round(put.top)}px)`;
+      if (item.dot) {
+        item.dot.style.display = '';
+        item.dot.style.transform = `translate(${Math.round(at.x - 3)}px, `
+          + `${Math.round(at.y - 3)}px)`;
       }
-      placed.push(box);
-      element.style.transform = `translate(${Math.round(left)}px, `
-        + `${Math.round(top)}px)`;
     }
   }
 
   return {
     draw,
+    resized() { forget(); draw(); },
     setChosen(square, name) {
-      chosenItem.lngLat = square ? [square.lon, square.lat] : null;
-      chosen.textContent = square
+      chosen.lngLat = square ? [square.lon, square.lat] : null;
+      chosen.text = square
         ? (name || squareText(square.lat, square.lon)) : '';
+      chosen.w = 0;
       draw();
     },
     remove() { holder.remove(); },
+    // For the browser checks: what is actually on screen, by rank.
+    shown() {
+      const seen = { states: [], cities: [], coded: [] };
+      for (const item of states) {
+        if (item.element.style.display === 'none') continue;
+        if (item.element.dataset.how === 'coded') seen.coded.push(item.code);
+        else seen.states.push(item.text);
+      }
+      for (const item of cities) {
+        if (item.element.style.display !== 'none') seen.cities.push(item.text);
+      }
+      return seen;
+    },
   };
 }
 
 export default function ForecastMap({
-  counts, grid, threshold, day, square, squareName, onPick, handcheck,
+  counts, grid, threshold, day, square, squareName, onPick, onProblem,
+  handcheck,
 }) {
   const holder = useRef(null);
   const map = useRef(null);
@@ -317,27 +501,40 @@ export default function ForecastMap({
   // React never re-creates it.
   useEffect(() => {
     if (map.current || !holder.current) return undefined;
-    const created = new maplibregl.Map({
-      container: holder.current,
-      style: EMPTY_STYLE,
-      bounds: INDIA,
-      maxBounds: LIMITS,
-      minZoom: 3,
-      maxZoom: 9,
-      dragRotate: false,
-      pitchWithRotate: false,
-      attributionControl: false,
-      // SPEC 11.25: reading a pixel back from a WebGL canvas needs this, and
-      // it costs every reader a copy on every frame, so HC8 asks for it with
-      // ?handcheck=1 and the map everyone else loads does without it.
-      preserveDrawingBuffer: Boolean(handcheck),
-    });
+
+    // SPEC 11.29. Neither of these used to be checked, and both of them end
+    // the same way for a reader: an empty rectangle the size of the map.
+    if (!canDraw()) {
+      onProblem('webgl2');
+      return undefined;
+    }
+    let created;
+    try {
+      created = new maplibregl.Map({
+        container: holder.current,
+        style: EMPTY_STYLE,
+        bounds: INDIA,
+        maxBounds: LIMITS,
+        minZoom: 3,
+        maxZoom: 9,
+        dragRotate: false,
+        pitchWithRotate: false,
+        attributionControl: false,
+        // SPEC 11.25: reading a pixel back from a WebGL canvas needs this,
+        // and it costs every reader a copy on every frame, so HC8 asks for it
+        // with ?handcheck=1 and the map everyone else loads does without it.
+        preserveDrawingBuffer: Boolean(handcheck),
+      });
+    } catch (error) {
+      onProblem('maplibre');
+      return undefined;
+    }
     created.addControl(
       new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     created.addControl(new maplibregl.AttributionControl({
       compact: true,
       customAttribution:
-        'Outlines and towns: Natural Earth, public domain. '
+        'Outlines, states and towns: Natural Earth, public domain. '
         + 'Rendering: MapLibre GL JS',
     }), 'bottom-right');
     // The compact control still renders open, and on a phone it is two lines
@@ -414,7 +611,6 @@ export default function ForecastMap({
       created.addSource('india', { type: 'geojson', data: indiaOutline });
       created.addSource('states', { type: 'geojson', data: stateLines });
       created.addSource('squares', { type: 'geojson', data: NOTHING });
-      created.addSource('cities', { type: 'geojson', data: cityPoints() });
       created.addSource('picked', { type: 'geojson', data: NOTHING });
       created.addSource('picked-centre', { type: 'geojson', data: NOTHING });
 
@@ -443,6 +639,19 @@ export default function ForecastMap({
           'fill-antialias': false,
         },
       });
+      // The grid, SPEC 11.29: every square's own edges, faintly, and only
+      // where a square is at least twelve pixels across. Drawn from the same
+      // source as the fill, so a line cannot appear where there is no square.
+      created.addLayer({
+        id: 'squares-grid',
+        type: 'line',
+        source: 'squares',
+        paint: {
+          'line-color': GRID_LINE,
+          'line-width': 0.5,
+          'line-opacity': ['step', ['zoom'], 0, GRID_FROM_ZOOM, GRID_OPACITY],
+        },
+      });
       created.addLayer({
         id: 'states',
         type: 'line',
@@ -455,22 +664,11 @@ export default function ForecastMap({
         source: 'india',
         paint: { 'line-color': COAST, 'line-width': 1 },
       });
-      created.addLayer({
-        id: 'cities',
-        type: 'circle',
-        source: 'cities',
-        paint: {
-          'circle-radius': 2.6,
-          'circle-color': CITY_DOT,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': HALO,
-        },
-      });
 
-      // The chosen square. No fill of any kind, and no palette colour: a
-      // white casing, a dark edge that appears only once the square is big
-      // enough on screen to have an edge worth drawing, and a ring that is
-      // never smaller than 18 pixels across.
+      // The chosen square. No fill of any kind, and no palette colour: its
+      // own outline, white under dark, from the zoom where the square is big
+      // enough to have an outline, and below that a ring of a fixed 18
+      // pixels in the same two colours.
       created.addLayer({
         id: 'picked-casing',
         type: 'line',
@@ -478,7 +676,7 @@ export default function ForecastMap({
         paint: {
           'line-color': HALO,
           'line-width': 4,
-          'line-opacity': ['step', ['zoom'], 0, 6, 1],
+          'line-opacity': ['step', ['zoom'], 0, GRID_FROM_ZOOM, 1],
         },
       });
       created.addLayer({
@@ -488,7 +686,7 @@ export default function ForecastMap({
         paint: {
           'line-color': MARK,
           'line-width': 1.6,
-          'line-opacity': ['step', ['zoom'], 0, 6, 1],
+          'line-opacity': ['step', ['zoom'], 0, GRID_FROM_ZOOM, 1],
         },
       });
       created.addLayer({
@@ -500,7 +698,8 @@ export default function ForecastMap({
           'circle-opacity': 0,
           'circle-stroke-width': 4,
           'circle-stroke-color': HALO,
-          'circle-stroke-opacity': 0.95,
+          'circle-stroke-opacity': ['step', ['zoom'], 0.95,
+            GRID_FROM_ZOOM, 0],
         },
       });
       created.addLayer({
@@ -512,6 +711,7 @@ export default function ForecastMap({
           'circle-opacity': 0,
           'circle-stroke-width': 2,
           'circle-stroke-color': MARK,
+          'circle-stroke-opacity': ['step', ['zoom'], 1, GRID_FROM_ZOOM, 0],
         },
       });
       // Where place labels would go: over everything, including the squares.
@@ -542,7 +742,7 @@ export default function ForecastMap({
 
     const watcher = new ResizeObserver(() => {
       created.resize();
-      redraw();
+      if (labels.current) labels.current.resized();
       // Refit only while the reader has not moved the map themselves:
       // yanking somebody back to the whole country because a panel opened
       // would be worse than the cut-off country this fixes.
@@ -552,6 +752,12 @@ export default function ForecastMap({
     watcher.observe(holder.current);
 
     map.current = created;
+    // For the browser checks, and for nothing else: which names are on
+    // screen, and the zoom the grid appears at.
+    created.getContainer().labelsShown = () => (
+      labels.current ? labels.current.shown() : null);
+    created.getContainer().gridFromZoom = GRID_FROM_ZOOM;
+
     return () => {
       watcher.disconnect();
       if (labels.current) labels.current.remove();
@@ -606,7 +812,7 @@ export default function ForecastMap({
     else created.once('load', paint);
   }, [threshold, day]);
 
-  // The chosen square: the ring, the edge, and the name beside it.
+  // The chosen square: the outline, the ring, and the name beside it.
   useEffect(() => {
     const created = map.current;
     if (!created) return;
