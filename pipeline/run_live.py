@@ -16,6 +16,11 @@ Three things this module is careful about:
 Usage
   python -m pipeline.run_live                 build the latest complete run
   python -m pipeline.run_live --dry-run       decide which run, download none
+  python -m pipeline.run_live --published ID  treat ID as the run already
+                                              published, instead of
+                                              data/live/last_run.json. An
+                                              empty ID means nothing is
+                                              published yet (SPEC 8.6)
 """
 from __future__ import annotations
 
@@ -496,16 +501,35 @@ def log(message: str) -> None:
         fh.write(line + "\n")
 
 
+def published_argument(argv: list[str]) -> tuple[str | None, bool]:
+    """--published ID, the run the Blob store already has (SPEC 8.6).
+
+    Returns (run id or None, whether the flag was given). An empty value is
+    the flag being given with nothing in it, which is what an empty store
+    looks like, and it must not fall back to the local file: on a fresh
+    Actions disk that file is always missing anyway.
+    """
+    if "--published" not in argv:
+        return None, False
+    index = argv.index("--published")
+    value = argv[index + 1].strip() if index + 1 < len(argv) else ""
+    return (value or None), True
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     dry_run = "--dry-run" in argv
+    published, from_flag = published_argument(argv)
 
     try:
         listing = server_listing()
         log("server offers: " + ", ".join(
             f"{o.run_id}{'' if o.complete else ' (incomplete)'}"
             for o in listing))
-        run_id, reason = select_run(listing, last_built())
+        if not from_flag:
+            published = last_built()
+        log("already published: " + (published or "nothing"))
+        run_id, reason = select_run(listing, published)
         log(f"decision: {reason}")
         if run_id is None:
             log("nothing to build; the previous run stays as it is")

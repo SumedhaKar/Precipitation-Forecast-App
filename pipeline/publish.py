@@ -754,10 +754,13 @@ def mark_published(run_id: str) -> None:
     path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
 
 
+LOG_STREAM = sys.stdout      # remote-run-id moves this to stderr
+
+
 def log(message: str) -> None:
     stamp = dt.datetime.now(IST).strftime("%Y-%m-%d %H:%M:%S")
     line = f"{stamp} IST  {message}"
-    print(line, flush=True)
+    print(line, file=LOG_STREAM, flush=True)
     try:
         cfg.LOGS.mkdir(parents=True, exist_ok=True)
         with open(cfg.LOGS / "publish.log", "a", encoding="utf-8") as fh:
@@ -779,7 +782,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if "remote-run-id" in argv:
         # SPEC 8.6 step 1. Prints the run id, or an empty line for an empty
-        # store, and exits 1 on anything else.
+        # store, and exits 1 on anything else. Standard output carries the
+        # run id and nothing else, so the workflow can read it straight;
+        # every log line goes to standard error.
+        global LOG_STREAM
+        LOG_STREAM = sys.stderr
         try:
             remote, reason = read_remote_manifest(BlobStore(PUBLISH))
         except PublishError as exc:

@@ -1809,18 +1809,21 @@ Pinned for the workflow, all checked on 12 November 2026:
 | `actions/checkout` | v7.0.1 | |
 | `actions/setup-python` | v7.1.0 | |
 | `actions/setup-node` | v7.1.0 | |
+| `actions/upload-artifact` | v7.0.2 | the logs of every attempt, kept 14 days |
 
-The three action tags were confirmed to exist twice on 12 November 2026:
+The four action tags were confirmed to exist twice on 12 November 2026:
 `api.github.com/repos/<owner>/<repo>/releases/latest` named them as the latest
 release (checkout v7.0.1 of 20 July 2026, setup-python v7.1.0 of 22 October
-2026, setup-node v7.1.0 of 8 October 2026), and `git ls-remote --tags` against
-each repository returned the tag with its commit:
+2026, setup-node v7.1.0 of 8 October 2026, upload-artifact v7.0.2 of 7
+October 2026), and `git ls-remote --tags` against each repository returned
+the tag with its commit:
 
 | Action | Tag | Commit the tag pointed at |
 |---|---|---|
 | `actions/checkout` | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
 | `actions/setup-python` | v7.1.0 | `6d4fd22b20465ccc0f7354476588e8df7c9ca0e0` |
 | `actions/setup-node` | v7.1.0 | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+| `actions/upload-artifact` | v7.0.2 | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
 
 The workflow uses the tags, not the commits, because a tag is readable. The
 commits are recorded here so that a tag moved under us can be noticed.
@@ -2089,15 +2092,32 @@ copy, not a record.
 
 ### 8.8 The workflow
 
-`.github/workflows/forecast.yml`, one job, five steps:
+`.github/workflows/forecast.yml`, one job, nine steps:
 
 | # | Step | Token on it |
 |---|---|---|
-| 1 | checkout, Python 3.13.4, Node 24.22.3, `pip install -r requirements.txt`, `npm ci` in `scripts/publish` | no |
-| 2 | read the store's current run id (8.6) | **yes** |
-| 3 | `python -m pipeline.run_live --published <run id>` | **no** |
-| 4 | `python -m pipeline.publish` if step 3 built a run: upload, manifest last, retention, read back | **yes** |
-| 5 | upload the run log as an artefact, on success or failure | no |
+| 1-5 | checkout, Python 3.13.4, Node 24.22.3, `pip install -r requirements.txt`, `npm ci` in `scripts/publish` | no |
+| 6 | `python -m pipeline.publish remote-run-id`, the store's current run id (8.6) | **yes** |
+| 7 | `python -m pipeline.run_live --published <that run id>` | **no** |
+| 8 | `python -m pipeline.publish`: upload, manifest last, retention, read back | **yes** |
+| 9 | the logs as an artefact, `if: always()`, kept 14 days | no |
+
+Step 6 prints the run id on standard output and **nothing else**, with its
+own log going to standard error, so step 7 can be handed the value without
+parsing anything. An empty value means an empty store, and `run_live` takes
+`--published ""` to mean exactly that rather than falling back to
+`data/live/last_run.json`, which on a fresh Actions disk is always missing
+anyway.
+
+Step 8 runs whether or not step 7 built anything: with nothing new on the
+disk it prints "nothing to publish" and exits 0.
+
+**The schedule is live from the moment this file is on `main`.** Until the
+secret of 8.9 exists, every scheduled attempt fails at step 6 with a missing
+token, which costs one runner minute, downloads nothing and publishes
+nothing. That is the right failure: the alternative, skipping quietly when
+the secret is absent, would make a store that had stopped answering look the
+same as a store nobody had set up yet.
 
 | Setting | Value | Why |
 |---|---|---|
