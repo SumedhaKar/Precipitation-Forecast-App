@@ -61,11 +61,12 @@ import argparse
 import gzip
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
 import shapefile
-from shapely.geometry import LineString, Point, shape
+from shapely.geometry import Point, box as make_box, shape
 from shapely.prepared import prep
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -128,7 +129,28 @@ EXPECT_NOT_FORECAST = {"Kavaratti": "Lakshadweep",
 UNITS_EXPECT = 36
 UNITS_EXPECT_CAPITALS = 31
 UNITS_EXPECT_REP_POINT = {"Andhra Pradesh", "Jammu and Kashmir"}
-UNITS_GZIP_BUDGET = 2_500
+UNITS_GZIP_BUDGET = 4_000
+
+# How much room there is to write a unit's name inside the unit. SPEC 11.31.
+#
+# A full name is written at the unit's own label point and nowhere else, and
+# only when the whole word fits inside the unit's own polygon. Deciding that
+# on the page needs the polygon, and the polygons are 3 MB of shapefile that
+# the page has no other use for -- so the question is answered here instead,
+# where the polygons are, and what the page carries is the answer.
+#
+# A label box is centred on the label point, so one number settles each shape
+# of box: the tallest box of that shape which is still inside the unit. These
+# are the shapes, as width over height in degrees, and `fit` in units.json is
+# half the height in degrees for each of them in turn. A box is drawn only if
+# it is no taller than the entry for the first shape at least as wide as it
+# is, which is the conservative side of the table: the box tested is wider
+# than the box drawn, so a box that passes is inside with room to spare.
+#
+# Up to 25: a name 25 times wider than it is tall is about 350 pixels of
+# capitals, which no unit on this map has room for at any zoom a reader
+# starts at. Anything wider than the last shape is refused outright.
+FIT_ASPECTS = (2.0, 4.0, 6.0, 9.0, 13.0, 18.0, 25.0)
 
 # The groups of SPEC 11.28 and config/india_mask.json, inclusive bounds.
 ISLAND_GROUPS = {
@@ -334,30 +356,57 @@ def label_point(record: dict, poly) -> tuple[object, str]:
     return biggest.representative_point(), "representative point"
 
 
-def room_at(poly, at) -> float:
-    """How wide the unit is, in degrees of longitude, at the label point.
+def room_for(poly, lon: float, lat: float, aspect: float) -> float:
+    """The tallest box of this shape that fits inside the unit, centred.
 
-    SPEC 11.29. A name is written across the unit, so what decides whether it
-    can be written at all is how much unit there is to write it on. This cuts
-    the unit with a horizontal line through the label point and measures the
-    piece of that line the label point is on: 11.5 degrees for Madhya
-    Pradesh, 0.42 for Dadra and Nagar Haveli and Daman and Diu.
+    SPEC 11.31. The unit's name is written at one place and one place only --
+    the middle of the box is the label point -- so the question "does this
+    name fit inside this unit" is the question "is this box inside this
+    polygon", and the answer is a single number per shape of box: boxes of
+    one shape nest, so if a box of a given height fits, every shorter one of
+    the same shape fits too, and there is a tallest one that does.
 
-    Without it the map wrote DADRA AND NAGAR HAVELI AND DAMAN AND DIU across
-    230 pixels of the Arabian Sea for a union territory 7 pixels wide, which
-    reads as a name for the sea. A unit with no room for its name is marked
-    with its two letter code until the reader zooms in far enough for the
-    name to fit inside it.
+    `aspect` is the box's width divided by its height **in degrees**, and
+    what comes back is half its height in degrees of latitude. Binary search
+    to a tenth of a second of arc, over `within`, which is the real
+    containment test and not an approximation of one.
+
+    Measured at the rounded label point that reaches the page, not at the
+    full-precision one, so the number the page checks against is the number
+    that was measured.
     """
-    west, _, east, _ = poly.bounds
-    cut = LineString([(west - 1, at.y), (east + 1, at.y)]).intersection(poly)
-    if cut.is_empty:
+    low, high = 0.0, (poly.bounds[3] - poly.bounds[1]) / 2 + 1e-6
+    if not poly.contains(Point(lon, lat)):
         return 0.0
-    pieces = list(getattr(cut, "geoms", [cut]))
-    here = [piece for piece in pieces
-            if piece.bounds[0] - 1e-9 <= at.x <= piece.bounds[2] + 1e-9]
-    chosen = here or pieces
-    return max(piece.bounds[2] - piece.bounds[0] for piece in chosen)
+    for _ in range(40):
+        middle = (low + high) / 2
+        trial = make_box(lon - middle * aspect, lat - middle,
+                         lon + middle * aspect, lat + middle)
+        if trial.within(poly):
+            low = middle
+        else:
+            high = middle
+        if high - low < 3e-5:
+            break
+    return low
+
+
+def fit_table(poly, lon: float, lat: float) -> list[float]:
+    """Half the height that fits, for each shape of box in FIT_ASPECTS.
+
+    Clamped so the list never rises as the boxes get wider, which it cannot
+    do in truth -- a wider box of the same height is a superset of a
+    narrower one -- but which rounding to four places could otherwise show.
+    """
+    room = []
+    for aspect in FIT_ASPECTS:
+        # Down to four places, never up: a number rounded up is a box the
+        # polygon does not actually contain, which is the one mistake this
+        # whole table exists to stop. Four places is 0.36 seconds of arc,
+        # about 11 metres.
+        here = math.floor(room_for(poly, lon, lat, aspect) * 1e4) / 1e4
+        room.append(min(here, room[-1]) if room else here)
+    return room
 
 
 def main_city(mine: list[dict]) -> dict | None:
@@ -403,7 +452,7 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
 
     units = []
     tally = {"capitals": 0, "rep_point": set(), "not_forecast": {},
-             "no_city": []}
+             "no_city": [], "no_room": []}
     for record, poly in admin1():
         name = str(record["name"]).strip()
         code = str(record["postal"]).strip() \
@@ -413,13 +462,16 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
             tally["rep_point"].add(name)
         mine = [town for town, point in points if poly.contains(point)]
         city = main_city(mine)
+        lat, lon = round(at.y, 3), round(at.x, 3)
         entry = {
             "name": name,
             "code": code,
-            "lat": round(at.y, 3),
-            "lon": round(at.x, 3),
-            "span": round(room_at(poly, at), 2),
+            "lat": lat,
+            "lon": lon,
+            "fit": fit_table(poly, lon, lat),
         }
+        if entry["fit"][0] <= 0:
+            tally["no_room"].append(name)
         if city is None:
             tally["no_city"].append(name)
         else:
@@ -438,14 +490,31 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
             "Earth 1:10m admin-1, `admin = India`, listed largest polygon "
             "first, which is the order the map tries to place their names in. "
             "`lat` and `lon` are where the unit's name is written and are "
-            "inside the unit. `code` is Natural Earth's own `postal` field, "
-            "shown instead of the name where the name does not fit. `city` is "
+            "inside the unit, and `fit` is how much room there is to write "
+            "it there (SPEC 11.31). `code` is Natural Earth's own `postal` "
+            "field, shown instead of the name wherever the name does not fit "
+            "inside the unit itself. `city` is "
             "the one town the map labels in that unit -- its capital where "
             "Natural Earth marks one inside the unit, otherwise the largest "
             "town inside it by population -- and its `lat` and `lon` are the "
             "0.25 degree square the page shows, never the town's own "
             "position. Built by scripts/build_towns.py."
         ),
+        "fit": {
+            "aspects": list(FIT_ASPECTS),
+            "note": (
+                "SPEC 11.31. Each unit's `fit` is half the height, in "
+                "degrees of latitude, of the tallest box centred on its "
+                "label point that is still inside the unit's own polygon, "
+                "for a box of each of these shapes in turn -- the shape "
+                "being its width over its height in degrees. The page draws "
+                "a unit's full name only where the name's own box passes "
+                "this test, and its two letter code everywhere else, so a "
+                "name is never written across a neighbour. Measured by "
+                "binary search over shapely's `within`, to a tenth of a "
+                "second of arc, at the rounded label point above."
+            ),
+        },
         "source": {
             "units": "ne_10m_admin_1_states_provinces",
             "units_version": ADMIN1_VERSION,
@@ -498,6 +567,9 @@ def main() -> None:
           f"{sorted(units_tally['rep_point'])}")
     print(f"  main city with no square: {units_tally['not_forecast']}")
     print(f"  units with no town inside them: {units_tally['no_city']}")
+    print(f"  no room for a name of any shape: {units_tally['no_room']}")
+    print("  room for a 6-to-1 name, degrees of latitude: "
+          + ", ".join(f"{u['name']} {u['fit'][2]}" for u in units[:3]))
     print(f"by country inside the outline: {countries_tally}")
     print(f"own square in the mask: {len(towns) - len(moved) - len(missing)}, "
           f"nearest land square one step out: {len(moved)}, "
@@ -530,6 +602,13 @@ def main() -> None:
         raise SystemExit("the units whose name is placed at a representative "
                          f"point are {sorted(units_tally['rep_point'])}, not "
                          f"{sorted(UNITS_EXPECT_REP_POINT)}")
+    for unit in units:
+        if len(unit["fit"]) != len(FIT_ASPECTS):
+            raise SystemExit(f"{unit['name']} has {len(unit['fit'])} fit "
+                             f"numbers, not {len(FIT_ASPECTS)}")
+        if any(b > a for a, b in zip(unit["fit"], unit["fit"][1:])):
+            raise SystemExit(f"{unit['name']}'s fit table rises as the box "
+                             f"widens, which cannot be: {unit['fit']}")
     if units_tally["no_city"]:
         raise SystemExit("no town inside "
                          f"{units_tally['no_city']}, so it has no main city")

@@ -11,10 +11,11 @@
 /**
  * The name to write inside a unit, where to write it, and the room there is.
  *
- * `span` is how wide the unit is in degrees of longitude at that point, from
- * the polygon itself. The map turns it into pixels and uses it to decide
- * whether the name fits inside the unit or the two letter code has to do
- * until the reader zooms in (SPEC 11.29).
+ * `fit` is how much room there is to write it: half the height in degrees of
+ * the tallest box of each measured shape that is still inside the unit's own
+ * polygon, centred on this very point (SPEC 11.31). The map measures the
+ * word, unprojects its box, and draws the full name only where the box
+ * passes. Where it does not, the unit gets `code`.
  */
 export function unitLabels(units) {
   return units.map((unit) => ({
@@ -22,7 +23,7 @@ export function unitLabels(units) {
     code: unit.code,
     lat: unit.lat,
     lon: unit.lon,
-    span: unit.span,
+    fit: unit.fit,
   }));
 }
 

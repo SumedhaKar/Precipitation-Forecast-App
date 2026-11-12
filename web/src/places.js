@@ -22,6 +22,11 @@ export const TOWNS = townList.towns;
 // city each of them labels, largest population first. Both are only ever
 // drawn as names on the map; the search still reads all 215 towns.
 export const UNITS = unitList.units;
+
+// SPEC 11.31. The shapes of box the room inside each unit was measured for,
+// which the map needs to read a unit's `fit` at all. One list for all 36, in
+// the file the numbers came from, so the two cannot drift apart.
+export const FIT_ASPECTS = unitList.fit.aspects;
 export const STATE_LABELS = units.unitLabels(UNITS);
 export const CITY_LABELS = units.cityLabels(UNITS);
 

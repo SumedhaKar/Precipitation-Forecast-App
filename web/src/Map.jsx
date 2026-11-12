@@ -32,7 +32,8 @@ import stateLines from './geo/states.geo.json';
 // gzipped, in this chunk rather than the first one, so it costs the run line
 // and the panel nothing.
 import landAround from './geo/land.geo.json';
-import { CITY_LABELS, STATE_LABELS } from './places';
+import { CITY_LABELS, FIT_ASPECTS, STATE_LABELS } from './places';
+import { fitsInside, roomFor } from './fits';
 import { LAND, NEIGHBOURS, SEA, countKey, fillExpression } from './palette';
 import { LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, STEP, squareText } from './snap';
 
@@ -240,21 +241,17 @@ const EMPTY_STYLE = {
 // per city name took the number of them on screen at the whole-India view
 // from four to the number in SPEC 11.29.
 //
-// A unit's own name is only ever near the middle of the unit, because the
-// point it belongs to is the unit and not a dot: eight or sixteen pixels is
-// a nudge off a neighbour, half a degree at the whole-India view, and a
-// bigger offset would start writing the name on the wrong state.
+// A unit's full name has one placement and only one: centred on the unit's
+// own label point, with no nudge of any kind. SPEC 11.31. A nudge is eight
+// or sixteen pixels, which at the whole-India view is half a degree, and
+// half a degree is the width of a small state -- so a nudge that tidied the
+// map wrote HIMACHAL PRADESH across Uttarakhand. There is nowhere else a
+// unit's name belongs, so there is nowhere else to try.
 const CITY_TRIES = [
   ['right', 8], ['left', 8], ['above', 7], ['below', 7],
   ['right', 18], ['left', 18], ['above', 15], ['below', 15],
 ];
-const STATE_TRIES = [['centre', 0]];
-for (const away of [8, 16]) {
-  for (const side of ['above', 'below', 'left', 'right',
-    'ne', 'nw', 'se', 'sw']) {
-    STATE_TRIES.push([side, away]);
-  }
-}
+const NAME_TRIES = [['centre', 0]];
 
 // A two letter code is small enough to look for a gap in earnest: eight
 // directions at three distances, as well as the point itself. SPEC 11.30.
@@ -271,12 +268,6 @@ for (const away of [8, 16, 24]) {
 const CHOSEN_TRIES = [['right', 14], ['left', 14], ['above', 12],
   ['below', 12]];
 
-// How wide a unit's name may be, as a multiple of the unit's own width
-// where the name goes. Small states have their names written across their
-// borders on every printed map there is, so this is generous; what it rules
-// out is a name many times longer than the thing it names, which is a name
-// for the neighbours and not for the unit.
-const NAME_OVERHANG = 4;
 
 /**
  * Place names, as elements over the canvas rather than a symbol layer.
@@ -329,7 +320,7 @@ function makeLabels(container, mapFor) {
 
   const states = STATE_LABELS.map((unit) => add(
     'state', unit.name, [unit.lon, unit.lat],
-    { code: unit.code, span: unit.span, pad: 2, tries: STATE_TRIES }));
+    { code: unit.code, fit: unit.fit, pad: 2, tries: NAME_TRIES }));
 
   const cities = CITY_LABELS.map((city) => add(
     city.forecast ? 'city' : 'city absent', city.name,
@@ -385,6 +376,33 @@ function makeLabels(container, mapFor) {
     return [at.x - w / 2, at.y - h / 2]; // centre
   }
 
+  /**
+   * Is this unit's full name inside this unit, at this zoom? SPEC 11.31.
+   *
+   * The word's own box, centred on the label point, is unprojected back to
+   * degrees and handed to the table measured against the polygon itself. The
+   * half sizes are the larger side of each axis, so the box tested contains
+   * the box drawn: Mercator puts the label point a hair off the middle of
+   * the box in latitude, and the error is to the safe side of the border.
+   */
+  function nameInside(map, at, item) {
+    if (!item.fit || !item.lngLat) return false;
+    const [left, top] = boxFor(at, item.w, item.h, 0, 'centre');
+    const nw = map.unproject([left, top]);
+    const se = map.unproject([left + item.w, top + item.h]);
+    const halfLon = Math.max(Math.abs(se.lng - item.lngLat[0]),
+      Math.abs(item.lngLat[0] - nw.lng));
+    const halfLat = Math.max(Math.abs(nw.lat - item.lngLat[1]),
+      Math.abs(item.lngLat[1] - se.lat));
+    item.box = [nw.lng, se.lat, se.lng, nw.lat];
+    const ok = fitsInside(FIT_ASPECTS, item.fit, halfLon, halfLat);
+    // What the rule was given and what it said, for the browser check.
+    item.tried = { name: item.text, halfLon, halfLat,
+      aspect: halfLon / halfLat, room: roomFor(FIT_ASPECTS, item.fit,
+        halfLon / halfLat), ok };
+    return ok;
+  }
+
   function draw() {
     const map = mapFor();
     if (!map) return;
@@ -395,6 +413,7 @@ function makeLabels(container, mapFor) {
 
     const hide = (item) => {
       item.element.style.display = 'none';
+      item.drawn = null;
       if (item.dot) item.dot.style.display = 'none';
     };
 
@@ -434,21 +453,18 @@ function makeLabels(container, mapFor) {
       if (!item.w) measure(item);
 
       let put = null;
-      // The full name in every placement first, then the code in every
-      // placement. A state is better named in an awkward spot than reduced
-      // to two letters in a tidy one — but only if the name belongs to the
-      // unit it is written on. `span` is how wide the unit is where the name
-      // goes (SPEC 11.29), and a name may hang over that by its own length
-      // again on each side; wider than that and it is not a name for this
-      // unit any more but a word written across its neighbours, so the
-      // two letter code marks the unit until the reader zooms in far enough
-      // for the name to fit. Without this the map wrote DADRA AND NAGAR
-      // HAVELI AND DAMAN AND DIU across 230 pixels of the Arabian Sea for a
-      // union territory seven pixels wide.
+      // The full name at its own point, then the code anywhere near it.
+      //
+      // SPEC 11.31. A unit's name is offered one placement, the middle of
+      // the unit, and is offered it only when the whole word is inside the
+      // unit's own polygon at this zoom. It is not a name for the
+      // neighbours, so it is not written on them: the two letter code marks
+      // the unit until the reader zooms in far enough for the name to fit.
+      // The clash rule still applies to the name at that one placement, so
+      // a name that would be written over a city is a code too.
       const words = [];
       if (item.code) {
-        const edge = map.project([item.lngLat[0] + item.span, item.lngLat[1]]);
-        if (item.w <= (edge.x - at.x) * NAME_OVERHANG) {
+        if (nameInside(map, at, item)) {
           words.push([item.text, item.w, '', item.tries, item.pad]);
         }
         words.push([item.code, item.codeW, 'coded', CODE_TRIES, 1]);
@@ -516,6 +532,11 @@ function makeLabels(container, mapFor) {
         continue;
       }
       placed.push({ owner: item, box: put.box });
+      // SPEC 11.31. Where a full name was drawn, in degrees, for the check
+      // that every name on screen is inside the unit it names. `item.box` is
+      // the box nameInside just unprojected, and a name has one placement,
+      // so it is the box of the word that went on the map.
+      item.drawn = item.code && put.how === '' ? item.box : null;
       const { element } = item;
       element.style.display = '';
       element.textContent = put.text;
@@ -544,7 +565,12 @@ function makeLabels(container, mapFor) {
     remove() { holder.remove(); },
     // For the browser checks: what is actually on screen, by rank.
     shown() {
-      const seen = { states: [], cities: [], coded: [], forced: [] };
+      const seen = { states: [], cities: [], coded: [], forced: [],
+        boxes: [], tried: [] };
+      for (const item of states) {
+        if (item.drawn) seen.boxes.push({ name: item.text, box: item.drawn });
+        if (item.tried) seen.tried.push(item.tried);
+      }
       for (const item of states) {
         if (item.element.style.display === 'none') continue;
         const how = item.element.dataset.how;
@@ -810,6 +836,25 @@ export default function ForecastMap({
       refit();
       if (labels.current) labels.current.draw();
       created.getContainer().dataset.ready = '1';
+
+      // Measure the words again once the page has stopped moving. SPEC
+      // 11.31. A word's width is measured once and kept, because reading it
+      // back forces the browser to lay the page out again and doing that on
+      // every frame of a drag is the one thing here that could be slow — but
+      // the first draw happens while the map is still being fitted to a
+      // container flexbox is still sizing, and a width measured then is kept
+      // for the rest of the page's life. It showed up as a label count that
+      // changed from one load to the next: 26 city names on one load of the
+      // same page at the same size and 31 on the next. One more pass, when
+      // nothing is moving any more, and the map is the same map every time.
+      created.once('idle', () => {
+        if (labels.current) labels.current.resized();
+      });
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(() => {
+          if (labels.current) labels.current.resized();
+        });
+      }
     });
 
     labels.current = makeLabels(created.getContainer(), () => map.current);
@@ -842,6 +887,15 @@ export default function ForecastMap({
     created.getContainer().labelsShown = () => (
       labels.current ? labels.current.shown() : null);
     created.getContainer().gridFromZoom = GRID_FROM_ZOOM;
+    // The view itself, for the checks that have to know what is on screen:
+    // which zoom, and which corner of the world is in which corner of the
+    // canvas (SPEC 11.25, 11.31).
+    created.getContainer().mapView = () => {
+      const box = created.getBounds();
+      return { zoom: created.getZoom(),
+        bounds: [box.getWest(), box.getSouth(),
+          box.getEast(), box.getNorth()] };
+    };
 
     return () => {
       watcher.disconnect();
