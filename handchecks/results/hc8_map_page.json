@@ -1,0 +1,180 @@
+{
+ "note": "SPEC 11.25. What a browser read off the live site at ?handcheck=1, which is the half of HC8 that cannot be fetched: the number the panel printed, the class it named, and the colour the map actually painted at the square's centre, read back out of the WebGL canvas. `facts` is what the page says about itself, and hc8_map_square.py refuses to believe any of the colours unless all of it holds.",
+ "site": "https://precipitation-forecast-app.vercel.app",
+ "url": "https://precipitation-forecast-app.vercel.app/?handcheck=1",
+ "build": "assets/index-BhwtQGV8.js",
+ "checked_at_ist": "2026-11-13T02:43:49+05:30",
+ "facts": {
+  "preserveDrawingBuffer": true,
+  "zoom": 3.270246880484795,
+  "gridFromZoom": 5.076815597050831,
+  "basemapSlot": [],
+  "slotOpacity": 0,
+  "squareOpacity": 1,
+  "picked": 0,
+  "notData": [
+   [
+    "squares-grid",
+    [
+     "step",
+     [
+      "zoom"
+     ],
+     0,
+     5.076815597050831,
+     0.4
+    ]
+   ],
+   [
+    "picked-casing",
+    [
+     "step",
+     [
+      "zoom"
+     ],
+     0,
+     5.076815597050831,
+     1
+    ]
+   ],
+   [
+    "picked-line",
+    [
+     "step",
+     [
+      "zoom"
+     ],
+     0,
+     5.076815597050831,
+     1
+    ]
+   ],
+   [
+    "picked-ring-halo",
+    [
+     "step",
+     [
+      "zoom"
+     ],
+     0.95,
+     5.076815597050831,
+     0
+    ]
+   ],
+   [
+    "picked-ring",
+    [
+     "step",
+     [
+      "zoom"
+     ],
+     1,
+     5.076815597050831,
+     0
+    ]
+   ]
+  ],
+  "layers": [
+   "sea",
+   "land-fill",
+   "india-fill",
+   "slot-basemap",
+   "squares",
+   "squares-grid",
+   "states",
+   "india-line",
+   "picked-casing",
+   "picked-line",
+   "picked-ring-halo",
+   "picked-ring",
+   "slot-labels"
+  ]
+ },
+ "squares": [
+  {
+   "lat": 34.25,
+   "lon": 73.5,
+   "threshold": 1,
+   "day": 1,
+   "panel": 51,
+   "class": "51",
+   "pixel": "#0c2c84",
+   "rgba": [
+    12,
+    44,
+    132,
+    255
+   ],
+   "x": 380.1,
+   "y": 141.7
+  },
+  {
+   "lat": 27.0,
+   "lon": 74.0,
+   "threshold": 1,
+   "day": 1,
+   "panel": 0,
+   "class": "0",
+   "pixel": "#eceff1",
+   "rgba": [
+    236,
+    239,
+    241,
+    255
+   ],
+   "x": 387.0,
+   "y": 257.5
+  },
+  {
+   "lat": 20.5,
+   "lon": 84.25,
+   "threshold": 1,
+   "day": 1,
+   "panel": 1,
+   "class": "1-10",
+   "pixel": "#c7e9b4",
+   "rgba": [
+    199,
+    233,
+    180,
+    255
+   ],
+   "x": 527.7,
+   "y": 355.0
+  },
+  {
+   "lat": 35.0,
+   "lon": 79.0,
+   "threshold": 1,
+   "day": 1,
+   "panel": 12,
+   "class": "11-20",
+   "pixel": "#7fcdbb",
+   "rgba": [
+    127,
+    205,
+    187,
+    255
+   ],
+   "x": 455.6,
+   "y": 129.2
+  },
+  {
+   "lat": 34.0,
+   "lon": 77.25,
+   "threshold": 1,
+   "day": 1,
+   "panel": 37,
+   "class": "31-40",
+   "pixel": "#1d91c0",
+   "rgba": [
+    29,
+    145,
+    192,
+    255
+   ],
+   "x": 431.6,
+   "y": 145.9
+  }
+ ]
+}
