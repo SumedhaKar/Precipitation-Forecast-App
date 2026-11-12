@@ -675,6 +675,15 @@ stopped being true when the map was built. The reason the sentence existed —
 that this project does not take a boundary from somewhere else and does not
 draw borders it has not checked — is the reason 11.14 refuses a basemap.
 
+**Amended 13 November 2026 (11.30).** The map now shades the land around
+India as well, from `ne_10m_land`, so that Nepal and Bangladesh do not read
+as ocean. That layer is coastline and nothing else: it holds no border of any
+kind, which is why it is the layer used. The sentence above still holds in
+full — the India point-of-view outline is the only national boundary this
+site draws, the shading carries no line, and it is painted **under** India's
+own fill, so the country still ends exactly where the outline says it does.
+Which squares are in the mask is untouched by it.
+
 #### Coastal squares
 
 A square is **coastal** when it is an India square and at least one of its 8
@@ -2981,7 +2990,7 @@ written out so they cannot drift:
 | Where | Exactly |
 |---|---|
 | under the counts table | `0 mm means under 1 mm.` |
-| under the counts table | `N of 51 model runs, which is not a calibrated probability.` **Amended 12 November 2026** (11.21). This row used to read `These are model-run counts, not probabilities.`, and the page also carried "a count of 40 out of 51 is not a chance of rain", which can be read as "there is no chance of rain". One sentence now carries the point for both |
+| under the counts table, and under the legend | `These are counts out of 51 model runs, not a calibrated probability.` **Amended twice on 12 November 2026** (11.21, then 11.28). It first read `These are model-run counts, not probabilities.`, and the page also carried "a count of 40 out of 51 is not a chance of rain", which can be read as "there is no chance of rain"; one sentence then carried the point for both, as `N of 51 model runs, which is not a calibrated probability.`, which with the count filled in is a fragment with no verb. This one is a sentence and does not change with the count |
 | footer, prominent | `Not an official warning. For warnings and advisories, see the India Meteorological Department.` linking to `https://mausam.imd.gov.in/` |
 | footer, forecast credit | `Copyright © 2026 European Centre for Medium-Range Weather Forecasts (ECMWF)` |
 | footer, forecast credit | `This data is published under a Creative Commons Attribution 4.0 International (CC BY 4.0)` |
@@ -3103,6 +3112,19 @@ basemap, India drawn from the same source the forecast mask comes from, with
 thin light internal state boundaries for orientation, and nothing else but
 city dots.
 
+**Amended 13 November 2026 (11.30).** There is still no basemap and none is
+planned. What has been added is one more file from the same Natural Earth
+family, drawn the same way as the outline: `ne_10m_land`, the land around
+India, as a single quiet fill under India's own. It was added because
+everything outside the outline was painted the sea's colour, so Nepal,
+Bangladesh, Myanmar and Pakistan read as ocean on a map of rain. It is not a
+basemap and does not become one: no tile server, no glyphs, no sprite, no
+request at runtime, no label, no road, no place and **no boundary of any
+kind** — `ne_10m_land` is coastline, which is the whole reason it is the
+layer used. Every one of the five reasons below still holds, including the
+first: the only national boundary this map draws is still the India
+point-of-view outline, and the land under it carries no line at all.
+
 #### Why no basemap
 
 OpenFreeMap works, needs no key and would be easy. It is not used, for five
@@ -3120,7 +3142,7 @@ reasons, the first of which is decisive:
    drawn country and the forecast squares cannot disagree.
 2. **Weight.** A basemap is a sprite sheet, a glyph set and a vector tile for
    every viewport on every pan and zoom. Our entire data layer is 14,441
-   bytes and the two outline files are 31,904 gzipped, all fetched once.
+   bytes and the two outline files are 30,967 gzipped, all fetched once.
 3. **A dependency we do not need.** OpenFreeMap is free and generous and runs
    on donated infrastructure. If it is down, our map is blank for a reason
    that has nothing to do with our forecast. The store is ours and is already
@@ -3143,17 +3165,29 @@ when Natural Earth changes. Measured by the script itself on 12 November
 
 | File | From | Geometry | Bytes | Gzipped |
 |---|---|---|---|---|
-| `web/src/geo/india.geo.json` | `ne_10m_admin_0_countries_ind`, the `India` feature, **the same file and edition the mask of 3.5 is built from** | MultiPolygon, 2,745 points in 35 parts | 44,179 | **15,169** |
-| `web/src/geo/states.geo.json` | `ne_10m_admin_1_states_provinces`, `admin = India`, the same file the IMD regions of 5.4 use | MultiLineString, 3,011 points in 77 parts, 229.6 degrees of line | 48,717 | **16,735** |
-| | | | | **31,904 total**, against the 60,000 you allowed |
+| `web/src/geo/india.geo.json` | `ne_10m_admin_0_countries_ind`, the `India` feature, **the same file and edition the mask of 3.5 is built from** | MultiPolygon, 2,745 points in 35 parts | 43,557 | **14,730** |
+| `web/src/geo/states.geo.json` | `ne_10m_admin_1_states_provinces`, `admin = India`, the same file the IMD regions of 5.4 use | MultiLineString, 3,063 points in 141 parts, 220.2 degrees of line | 49,026 | **16,237** |
+| | | | | **30,967 total**, against the 60,000 you allowed |
 
-The outline keeps **99.9947%** of the source area and its bounding box is
-identical to the shapefile's, 68.1434 to 97.3623 E and 6.7456 to 37.0545 N;
-the script fails rather than writes if simplifying ever moves that box. Both
-are simplified at **0.01 degrees**, about 1.1 km, and written to three
-decimal places, about 110 m. A grid square is 0.25 degrees, so the drawn
-lines are finer than the data they sit under by a factor of twenty-five and
-cannot be nudged into the wrong square by this.
+The outline keeps **99.9952%** of the source area. Both files are simplified
+at **0.01 degrees**, about 1.1 km, and their coordinates are then snapped to
+a **0.001 degree grid**, about 110 m, which is the precision they are written
+to. A grid square is 0.25 degrees, so the drawn lines are finer than the data
+they sit under by a factor of twenty-five and cannot be nudged into the wrong
+square by any of this.
+
+The snapping is done to the geometry and not to the text, so **what is
+written is exactly what was checked**. Rounding coordinates in the JSON
+afterwards would have meant the file could contain shapes the checks never
+saw, and it did: the first build left a zero-length closed ring at 93.018 E
+24.399 N, a shared border a few centimetres long whose two ends rounded to
+the same coordinate. One part was below the grid and is dropped.
+
+The outline's bounding box is 68.143 to 97.362 E and 6.746 to 37.054 N,
+within one grid step of the shapefile's own 68.1434 to 97.3623 and 6.7456 to
+37.0545. The script fails rather than writes if it ever moves further than
+that; simplifying at 0.5 degrees instead of 0.01 moves it by 0.266 and was
+refused.
 
 | Layer | Paint |
 |---|---|
@@ -3162,28 +3196,60 @@ cannot be nudged into the wrong square by this.
 | state lines | `#c9d2da`, 0.6 px, under the national line and over the squares: thin and light enough to orient without competing with the palette |
 | India, line | `#aab6c0`, 1 px, drawn last so the coast stays crisp where squares meet the sea |
 
-#### The state lines are internal only, and make no claim
+#### The state lines are shared boundaries only, and make no claim
 
-`states.geo.json` holds the boundary of each of the 36 India state polygons
-**with everything that runs along the national edge removed**. The script
-takes every state's own boundary, which is 429.9 degrees of line, and keeps
-only the 229.6 degrees that are still inside India after the national outline
-is pulled inward by 0.02 degrees, about 2 km. A line that follows the coast
-or the national border falls outside the shrunken outline and is dropped.
+**`states.geo.json` contains a line only where two Indian units meet.** For
+every pair of the 36 India admin-1 polygons whose bounding boxes overlap, the
+script takes the part of their boundaries that coincides, and that is all it
+keeps. **68 pairs share a boundary**, 225.3 degrees of it, of which 220.2
+degrees survive being clipped to the national outline.
 
-That matters because, as 5.4 already records, **Natural Earth publishes no
-point-of-view edition of admin-1**. Taking the external edge from admin-1
-would have drawn a different border from the one the mask uses. Taking only
-the internal lines means the single boundary this map draws is the India POV
-outline of 3.5, and the admin-1 file contributes nothing but lines between
-Indian states.
+That is a stronger rule than "internal lines", which is what this section
+first proposed: an internal line is any line not near the national edge, and
+a unit's edge facing an area admin-1 does not cover is exactly that. The
+measured difference is **9.4 degrees of line**, about 1,000 km, that the
+first rule would have drawn and this one does not.
 
-Where admin-1 has no polygon at all there is simply no state line. That is
-the same gap 5.4's rule 3 exists for, 183 squares in the northwest, and the
-honest result is an area inside India's outline with no internal subdivision
-drawn, rather than a line invented to fill it.
+The reason it matters is in the data. As 5.4 already records, **Natural Earth
+publishes no point-of-view edition of admin-1**, and its northern units stop
+short:
+
+| | Northern limit |
+|---|---|
+| `ne_10m_admin_0_countries_ind`, the India POV outline, which the mask and the map both come from | **37.0545 N** |
+| admin-1 `Ladakh` | 35.4954 N |
+| admin-1 `Jammu and Kashmir` | 34.77 N |
+| the state lines actually drawn | **34.558 N** |
+
+An outer edge taken from admin-1 would therefore have been a different
+boundary from the one the mask was cut with, drawn underneath squares we
+colour. A **shared** boundary never is one: it is a line between two Indian
+units by construction, which no national edge can be.
+
+The Jammu and Kashmir to Ladakh boundary is a boundary between two Indian
+union territories, so it is drawn, and it is **2.168 degrees** long. The
+northern edges of both are shared with nothing and are not drawn. North of
+34.558 N the map shows India's outline with no internal subdivision inside
+it, which is the honest consequence of the admin-1 file stopping there, and
+not a line invented to fill the space.
+
+Four things the script checks before it writes, each of which fails the build
+rather than warning:
+
+| Check | Measured |
+|---|---|
+| `Jammu and Kashmir` and `Ladakh` are both in admin-1 and share a boundary | both present, 2.168 degrees |
+| no drawn state line falls outside the national outline | **0.000000 degrees** outside. Keeping every unit boundary instead of only shared ones puts 0.016646 degrees outside, so this check is what the rule is for |
+| no state line runs north of the admin-1 data | 34.558 N against 35.4954 N |
+| both files together fit the budget | 30,967 gzipped against 60,000 |
+
+One closed ring survives all of that and should: **Puducherry's Yanam** is an
+enclave inside Andhra Pradesh, so the boundary it shares with Andhra Pradesh
+is its entire perimeter, 0.327 degrees at 82.178 to 82.301 E. It is a real
+boundary between two Indian units and it is drawn.
 
 #### Amending 3.5
+
 
 3.5 said "The outline decides only which grid squares count as India. The
 published map does not draw national borders." **The second sentence is now
@@ -3196,12 +3262,44 @@ wrong and is replaced**, approved 12 November 2026:
 > shape. No other country's borders are drawn, and no boundary comes from a
 > third-party basemap.
 
+#### Built so a basemap could be added later without rework
+
+Added 12 November 2026, at your request. **No basemap is drawn now and none
+is planned for G3.** What this fixes is the cost of changing that mind later:
+without it, adding a basemap would mean reordering layers, changing how the
+squares are painted, and rewriting HC8.
+
+| Kept open | How |
+|---|---|
+| a slot **below** the squares for a basemap | an empty layer with the stable id `slot-basemap`, sitting above our own white land fill and below the squares. `map.addLayer(basemapLayer, SLOT_BASEMAP)` puts a basemap exactly where one belongs: over the plain land fill it would replace, under every number we publish |
+| a slot **above** the squares for labels | an empty layer with the stable id `slot-labels`, at the very top. `map.addLayer(labelLayer, SLOT_LABELS)` puts place names over everything, which is the only place labels can go |
+| the squares as **one** layer with **one** constant opacity | `fill-opacity` is the exported constant `SQUARE_OPACITY`, which is **1.0**. A basemap that has to show through is then one number, not a new expression and not a second layer |
+
+Both slots are `background` layers painted at zero opacity, so they draw
+nothing at all and cost nothing: they exist only as ids to insert before.
+
+**HC8 samples with no basemap present**, and says so in its result. That is
+not a convenience: a sampled pixel equals the palette hex of 11.17 exactly
+only while `SQUARE_OPACITY` is 1, so that nothing underneath can show
+through. The land fill of 11.30 is under the squares, which is where a
+basemap would go, and it changes nothing about this: at opacity 1 a square's
+pixel is the square's colour whatever is beneath it. What HC8 checks is
+unchanged — that `slot-basemap` holds no layer and that `SQUARE_OPACITY` is
+1 — and 11.30 adds that it samples nothing from `NOT_DATA_LAYERS`. If a
+basemap is ever added and that constant drops below 1, HC8's colour
+comparison has to be rewritten to account for the blend, and the hand check
+should fail loudly rather than quietly compare a blended pixel against an
+unblended table. It therefore checks both: that the slot is empty, and that
+the constant is 1.
+
 #### What else gives the reader their bearings
 
 | | |
 |---|---|
 | The squares | outside the mask there is **no feature at all**, so the coloured area is exactly the area we forecast. The 0 class is a visible pale fill (11.17), so an India square with no model runs still shows that it is a square we stand behind |
-| Cities | the 20 dots of `web/src/cities.json`, drawn as small circles, no labels. Tapping or focusing one selects that square and names it in the panel. 20 labels on a phone is clutter; 20 dots is orientation |
+| Cities | the 20 dots of `web/src/cities.json`, drawn as small circles, no labels. Tapping or focusing one selects that square and names it in the panel. 20 labels on a phone is clutter; 20 dots is orientation. **Replaced by 11.29 and 11.30**: one named city per state and union territory, with its dot, and the names of the units themselves; `web/src/cities.json` was deleted on 13 November 2026 |
+| The land around India | **added 13 November 2026 (11.30)**, `web/src/geo/land.geo.json` from `ne_10m_land`: one fill, `#dcd7cb`, no line, under India's own white. 299 parts, 34,072 bytes gzipped. Without it everything that is not India was the colour of the sea |
+| The white squares inside the outline | squares inside India whose land fraction is under the 0.5 of 3.5, so there is no feature and India's own white shows through. The legend says so in one line (11.30) |
 | The selected square | its own outline layer, one feature, drawn on top of everything |
 | Panning off the edge | `maxBounds` set to the India box of 1.4, so the map cannot be dragged into an empty grey plain |
 
@@ -3256,7 +3354,7 @@ The whole map contract, on first load:
 
 The India outline and the state lines of 11.14 are **not** in that table:
 they are imported by the map module, so they travel inside the map's own
-JavaScript chunk and add **31,904 gzipped bytes** to it rather than two more
+JavaScript chunk and add **30,967 gzipped bytes** to it rather than two more
 requests. They are build-time constants of the site, not data of a run, and
 they change only when `scripts/build_outline.py` is rerun.
 
@@ -3305,9 +3403,47 @@ in the middle of the country would be drawn a fraction of a square away from
 where they belong. A silent, plausible-looking misplacement of data is
 exactly what this project refuses, and no performance gain buys it.
 
-The frame cost of a day or threshold switch, the first-paint time and the
-real bundle size are **measured when it is built** and reported with the
-screenshots. Nothing is claimed for them here.
+#### What the build actually measured
+
+Built on this laptop on 12 November 2026, `vite build`, and served as a
+production build reading the real published store:
+
+| | Raw | Gzipped |
+|---|---|---|
+| `index.html` | 1,540 | **780** |
+| the page's stylesheet | 7,972 | **2,290** |
+| the page's script, which paints the title, the run line, the stale banner, the controls and the panel | 237,883 | **75,390** |
+| **first paint, all three** | | **78,460** |
+| the map chunk: MapLibre, the map code, the India outline and the state lines | 1,162,750 | **323,780** |
+| MapLibre's stylesheet, in the same chunk | 71,339 | **10,250** |
+| **the map, loaded after the text** | | **334,030** |
+| the worker MapLibre starts, loaded by the worker thread only | 520,110 | |
+
+So the code-splitting of point 4 does what it was for: the honest content is
+78 KB and arrives first, and the map's third of a megabyte follows. The
+forecast data itself, on top of that, is the 14,441 bytes of 11.13.
+
+**Four things were wrong and were found by looking at the built page**, not
+by reasoning about it. They are written down because each one would have
+looked like a design choice to anyone reading the result:
+
+| What happened | Why | Fixed by |
+|---|---|---|
+| the map never drew: "Worker failed to load" | MapLibre 6 is ESM only and works its worker's URL out at runtime as a sibling of its own bundle, which no bundler can see, so the file was never emitted | importing it with Vite's `?url` and calling `setWorkerUrl`, which MapLibre exports for exactly this |
+| the map container collapsed to zero height | `maplibre-gl.css` sets `position: relative` on the same element and loads **after** our stylesheet, so `position: absolute; inset: 0` was overridden | a definite `width: 100%; height: 100%`, which no rule about position can undo |
+| the south of India was cut off | `maxBounds` two degrees outside the India box: MapLibre will not zoom out past `maxBounds`, so on a wide screen the minimum zoom it forces is **more** zoomed in than the zoom that fits the country | a box 20 degrees wider and 12 taller, which never binds and still stops anyone wandering off |
+| the map was below the fold | `.shell` used `min-height`, so the panel's content set the height of the row and the map went with it | a definite `100dvh`, with the panel and the footer scrolling inside it |
+
+On a phone the day and threshold controls are a strip **between** the map and
+the sheet, not a card floating over the map: floating, they covered both the
+south of the country and the legend. The legend becomes a single compact
+ramp, and it is hidden while the sheet is open, because with the map reduced
+to a strip it covered what was left of it. Every count row in the panel
+carries its own swatch and class name, so the key is never out of reach.
+
+The frame cost of a day or threshold switch is not claimed here either. What
+can be said is what the code does: one `setPaintProperty`, no request and no
+source update, which was checked by watching the network while switching.
 
 ### 11.17 The colour scale and the legend
 
@@ -3501,7 +3637,7 @@ sentence this part is built around:
 | Where | Exactly |
 |---|---|
 | legend heading | `N of 51 model runs` |
-| legend caption, and under the panel's counts with the real number | `N of 51 model runs, which is not a calibrated probability.` |
+| legend caption, and under the panel's counts | `These are counts out of 51 model runs, not a calibrated probability.` **Amended by 11.28.** This row read `N of 51 model runs, which is not a calibrated probability.`, with the real number in place of `N`, which is a fragment with no verb and reads as a claim about that one number |
 | under the member values | `0 mm means under 1 mm.` |
 | **removed** | `These are model-run counts, not probabilities.` and `a count of 40 out of 51 is not a chance of rain` |
 | footer | `Not an official warning. For warnings and advisories, see the India Meteorological Department.` linking to `https://mausam.imd.gov.in/` |
@@ -3546,15 +3682,20 @@ promise rather than left to chance:
 Both are additive. No field changes meaning, no status code changes, and the
 60 second `Cache-Control` of 11.6 and 11.7 stays.
 
-**`api/health` gains a `store` block**, so the page can fetch bytes from the
-store after exactly one request to its own origin:
+**`api/health` gains a `source` block**, so the page can fetch bytes from
+the store after exactly one request to its own origin:
 
 | Field | From |
 |---|---|
-| `store.base_url` | the same resolution as today: `STORE_BASE_URL`, then `config/store.json` (11.5) |
-| `store.paths` | the manifest's own `paths`: `counts`, `tiles`, `india` |
-| `store.counts_files` | the manifest's 15 names, `ge1mm_day1.u8` and the rest |
-| `store.grid` | the manifest's `grid`: `n_lat`, `n_lon`, `grid_step_degrees`, `not_india`, `order` |
+| `source.base_url` | the same resolution as today: `STORE_BASE_URL`, then `config/store.json` (11.5) |
+| `source.paths` | the manifest's own `paths`: `counts`, `tiles`, `india` |
+| `source.counts_files` | the manifest's 15 names, `ge1mm_day1.u8` and the rest |
+| `source.grid` | the manifest's `grid`: `n_lat`, `n_lon`, `grid_step_degrees`, `not_india`, `order` |
+
+It is called `source` and not `store`, as this draft first said, because
+`store` is **already** a field of that response: 11.6 gives it the one-word
+status, `reachable` or the failure in words. Taking a live field's name for
+something else would have broken the G2 page to save a word.
 
 The `grid` block matters more than it looks: the page then never hardcodes
 121, 129 or 255, so it reads the byte at `i * n_lon + j` using the numbers
@@ -3571,7 +3712,7 @@ rather than by the reader's time zone.
 | Field | What |
 |---|---|
 | `days[].sentence` | the one-sentence rule of 11.20, built from that day's three counts and nothing else. Server side so there is one copy of the rule and a test can hold it |
-| `nearest_city` | set **only** when the square is exactly a city's square in `cities.json`, and absent otherwise. It never names a city merely near the square |
+| ~~`nearest_city`~~ | **dropped while building, 12 November 2026.** It would have made the function read `web/src/cities.json`, which means coupling `api/` to the site's source tree and widening `includeFiles` in `vercel.json` (11.2) for a city name. The page already holds that list and does the lookup itself: the square's name is a label, not a forecast number, so nothing honest is lost by the browser matching a latitude and longitude against twenty rows. The rule is unchanged either way — a city name appears only when the square **is** that city's square |
 
 **This amends 11.5's table**: the page's row changes from "**nothing.** It
 never learns the URL" to "learns it from `api/health` at runtime, never from
@@ -3624,6 +3765,12 @@ is exactly the palette hex of 11.17 for the class that contains that integer,
 **and** the active legend row is that class. Anything else is a failure with
 all five values printed.
 
+Two more conditions, because the pixel comparison depends on them: the
+basemap slot of 11.14 must be **empty**, and the squares' `fill-opacity`
+must be **1**. A sampled pixel only equals an unblended table while both hold,
+so HC8 asserts them rather than assuming them, and records in its result that
+it sampled with no basemap present.
+
 Reading a pixel back from a WebGL canvas needs `preserveDrawingBuffer`, which
 costs performance on every frame for every reader. So the map sets it **only
 when the page is loaded with `?handcheck=1`**, and the production map never
@@ -3675,7 +3822,7 @@ Settled in this draft:
 
 | # | Was open | Your answer |
 |---|---|---|
-| 1 | **Draw the India outline?** | **Yes**, from the same Natural Earth India point-of-view file the mask is cut from, **plus thin light internal state lines** from the admin-1 file the IMD regions already use, if they stayed under about 60 KB gzipped. Measured: **15,169 + 16,735 = 31,904 gzipped**, about half the budget, so both are drawn (11.14). `scripts/build_outline.py` is **approved into the fixed structure**, and 3.5's "the published map does not draw national borders" is amended there and in 11.14. Still no basemap |
+| 1 | **Draw the India outline?** | **Yes**, from the same Natural Earth India point-of-view file the mask is cut from, **plus thin light state lines** from the admin-1 file the IMD regions already use, drawn only where two Indian units share a boundary, if they stayed under about 60 KB gzipped. Measured: **14,730 + 16,237 = 30,967 gzipped**, about half the budget, so both are drawn (11.14). Jammu and Kashmir and Ladakh were checked by name, as you asked: they share 2.168 degrees of boundary, which is drawn, and nothing from admin-1 falls outside the point-of-view outline. `scripts/build_outline.py` is **approved into the fixed structure**, and 3.5's "the published map does not draw national borders" is amended there and in 11.14. Still no basemap |
 | 2 | replacing both old sentences with `N of 51 model runs, which is not a calibrated probability.` | **yes.** 11.9's row is amended and 11.21 holds the replacement |
 | 3 | the page learning the store base URL from `api/health` at runtime | **yes.** 11.5's table row is amended |
 | 4 | **one plain sentence a day in the panel, above the counts** | **added**, built from that day's three counts and nothing else, with no weather words at all: the rule is 11.20 and the test that holds it, including a list of forbidden words, is 11.24 |
@@ -3687,6 +3834,888 @@ Nothing in part two is open. What is left is building it, in the order of
 11.26, and the one decision that can only be made from a picture: whether
 the state lines at `#c9d2da` are too strong or too faint, which is a colour
 to adjust after the screenshots rather than a question to settle in prose.
+
+### 11.28 The design fixes, after looking at the built page
+
+Part two was built, screenshotted and read. Eighteen things were wrong or
+missing, and they are recorded here with what was measured rather than
+rewritten over the top of 11.14 to 11.27, so the page's history stays legible
+and so the measurements behind each fix can be checked. Where a fix changes
+something an earlier part of section 11 settled, the amendment is written out
+and the earlier wording is kept beside it.
+
+Nothing about the data or the method changes here. The counts, the mask, the
+publishing and the workflow are untouched; every fix is in `web/`, in the two
+`api/` functions' wording, or in the new town list.
+
+#### The two faults that were invisible in a screenshot
+
+Both were found by reading the browser's console and the page's own geometry,
+not by looking at the picture, and both had already shipped to the branch.
+
+**The selection ring never existed.** `circle-radius` was written as
+`["max", 9, ["*", 0.708, ["*", ["^", 2, ["zoom"]], 0.3556]]]`, which says the
+right thing and is not allowed: the style specification permits `["zoom"]`
+only as the direct input of a **top-level** `step` or `interpolate`. MapLibre
+refused both ring layers with
+
+    layers.picked-ring.paint.circle-radius: "zoom" expression may only be
+    used as input to a top-level "step" or "interpolate" expression
+
+and, because an invalid layer is reported through the map's error event rather
+than thrown, the page carried on and simply had no ring. It is now a top-level
+`["interpolate", ["exponential", 2], ["zoom"], …]`, which is not an
+approximation of the arithmetic it replaces: a 0.25 degree square grows by a
+factor of two per zoom level, so an exponential of base 2 **is** its
+half-diagonal, flat at 9 pixels until the square overtakes it at zoom 5.16.
+
+**`maxBounds` was quietly overriding the fit.** `fitBounds` was being given
+padding worked out from the overlays, and MapLibre was ignoring it, because
+the minimum zoom implied by `maxBounds` was *higher* than the zoom the padded
+fit asked for. On the 1,060 by 566 canvas the padded fit wanted a world 4,898
+pixels across and `maxBounds` would not allow smaller than 5,451. India was
+not cut off only because the country is smaller than the 6 to 38 box it sits
+in — the same trap as the first build's cut-off south, one level further in.
+The limits are now `LON_MIN - 40` to `LON_MAX + 40` and `LAT_MIN - 24` to
+`LAT_MAX + 14`, where the implied minimum is 3,469 pixels and never binds, on
+a phone or on a desktop.
+
+#### What is drawn on the map, and what is no longer
+
+| Was | Is | Why |
+|---|---|---|
+| the chosen square filled `#0b2b4a` by a 2 px outline on a 4 px square | an 18 px ring, dark `#1f2933` with a white halo, no fill, plus the place name | at the whole-India view a 0.25 degree square is about four pixels, so a two pixel navy outline filled it in and the chosen square read as the darkest class on the scale: 51 of 51. A mark must not be able to be mistaken for a measurement |
+| the day and threshold card floating bottom left | a bar above the map | the card covered Tamil Nadu, Kerala and the southern tip |
+| the legend floating bottom right | in the same bar, a horizontal ramp | it covered the Bay of Bengal and the Andaman Islands, which have three forecast squares of their own, and leaving room for a box 237 pixels tall shrank India by a fifth |
+| sea `#eaf0f4` | sea `#aec6da` | see below |
+| no place names | the twenty cities, with a white halo | an unlabelled map of coloured squares cannot be read |
+
+**The sea.** `#eaf0f4` against the 0 class's `#eceff1` is a WCAG contrast
+ratio of **1.005**: the same colour to any eye. The difference it hid is the
+difference between *no model run here reaches 1 mm* and *there is no forecast
+here*, which is the whole point of the mask. The two hex values are now
+**`#aec6da` for the sea and `#eceff1` for the 0 class**, a ratio of **1.53**,
+and 1.77 against the white land fill under the squares. The sea is a
+desaturated blue-grey, so it is also not mistakable for the saturated blues
+further up the scale. `SEA` and `LAND` live in `palette.js` with the classes
+and a test fails if the old value comes back.
+
+**The place names are elements, not a symbol layer.** MapLibre draws text from
+SDF glyph files fetched from a `glyphs` URL, and there is no such URL here on
+purpose: nothing on this map comes from a third party, and a font server would
+be one. Rasterising glyphs in the build would be a new dependency for twenty
+words. So the labels are twenty spans above the canvas, positioned by the
+map's own `project()` on every frame, with the halo done by four text shadows.
+Being above the canvas puts them above every layer including `SLOT_LABELS`,
+which stays empty for a basemap's own labels.
+
+Which names show is not a list of important cities. Every label is measured
+and placed greedily — the chosen square first, then the cities in the order
+`cities.json` lists them — and any whose box would come within 9 pixels of one
+already placed is hidden. At the whole-India view about ten fit; zoomed in,
+all twenty. The alternative was a hand-written list of "major" cities, which
+is an argument rather than a rule.
+
+**The basemap slots are unchanged.** `SLOT_BASEMAP` is still immediately below
+the squares and `SLOT_LABELS` above them, `SQUARE_OPACITY` is still the single
+constant `1`, and HC8 still samples with no basemap present. The ring and the
+labels are drawn above the squares and are not a basemap concern.
+
+#### The panel
+
+| Was | Is |
+|---|---|
+| `18 under 1 mm` | `Under 1 mm: 18` |
+| a 51-cell grid of values, always | one line — `All 51 runs: 0 mm, which means under 1 mm`, or `lowest 0 mm, middle 0 mm, highest 2 mm` — with `Show all 51 values` behind it |
+| three count rows that looked clickable and were not | three radio buttons, the same three choices as the threshold buttons, bound to the same state |
+| `1 of 51 model runs, which is not a calibrated probability.` | `These are counts out of 51 model runs, not a calibrated probability.` |
+| a day window with no timezone | `… to 5:30 am Sat 14 Nov IST`, and `Dates are IST` under the five-day strip |
+| the day strip's dark cells written in the page's dark ink | each cell written in its own class's `ink` (see below) |
+| a chosen square on first load | nothing chosen, and `How to read this map` |
+| an error reduced to its first clause | the error and the detail that says why |
+
+**11.9 and 11.21 are amended.** The row `N of 51 model runs, which is not a
+calibrated probability.` is replaced, everywhere it appears, by
+
+> These are counts out of 51 model runs, not a calibrated probability.
+
+With the count filled in, the old sentence was a fragment with no verb, and it
+read as a claim about the one number beside it. This one is a sentence, it is
+the same whatever the count is, and it says what the whole column is. The
+legend caption uses it too, so the page has one sentence for this and not two.
+The legend heading `N of 51 model runs` is unchanged.
+
+**11.17's ink column is amended, and two of its seven values were wrong.**
+The five-day strip paints each cell its count's colour and wrote the number on
+it in the page's own ink, so a day where all 51 runs reach the threshold was
+near-black on navy. 11.17 has carried an `ink` per class since it was written
+and nothing was reading it — and when something finally did, the column turned
+out not to hold. White on `#1d91c0` is a contrast ratio of **3.58**, under the
+4.5 WCAG AA asks of text this size, and the page's `#1f2933` on it is only
+**4.12**. The dark ink is now `#111a22`, used for the five lighter classes,
+where the worst case is **4.91** on `#1d91c0` and the rest are 7.29 or better;
+white stays on `#225ea8` and `#0c2c84`, where it is 6.49 and 12.29. A test
+computes all seven and fails under 4.5, so an ink that cannot be read cannot
+be shipped again.
+
+| class | colour | ink was | ink is | ratio |
+|---|---|---|---|---|
+| 0 | `#eceff1` | `#1f2933` | `#111a22` | 15.22 |
+| 1-10 | `#c7e9b4` | `#1f2933` | `#111a22` | 13.18 |
+| 11-20 | `#7fcdbb` | `#1f2933` | `#111a22` | 9.50 |
+| 21-30 | `#41b6c4` | `#1f2933` | `#111a22` | 7.29 |
+| 31-40 | `#1d91c0` | `#ffffff` (3.58) | `#111a22` | 4.91 |
+| 41-50 | `#225ea8` | `#ffffff` | `#ffffff` | 6.49 |
+| 51 | `#0c2c84` | `#ffffff` | `#ffffff` | 12.29 |
+
+The square colours themselves are untouched, so nothing HC8 samples changes.
+
+**The default view is day 1, 1 mm, nothing chosen.** `FIRST_DAY` and
+`FIRST_THRESHOLD` are the two constants in `App.jsx` and there is no third
+place to look. The panel then carries `How to read this map` — what a square
+is, what the colour counts, and that it is not a probability — and
+`Click a square or search a town.`
+
+**The header carries two lines that were below the fold.** `Not an official
+warning.` with the IMD link, and one line of ECMWF credit outside the
+collapsed details: `Forecast: ECMWF AIFS ENS, CC BY 4.0`, linking to the full
+credits. ECMWF's licence asks for attribution wherever the data is shown, and
+"inside a `<details>` the reader never opens" is not wherever.
+
+#### Lakshadweep, and the south of the Andamans
+
+The question asked was whether any Lakshadweep square is in the India mask.
+**None is**, and the measurement is already in `config/india_mask.json`: the
+group's box holds 209 squares, **0** have their centre inside the outline, and
+the model's own land fraction never exceeds **0.0312** anywhere in it.
+Kavaratti's square, 10.50 N 72.75 E, has a land fraction of 0.0000 and its
+centre is 13.4 km from the nearest land in the outline.
+
+Checking that turned up a second case nobody had asked about. **Port Blair is
+not forecast either.** Its square, 11.75 N 92.75 E, *is* inside the outline,
+but the model's land fraction there is **0.0469**, under the 0.5 of SPEC 3.5,
+and so are all eight squares around it. Three Andaman squares do pass —
+12.75 N 92.75 E at 0.7422, 12.50 N 92.75 E at 0.7578, and 10.75 N 92.50 E —
+and they are forecast and drawn. South Andaman is simply narrower than a
+28 km square.
+
+Both now get one plain sentence instead of `outside the forecast area`, which
+is true and reads as though the reader had clicked the open ocean. The table
+is in `web/src/islands.js` for the page and repeated word for word in
+`api/place.mjs` for a reader with no JavaScript; a test drives both files over
+the whole India box and fails if a single word differs, which is the same
+arrangement 11.24 already uses for the snapping arithmetic. `api/place` also
+returns `island_group` beside the sentence, and the page shows it in a plain
+box rather than a red one, because a limit of the grid is not an error.
+
+Each sentence ends `This is a limit of the grid, not a forecast of no rain.`,
+and a test holds them to the day sentence's own standard: no percentage, and
+none of `dry`, `likely`, `chance`, `probability`, `unlikely`, `expect` or
+`safe`.
+
+#### The town list
+
+The twenty hand-written cities are no longer what the search box reads. The
+list is now **215 towns**, built by `scripts/build_towns.py` from Natural
+Earth 1:10m populated places, version 5.1.2, public domain — the same source
+family as the two outlines, downloaded with its sha256 recorded in the script.
+`web/src/towns.json` is **15,556 bytes, 2,979 gzipped**, against a budget of
+12,000, and it is in the page's first chunk because the search box is there
+from the first paint. The twenty cities stay, unchanged, as the labelled dots
+on the map.
+
+**Which towns.** A town is in the list when its point falls inside the drawn
+India point-of-view outline — the geometry the mask was cut with. That is the
+rule the rest of the project already runs on and it is geometric rather than a
+judgement: the outline decides what is India, so it decides which towns are in
+India. It gives 215. By Natural Earth's own `ADM0NAME` those are
+`{India: 214, Pakistan: 1}`; the one is Gilgit, which Natural Earth's
+`FCLASS_IN` column — its India point-of-view field — also marks. Nothing from
+Nepal, Bangladesh, Bhutan or Myanmar creeps in across a border.
+
+**Which square.** Each town is resolved by the rule of 11.7, the same one
+`api/place` uses for any point. Measured: **200** towns land on their own
+square, **13** on the nearest land square one step out (Mumbai, Kochi, Panaji,
+Diu, Daman, Bhavnagar, Puri, Kollam, Alappuzha, Kozhikode, Machilipatnam,
+Mangaluru, Tuticorin), and **2** on nothing within one step — Kavaratti and
+Port Blair, which carry their island group instead. The file stores the square
+and never the town's own position, so nothing finer than 28 km is in the
+bundle at all, which is 11.19 in the data as well as in the code.
+
+Four squares hold two towns each — Bhiwandi with Kalyan, Dispur with Guwahati,
+Faridabad with New Delhi, Haora with Kolkata — and the page names both.
+Claiming one would be saying something the grid does not know: at 0.25 degrees
+they are the same square and get the same numbers. Two towns share a name,
+both called Aurangabad, and those two carry the state from `ADM1NAME`. No
+other town does, because that field is not always right — it files Bhavnagar
+under "Dadra and Nagar Haveli" — and an unnecessary wrong label is worse than
+none.
+
+`scripts/build_towns.py` is added to the fixed structure in `CLAUDE.md`. It
+prints what it measured and **fails rather than writes** if the count is not
+215, if the by-country tally changes, if a different set of towns turns out to
+have no square, if the gzip budget is exceeded, or if a town falls outside the
+India box. `--check` reproduces the committed file byte for byte.
+
+#### The search box and the location button
+
+- The box shows **what is being shown** after any pick: `Chennai`,
+  `28.50 N 77.25 E`, or `Your location: square 28.50 N 77.25 E`. It falls back
+  to that text whenever the reader is not in the middle of typing.
+- The placeholder is `Search a town, or type lat, lon`, and names no real
+  town: `Delhi, or 28.5, 77.25` reads like a value rather than an example.
+- `No town in the list starts with "…"` appears **only after something has
+  been typed**. It used to appear with an empty string in it.
+- **Use my location** is unchanged in what it sends — the fix is rounded to
+  its square in the page and only the square's centre is ever requested — and
+  changed in what it says. The reader is told the square, never the fix, in
+  the box and in the panel. A town is named only when the square is exactly
+  that town's own square, from the page's own list. There is no reverse
+  geocoding and no third-party service of any kind.
+
+#### Tests
+
+`tests/test_api_consistency.py` gains 13 tests, **256 in the suite**. The
+export harness now passes its arguments through a file: Windows caps a command
+line at about 32,000 characters and the town list alone is 15,000, so passing
+it as an argument failed outright.
+
+`build_towns.py --check` compares with line endings normalised. This
+repository stores LF and `core.autocrlf` is on, so a fresh clone on Windows
+holds the same file with CRLF in it and a byte-for-byte comparison would fail
+for a reason that has nothing to do with the data. Every byte that says
+anything is still compared. (`build_outline.py --check` has the same latent
+problem and is left alone here: it is not part of this change.)
+
+| What | How it was shown to bite |
+|---|---|
+| the page and `api/place` tell the same island story | one number changed in `api/place`'s copy |
+| the island sentences judge nothing | `so a dry day is likely.` put in one |
+| a point in Lakshadweep is not called the open ocean | through the real function, against the test store |
+| every town resolves to a square or says why | a mainland town marked `not_forecast` |
+| the list holds nothing finer than a square | a town moved to 27.33 N |
+| an empty search box matches nothing | `findTowns` made to return everything again |
+| a square with two towns names both | made to name only the first |
+| the sea is not the colour of the 0 class | `SEA` put back to `#eaf0f4` |
+| the sentence under the counts is the new one | the count made to change it |
+| every class's ink can be read on it | it already failed: `#ffffff` on `#1d91c0` is 3.58 |
+
+#### What HC8 must now do
+
+11.25 stands, with two additions, because two of the things it samples have
+moved:
+
+1. **HC8 must not sample the selection.** The ring and its white halo are a
+   mark, not a measurement, and they are drawn over the square they mark. HC8
+   samples squares with nothing chosen, which is also the page's default
+   state, and the check fails if `picked-centre` holds a feature when a pixel
+   is read.
+2. The legend bucket HC8 compares against is now read from the bar rather than
+   from an overlay on the map. The five things that must agree are unchanged:
+   the map colour, the legend bucket, the panel count, `/api/place` and the
+   store byte.
+
+The basemap assertions of 11.25 are unchanged: `SLOT_BASEMAP` must hold no
+layer and `SQUARE_OPACITY` must be 1 at the moment a pixel is sampled.
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/` and `scripts/` other than the new `build_towns.py`.
+The outline and state-line decisions of 11.14 stand exactly as approved, and
+`web/src/geo/` is untouched.
+
+---
+
+### 11.29 The polish round: names on the map, a visible grid, and what is said when something fails
+
+The second reading of the built page. Thirteen things, in three groups: the
+layout and the names on the map, four faults, and the documents. As in 11.28,
+every one of them is recorded with what was measured, nothing about the data
+or the method changes, and where this amends something an earlier part of
+section 11 settled the amendment is written out.
+
+Everything measured here was measured on the local production build serving
+`web/dist` and reading the real public store, in Chrome, at two sizes: a
+1,440 by 709 desktop window with a 1,060 by 536 map, and a 390 by 844 phone
+viewport.
+
+#### The title
+
+One sentence, in the browser tab and in the page's own `<h1>`, word for word:
+
+> India rain forecast: how many of 51 model runs say rain
+
+On a screen 560 pixels wide or less the clause after the colon is dropped and
+the title is **India rain forecast**. Nothing is lost by dropping it: the
+legend in the bar says "N of 51 model runs reach 1 mm" at every width, the
+panel says it again in words, and the tab keeps the whole sentence. A test
+holds the two copies together and `<noscript>`'s heading as well.
+
+#### The phone, measured before and after
+
+A 390 by 844 viewport, the default view, nothing chosen:
+
+| | before | after |
+|---|---|---|
+| header | 0 to 147 | 0 to 89 |
+| controls | 147 to 368 | 89 to 254 |
+| of which the legend | 53 px | 44 px |
+| **the map starts at** | **367 px** | **254 px** |
+| the map is | 439 px tall | 464 px tall |
+| the day row | 418 px of buttons in 371 px, scrolling sideways | 371 px in 371 px |
+
+The middle of the screen is 422 pixels down. The map used to start 55 pixels
+above it, after two cards of controls; it now starts 168 pixels above it.
+
+Nothing was removed to get there except the title's second clause. The
+warning sits beside the title instead of under it, the word "Day" over the
+five dates is hidden (the radio group still names itself with it through
+`aria-labelledby`, which works on a hidden element), the run line is 0.7rem,
+and the legend's swatches are 0.6rem tall instead of 0.8. The map's share of
+the screen went from 52vh to 55vh.
+
+**The day buttons.** Five buttons reading "Fri 13 Nov" came to 418 pixels on
+a 390 pixel phone, so the row had a horizontal scrollbar and days 4 and 5
+were off the edge of the screen with nothing to say they were there. The
+buttons read "Fri 13" now — `dayTab()` in `Controls.jsx`, which drops the
+month from the manifest's own `short_ist` and nothing else — and each takes a
+fifth of whatever width there is, so the row cannot overflow however wide the
+words turn out to be. The whole window, with the month, the times and IST, is
+the line underneath it, unchanged, and `api/place` repeats the full label for
+the chosen day in the panel. `overflow-x: auto` is gone from the stylesheet
+and a test keeps it gone.
+
+#### The names on the map
+
+`web/src/units.json`, built by `scripts/build_towns.py` alongside the town
+list, from `ne_10m_admin_1_states_provinces` and the same populated places.
+36 units — `admin == "India"`, which is 28 states and 8 union territories —
+8,385 bytes, 2,197 gzipped (the sizes at 11.30, after the city rule changed three of them and both Natural Earth versions were written down). Each carries:
+
+| field | what it is |
+|---|---|
+| `name`, `code` | Natural Earth's own `name` and `postal`; Gujarat has no `postal` and falls back to its `iso_3166_2` |
+| `lat`, `lon` | where the name is written, **inside the unit** |
+| `span` | how wide the unit is, in degrees of longitude, along the line through that point |
+| `city` | the one town the map labels in that unit, as the 0.25 degree square the page shows |
+
+**Where a unit's name goes.** Natural Earth publishes a label point per unit
+in its `latitude` and `longitude` fields, placed by eye, and it is used where
+it is actually inside the polygon. For two units it is not — Andhra Pradesh
+and Jammu and Kashmir — and those fall back to shapely's representative point
+of the largest part, which is inside by construction. The script fails rather
+than writes if that set of two ever changes.
+
+**Which city.** The unit's capital where Natural Earth marks one inside the
+unit's polygon, and otherwise the largest town inside it by `POP_MAX`. 34 of
+the 36 are capitals. The two that are not are Punjab and Haryana, whose
+capital is Chandigarh, which is a union territory in its own right and gets
+its own entry; they are labelled Ludhiana and Faridabad, their largest towns.
+Three capitals are much smaller than the city a reader may expect — Gujarat is
+labelled Gandhinagar and not Ahmedabad, Assam Dispur and not Guwahati, Andhra
+Pradesh Amaravati — because the rule is the capital first. Dispur and Guwahati
+are the same 0.25 degree square in any case. The spellings are Natural
+Earth's: Simla, Dehra Dun.
+
+Both island capitals have no square to forecast (11.28): Kavaratti and Port
+Blair are labelled anyway, in the quiet ink and with a hollow dot, because the
+islands are there and the panel says why there are no numbers for them.
+
+**How many fit.** Largest unit first, then one city per unit largest
+population first, each tried in every placement before it is given up on: a
+unit's name centred on its point and then nudged 8 or 16 pixels in each
+direction, a city's name at 8 or 18 pixels on each of the four sides. A name
+is drawn only if its whole box is inside the canvas, and a city's dot claims
+its own 8 by 8 pixels before any name is placed, so no word is ever written
+through a dot. The dot belongs to the name: where the name is hidden, so is
+the dot.
+
+| default view | unit names in full | as a two letter code | not drawn | city names |
+|---|---|---|---|---|
+| desktop, 1,060 by 536 map | 21 | 14 | 1 (Assam) | 8 |
+| phone, 390 by 844 | 15 | 17 | 4 | 9 |
+
+**The two letter code, and why.** A name is written across its unit, so what
+decides whether it can be written at all is how much unit there is to write it
+on. `span` is measured from the polygon itself — 7.58 degrees for Madhya
+Pradesh, 0.10 for Dadra and Nagar Haveli and Daman and Diu — and a name may be
+up to four times that wide, which lets a small state's name cross its borders
+the way it does on every printed map. Beyond that it is not a name for the
+unit any more but a word written across its neighbours: the first build drew
+DADRA AND NAGAR HAVELI AND DAMAN AND DIU across 230 pixels of the Arabian Sea
+for a union territory 7 pixels wide. Those units are marked with Natural
+Earth's own two letter code until the reader zooms in far enough for the name
+to fit inside them, which is the same rule and not a different one.
+
+**This replaces the twenty city dots of 11.8 and 11.28.** `web/src/cities.json`
+is no longer read by anything. It has not been deleted: it is data, and
+deleting data needs approval.
+
+#### The grid, and the mark on the chosen square
+
+A 0.25 degree square is `(0.25 / 360) * 512 * 2^zoom` pixels across in Web
+Mercator — 0.3556 at zoom 0, about four pixels at the zoom that fits India,
+182 at the closest zoom. Twelve pixels is where an edge is worth drawing, so
+
+    GRID_FROM_ZOOM = log2(12 / 0.3556) = 5.0768
+
+decides two opposite things:
+
+| | below 5.0768 | above |
+|---|---|---|
+| the chosen square | an 18 px ring, dark with a white halo, no fill | its own square outline, white casing under a dark line |
+| every other square | nothing | its own edges, `#8a97a3` at 0.4 opacity, 0.5 px |
+
+The ring is now one number rather than the exponential interpolation of
+11.28: it exists only where the square is too small to see, and above that
+the square itself is the mark. This amends 11.28's ring, which grew with the
+square; the square's own outline does that job better.
+
+**HC8 samples none of it.** `NOT_DATA_LAYERS` names the five layers that are
+marks rather than measurements — `squares-grid`, `picked-casing`,
+`picked-line`, `picked-ring-halo`, `picked-ring` — and is exported so the hand
+check can assert it rather than be trusted. HC8 samples at the default view,
+where the zoom is below `GRID_FROM_ZOOM` and not one of them draws a pixel,
+with nothing chosen. The assertions of 11.25 and 11.28 are unchanged:
+`SLOT_BASEMAP` holds no layer, `SQUARE_OPACITY` is 1, and none of the three
+mark colours (`#1f2933`, `#ffffff`, `#8a97a3`) is in the palette, which a test
+checks by asking the palette for its own colours.
+
+#### The four faults
+
+**"Your location" was written twice, and stayed.** The control under the
+search box said "Your location: square 28.50 N 77.25 E. Your exact position
+was not sent anywhere." and so did the panel, and the control's copy was
+still there after the reader had gone on to search for Kavaratti. The panel
+says it, once; the search box shows the square, as it shows whatever is being
+shown (11.28); and the control now only ever reports what went wrong, and
+clears that when some other place is chosen. Measured on the page: the words
+"Your location" appear exactly once after a location is picked, and zero times
+after searching for a town.
+
+**A misspelling got nothing.** The search matches the start of a name and
+then anything containing it, and Natural Earth's spellings are its own, so
+"Shimla", "Dehradun" and "Chenai" all matched nothing at all. They are now
+answered with up to three near names as buttons — "Did you mean Simla?" —
+using plain Levenshtein distance with a limit that grows with the length of
+what was typed: one edit for a short word, three for a long one. Nothing is
+ever chosen automatically. Showing one place's numbers under another place's
+name is the single worst thing this page could do, and a page that corrects
+spelling silently does exactly that.
+
+**A refused location said nothing useful.** The three failures of the
+geolocation standard each get a line of their own in `web/src/messages.js`:
+permission denied, position unavailable, timed out. The browser's own
+`message` is never shown — it is written for a developer and differs between
+browsers. A browser with no geolocation at all, or a page that is not on
+https, gets the same line as "I do not know where you are".
+
+**The map could fail silently.** Three ways: no WebGL 2, MapLibre refusing to
+start, and the 325 KB chunk not arriving. The first is now asked before
+MapLibre is constructed (`canDraw()`), the second is caught, and the third is
+caught by the page's one error boundary, because React's `lazy` throws during
+a render and would otherwise take the whole page down with it. All three end
+in one line in the map's own area saying the map is not drawn and that
+everything it would have shown is in words and numbers below — which is true:
+the search, the panel, the five days and all 51 values come from `api/place`
+and never touch the map (11.22).
+
+`?nomap=webgl2`, `=maplibre` or `=chunk` draws the page as it is drawn for a
+reader whose browser cannot show the map, which is how that case was checked
+and photographed without having to find such a browser. Checked on the page:
+no canvas, the message in the map's area, and searching "Chenai" still gives
+"Did you mean Chennai?", which still gives 18 of 51 model runs reach 1 mm for
+13.00 N 80.25 E.
+
+**Confirmed, not changed:** where all 51 runs give the same whole number the
+panel writes one line — "All 51 runs: 0 mm, which means under 1 mm" — with
+"Show all 51 values" under it and the grid of 51 behind that button. Checked
+at 26.25 N 81.00 E on the real run.
+
+#### Tests
+
+Twelve more, in `tests/test_api_consistency.py`, and ten sabotages run against
+them: every one failed the test it was aimed at and no other.
+
+| what it holds |
+|---|
+| `units.json` is the Natural Earth list it says it is: 36 units, a code and a span and a city each |
+| every unit's city is a town in `towns.json`, on the same square, or one of the two with no square |
+| no position in `units.json` is finer than a 0.25 degree square |
+| the map is handed the units largest first and the cities largest first, with the span |
+| a misspelling is offered up to three near names, and only ever offered them |
+| the edit distance is the plain one and stops at its limit |
+| each of the three location failures says a different clear line |
+| each of the three map failures says the numbers are still there |
+| the page asks for WebGL 2, catches MapLibre, and has an error boundary |
+| the grid and the mark are named as not-data and are not palette colours |
+| the tab title is the page title, word for word |
+| the day button is short and the window line is not |
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/`, `scripts/publish/`, `.github/workflows/` and
+`config/store.json`. `web/src/geo/` is untouched; the outline and state-line
+decisions of 11.14 stand as approved. The only script that changed is
+`scripts/build_towns.py`, which now writes a second file.
+
+---
+
+### 11.30 The final polish: a map that reads like a map, and one answer at a time
+
+Seven things, of which one was a real fault on the published page and the
+rest are the map reading as a map. As in 11.28 and 11.29, nothing about the
+data or the method changes, every number here was measured, and amendments to
+earlier sections are written out where they belong rather than edited over.
+
+Measured on the local production build serving `web/dist` and reading the
+real public store, in Chrome: a 1,440 by 765 desktop window with a 1,060 by
+570 map, and a 390 by 844 phone viewport, where the map starts 273 pixels
+down (254 before the legend's new line, 367 before 11.29).
+
+#### The fault: the panel showed another square's numbers
+
+Reported from the page: after "use my location", the box and the ring were on
+22.75 N 88.25 E, a square where no model run reaches 1 mm, and the panel went
+on showing **34.50 N 74.25 E with 51 of 51 model runs** — Srinagar's square,
+chosen a moment earlier.
+
+**Reproduced before it was fixed**, on the built page, by making `/api/place`
+slow for one square and then taking the path a reader takes:
+
+| | box | panel |
+|---|---|---|
+| search 34.50 N 74.25 E, answer delayed 3 s | `34.50 N 74.25 E` | — |
+| press "use my location" (22.75 N 88.25 E), which answers at once | `22.75 N 88.25 E` | 22.75 N 88.25 E, 0 of 51 |
+| the delayed answer arrives | `22.75 N 88.25 E` | **34.50 N 74.25 E, 51 of 51** |
+
+The first attempt at reproducing it did not: typing a second search while the
+first was loading does nothing, because the Show button is disabled while
+`busy`. "Use my location" is not, which is how two requests get into the air
+at once and why the report came from that path.
+
+**The fix is two rules, in `web/src/answers.js`, and both are needed.**
+
+| | |
+|---|---|
+| a ticket | every request is numbered when it is sent; an answer is used only if its number is still the latest |
+| the square | an answer is used only if `square.asked` — what was sent to `api/place` — is the square chosen now |
+
+The ticket catches two requests crossing. The square catches everything else:
+a retry, an answer to a request made before the reader moved on, a square
+chosen while nothing was in flight. `square.asked` rather than `square`,
+because the answer for a sea square is the land square one step away (11.7)
+and that is not a mismatch.
+
+Two more changes come with it:
+
+- **The old numbers go the moment a new square is picked**, before the
+  request is sent, and the panel says `Loading 22.75 N 88.25 E…` with the
+  square named. Nothing stale is on the screen while an answer is on its way.
+- **`Panel` refuses to draw numbers whose square is not the chosen one**,
+  whatever reaches it. The same rule in a second place, because it is the one
+  rule this page cannot be allowed to break.
+
+Checked after the fix, the same three steps: the delayed answer arrives and
+the panel still reads 22.75 N 88.25 E, 0 of 51.
+
+#### The names on the map, in the other order
+
+11.29 placed the 36 unit names first and fitted cities around them, which
+gave 21 unit names, 14 codes and **eight city names** on a map whose point is
+the places people look for. The order is now the chosen square, then the
+cities largest first, then the units in what is left.
+
+| default view | city names | unit names in full | as a code, in a gap | as a code, over something | not drawn |
+|---|---|---|---|---|---|
+| desktop, 1,060 by 570 map | **26** | 12 | 18 | 6 | **0** |
+| phone, 390 by 844 | **24** | 2 | 25 | 9 | **0** |
+
+**No unit is ever left unlabelled.** 11.29 left Assam with nothing at all. A
+unit whose name does not fit is offered its two letter code in 25 placements
+— eight directions at three distances, and the point itself — and if none of
+those is clear the code is written anyway, in whichever of those 25 covers
+the least of what is already there, clamped inside the canvas. Six units
+needed that at the desktop default view: KA, TN, NL, DL, PY and CH. Two
+letters over a colour is a worse map than two letters in a gap, and no label
+at all is worse than either.
+
+#### Which city a unit is labelled with
+
+**The capital, unless the largest town inside the unit has more than three
+times its population**, by Natural Earth's own `POP_MAX`. Three units change:
+
+| unit | was | is | populations |
+|---|---|---|---|
+| Gujarat | Gandhinagar | **Ahmedabad** | 195,891 against 5,375,000 |
+| Assam | Dispur | **Guwahati** | 16,140 against 983,000 |
+| Delhi | New Delhi | **Delhi** | 317,797 against 15,926,000 |
+
+Three times is wide enough that a capital merely smaller than a neighbour
+keeps its label: Bhopal over Indore, Lucknow over Kanpur, Thiruvananthapuram
+over Kochi, Raipur over Bhilai, Ranchi over Jamshedpur. 31 of the 36 cities
+are now their unit's capital; the other two of the five are Punjab and
+Haryana, whose capital Chandigarh is a union territory in its own right.
+
+**Andhra Pradesh does not change, and was expected to.** Natural Earth's
+`POP_MAX` is the figure for the built-up area, and it calls Amaravati
+5,800,000 — the capital region around Vijayawada and Guntur — against
+Vishakhapatnam's 1,529,000. So Amaravati is not merely the capital there, it
+is also the largest by the field the rule is written on. The field this
+project uses for size everywhere else is the one the rule is applied to;
+switching to `POP_MIN` to move that one label would put Amaravati at 103,000
+and Vishakhapatnam at 1,063,178, and it would also put Guwahati at 17,516,
+which is worse. If Vishakhapatnam is wanted there it has to be a named
+exception, and that is a judgement, not a rule.
+
+#### The land around India
+
+Everything outside the India outline was painted `#aec6da`, the sea, because
+the page drew no land it has no squares for. Nepal, Bangladesh, Myanmar, Sri
+Lanka and Pakistan were ocean.
+
+`web/src/geo/land.geo.json`, from `ne_10m_land` version 5.1.1, public domain,
+downloaded by `scripts/build_outline.py` against its sha256
+`e547d749445eaa0964aba76738090ec88f5e63c4585122170f98c67a7ea922dc`:
+
+| | |
+|---|---|
+| what it is | coastline and nothing else. `ne_10m_land` holds no boundary of any kind, which is why it is the layer used |
+| clipped to | 28 E to 138 E, 18 S to 52 N — the box `maxBounds` lets a reader pan to, which a test holds against `LIMITS` in Map.jsx |
+| simplified to | 0.05 degrees, about 5.5 km, written to 2 decimal places |
+| islands dropped | 2,029 parts under 0.01 square degrees, about 120 km2, totalling 2.958 square degrees. India's own islands are not affected: they come from the outline, which is not filtered |
+| what is left | 299 parts, 6,788 points, 127,616 bytes, **34,072 gzipped**, in the map's chunk and not the first one |
+| drawn as | one fill, under India's own white fill, with **no line on it at all** |
+
+**The three colours, and why they are only so far apart.**
+
+| | hex | relative luminance |
+|---|---|---|
+| the sea | `#aec6da` | 0.5445 |
+| the land around India | `#dcd7cb` | 0.6813 |
+| a square no model run reached | `#eceff1` | 0.8592 |
+| a square inside India that is not forecast | `#ffffff` | 1.0 |
+
+| pair | contrast |
+|---|---|
+| land against sea | **1.230** |
+| land against the 0 class | **1.243** |
+| land against a white square | 1.436 |
+| sea against the 0 class (11.28, unchanged) | 1.519 |
+
+A colour between the sea and the 0 class can be at most the square root of
+their product from both, which is **1.237**; this one is 1.230 and 1.243, as
+near that limit as makes any difference. Lightness alone could not carry it,
+so the land is warm against a cool sea and a cool grey class and the hue does
+the rest. The coast of India keeps its own line (`#8fa0ad`), so the 0 class
+and the land never meet without one between them.
+
+This amends 3.5 and 11.14, both written out in those sections. There is still
+no basemap.
+
+#### The white squares, explained
+
+A square inside the outline whose land fraction is under the 0.5 of 3.5 is
+not forecast, so no feature is drawn and India's own white shows through.
+Those squares were a hole in the map with nothing to say what they were. The
+legend now carries one more line, at every width:
+
+> **White:** inside India but not forecast at this grid size
+
+#### `web/src/cities.json` is deleted
+
+The twenty city dots of 11.8 were replaced in 11.29 by one named city per
+state and union territory, and nothing had read the file since. Checked
+before deleting it, on 13 November 2026:
+
+| checked | result |
+|---|---|
+| every `.js` and `.jsx` in `web/src` | no import, no mention |
+| `api/*.mjs` | no mention |
+| `tests/*.py` | no mention |
+| the built bundle | `Cherrapunji`, a name in that file and in no other, is not in `web/dist` |
+| `README.md`, `CLAUDE.md`, `CREDITS.md` | no mention |
+| `SPEC.md` | **five mentions**, in 11.8, 11.18, 11.20, 11.23 and 11.28, all of them history: what the file was and what was decided about it. They stay, and 11.14's table now says where it went |
+
+A test keeps it that way: the file does not exist and no source file names it.
+
+#### Tests
+
+Nine more, and eleven sabotages run against them — every one failed the test
+it was aimed at and no other.
+
+| what it holds |
+|---|
+| a stale answer is refused, by ticket and by square, and nothing half-formed is guessed at |
+| two squares are the same square only when they are |
+| the page clears the old numbers before asking, and the panel checks the square it is drawing |
+| the three times rule, the three units it moves and the five it deliberately leaves |
+| the land file is polygons with no properties, covers the whole pannable box, and fits its budget |
+| the land, the sea and the 0 class are three colours, as far apart as the arithmetic allows |
+| the white squares have their line in the legend |
+| cities before states, and no unit left unlabelled |
+| `cities.json` is gone and nothing looks for it |
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/`, `scripts/publish/`, `.github/workflows/` and
+`config/store.json`. `web/src/geo/india.geo.json` and `states.geo.json` are
+byte for byte what they were.
+
+---
+
+### 11.31 A name belongs to one state, and a swatch is not a tick box
+
+Two things, both seen on the built page. The first is the only kind of
+mistake this map cannot make and still be a map: a word in the wrong place.
+
+Measured on the local production build serving `web/dist` and reading the
+real public store, in Chrome, in an iframe of a fixed size so that the same
+view can be measured before and after: a 1,440 by 765 viewport with a 1,060
+by 572 map, and a 390 by 844 phone viewport with a 390 by 464 map.
+
+#### The fault: state names written across other states
+
+Seen on the page. On the phone, HIMACHAL PRADESH was written across
+Uttarakhand and ARUNACHAL PRADESH across Bhutan and Sikkim; on the desktop,
+JAMMU AND KASHMIR began outside the outline altogether and UTTARAKHAND hung
+over Nepal. 11.29 let a name hang over the unit by its own width again on
+each side, and nudged it up to sixteen pixels to dodge a clash -- which at
+the whole-India view is half a degree, the width of a small state.
+
+How wrong the four of them were, measured against the Natural Earth polygons
+by the word's own box at the desktop default view:
+
+| the word | outside the unit it names | and it reached into |
+|---|---|---|
+| UTTARAKHAND | 49.4% | Uttar Pradesh, Himachal Pradesh, Haryana, Punjab |
+| JAMMU AND KASHMIR | 70.8% | Himachal Pradesh, Ladakh, and 29.0% of the box over Pakistan |
+| HIMACHAL PRADESH | 64.5% | Punjab, Uttarakhand |
+| ARUNACHAL PRADESH | 56.5% | no other Indian unit: 51.0% of the box over China, 4.1% over Myanmar, 1.4% over Bhutan |
+
+An Indian state's name written across Pakistan and China is not a label that
+needs tidying. It is the one thing a project that draws only the India
+point-of-view outline (11.14) must not do, and it was on the page.
+
+#### The rule
+
+**A unit's full name is drawn at the unit's own label point, centred, with no
+offset of any kind, and only when the whole label box is inside the unit's
+own polygon at the current zoom. Everywhere else the unit is marked with its
+two letter code**, which may still look for a gap in the 25 placements of
+11.30 and is still written anyway if there is none, so no unit is ever
+unlabelled.
+
+The box is the word's own box as the browser laid it out, line box and all,
+unprojected back to degrees. Nothing smaller is tested: the test is about
+where the label is, not where the ink is.
+
+#### How the page knows, without the polygons
+
+The polygons are 3 MB of shapefile and the page has no other use for them.
+So the question is answered where the polygons are -- in
+`scripts/build_towns.py` -- and `web/src/units.json` carries the answer.
+
+A label box is centred on the label point, so boxes of one shape nest: if a
+box of some height fits inside the unit, every shorter box of the same shape
+fits too, and there is a tallest one that does. One number settles each shape.
+
+| | |
+|---|---|
+| shapes measured | width over height in degrees: 2, 4, 6, 9, 13, 18 and 25 |
+| what is stored | `fit`, half the height in degrees of the tallest box of each shape, centred on the label point, that is `within` the polygon |
+| how | binary search over shapely's `within` to a tenth of a second of arc, at the **rounded** label point the page itself uses, then floored to four decimal places -- never rounded up, because a number rounded up is a box the polygon does not contain |
+| how the page reads it | `web/src/fits.js`: the shape asked about is rounded **up** to the first shape measured, so the box tested is at least as wide as the box drawn; wider than 25 to 1 and there is no answer, so the answer is no |
+| the cost | units.json goes from 8,385 bytes to 12,123, and from 2,197 gzipped to 3,299, in the first chunk. The budget in the build script goes from 2,500 to 4,000 |
+
+`span` -- the unit's width in degrees at the label point, which 11.29 added
+and which the overhang rule read -- is gone from units.json, from
+`unitlist.js` and from the map. A width was never the question. A box inside
+a polygon was.
+
+#### What it costs, and what it buys
+
+| default view | before: full names | codes | forced codes | after: full names | codes | forced codes | city names |
+|---|---|---|---|---|---|---|---|
+| desktop, 1,060 by 572 map, zoom 3.28 | 12 | 18 | 6 | **0** | 31 | 5 | 26 |
+| phone, 390 by 464 map, zoom 3.00 | 2 | 25 | 9 | **0** | 29 | 7 | 24 |
+
+**No state name is drawn at either default view, and that is the true
+answer.** At the whole-India view a word 14 pixels tall is 0.78 degrees tall
+and MADHYA PRADESH is 6.9 degrees wide; the tallest box of that shape which
+stays inside Madhya Pradesh is 0.72 degrees. The word is bigger than the
+state. Two units do have room at the desktop default view -- Rajasthan and
+Odisha -- and both lose their one placement to a city label, because cities
+are placed first (11.30) and the capital is usually near the middle of the
+unit, which is also where the unit's name goes.
+
+Names come back as the reader zooms in, which is the point of "at the current
+zoom". Three zoom steps in from the desktop default view, at zoom 5.28:
+**ODISHA, CHHATTISGARH, WEST BENGAL, HARYANA and MEGHALAYA**, and eleven more
+that now fit inside their unit but lose the place to a city.
+
+Every unit still carries at least its code at both default views: 31 + 5 and
+29 + 7 are both 36.
+
+#### The second thing: swatches that looked like tick boxes
+
+The legend's white swatch and the swatch in each panel row were 0.95rem
+squares with a hairline border and a 2px radius, which is what an empty
+checkbox looks like in every browser there is -- and the panel one sits
+inside a row that really is a radio button, so it read as a tick box that
+would not tick.
+
+| | |
+|---|---|
+| shape | 1.5rem by 0.6rem, square cornered: a colour chip, not a control |
+| pointer | `pointer-events: none`, so a click goes to whatever is behind it |
+| reading order | `aria-hidden="true"` on all four, because the words beside them carry the meaning |
+| focus | they are `span`s with no handler and no `tabIndex`, as they always were |
+
+The one round swatch stays round and says why in the stylesheet: it is the
+key to the round dots of the 51 runs.
+
+#### One more fix, found while measuring
+
+The label count changed from one load of the same page at the same size to
+the next: 26 city names on one load and 31 on the next. A word's width is
+measured once and kept, because reading it back forces the browser to lay the
+page out again and doing that on every frame of a drag is the one thing here
+that could be slow -- but the first draw happens while the map is still being
+fitted and flexbox is still sizing, and a width measured then was kept for
+the rest of the page's life. The words are measured once more when the map
+goes idle, and again when `document.fonts` is ready. Three consecutive loads
+now give the same counts and the same zoom to four places.
+
+#### Tests
+
+Seven more, and eight sabotages run against them.
+
+| what it holds |
+|---|
+| every unit has a fit table, of the right length, that never rises as the box widens |
+| every number in every fit table is a box inside the unit's own polygon, and a box a tenth taller plus one rounding step is not |
+| every unit name the built page actually drew, at three recorded views, is inside the unit it names |
+| the shape of a box is rounded up and never down, and anything wider than the widest shape measured is refused |
+| the map offers a name one placement and only one, after the box test, and the overhang rule is gone |
+| a swatch is a chip, not a control: shape, pointer-events, aria-hidden, no handler |
+
+`tests/sample/names_on_screen.json` is the boxes themselves, recorded from
+the page, because only a browser knows how wide a word came out. What they
+are checked against is the polygon. Three of the eight sabotages were edits
+to `units.json`, and each of those failed the test it was aimed at **and**
+the check that the committed file is what the build script writes, which is
+the right answer for a built file edited by hand.
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/`, `scripts/publish/`, `.github/workflows/` and
+`config/store.json`. No colour, no wording and no number in the panel. The
+three geometry files in `web/src/geo/` are byte for byte what they were.
 
 ---
 
@@ -3716,7 +4745,8 @@ Nothing in sections 1-4 is now blocked.
 **Section 11 is drafted and approved in two parts.** Part one, 11.1 to
 11.11, is the plain page with `api/health` and `api/place`, live since 12
 November 2026. Part two, 11.12 to 11.27, is the map and the real site,
-approved the same day. The track record pages and the display rules that go
+approved the same day; 11.28 and 11.29 record what reading the built page
+changed, with the measurement behind each change. The track record pages and the display rules that go
 with a "Good track record" label are section 6, after the verification of
 section 5 has run.
 

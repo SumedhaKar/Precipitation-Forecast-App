@@ -1,184 +1,866 @@
-/* G2: a plain page that reads well on a phone. SPEC 11.8. */
+/* SPEC 11.18, with the design fixes of 11.28. Light theme only, declared,
+   because the palette of 11.17 is chosen against a white page and an
+   automatic dark inversion would change what the colours mean. One font: the
+   system stack, so there is no webfont to download and no flash of unstyled
+   text. */
 
 :root {
-  --ink: #16191d;
-  --quiet: #555f6b;
-  --line: #d7dbe0;
-  --panel: #f5f7f9;
-  --warn: #8a3b00;
-  --warn-panel: #fff4e6;
-  --bad: #8a0f14;
+  color-scheme: light;
+
+  --ink: #1f2933;
+  --quiet: #52606d;
+  --faint: #7b8794;
+  --rule: #dbe1e8;
+  --page: #f4f6f8;
+  --card: #ffffff;
+  /* SPEC 11.28. This was #eaf0f4, a contrast ratio of 1.005 against the 0
+     class's #eceff1: the same colour to any eye, so a square where no model
+     run reaches the threshold could not be told from the ocean. #aec6da is
+     1.53 against the 0 class and 1.77 against the white land under it. The
+     one copy that matters is SEA in palette.js, which the map reads; this is
+     the same value for the page behind the canvas. */
+  --sea: #aec6da;
+  --picked: #0b2b4a;
+  --warn-bg: #fff4e5;
+  --warn-ink: #7a4100;
+  --err-bg: #fdecec;
+  --err-ink: #8a1c1c;
+
+  --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --panel: 380px;
 }
 
 * { box-sizing: border-box; }
 
+html, body, #root { height: 100%; }
+
 body {
   margin: 0;
-  background: #fff;
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
   color: var(--ink);
-  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--page);
   -webkit-text-size-adjust: 100%;
 }
 
-main {
-  max-width: 48rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
+h1, h2, h3 { line-height: 1.25; margin: 0 0 0.4rem; }
+h1 { font-size: 1.25rem; letter-spacing: -0.01em; }
 
-h1 {
-  font-size: 1.6rem;
-  line-height: 1.2;
-  margin: 0 0 0.5rem;
-}
+/* SPEC 11.29. The title is one sentence in two pieces so that the phone can
+   drop the second one, where it would cost two lines of a 390 pixel screen
+   that the map needs more. */
+.title-rest { font-weight: 400; color: var(--quiet); }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 0.95rem; }
+p { margin: 0 0 0.6rem; }
 
-h2 { font-size: 1.15rem; margin: 2rem 0 0.5rem; }
-h3 { font-size: 1rem; margin: 1.25rem 0 0.25rem; }
+a { color: #0b4f8a; }
 
-a { color: #0b4f9c; }
-
-.lede { margin: 0 0 1.25rem; }
-
-.small, .spread, .daylabel { font-size: 0.875rem; color: var(--quiet); }
-
-.stale {
-  background: var(--warn-panel);
-  border-left: 4px solid var(--warn);
-  color: var(--warn);
-  padding: 0.75rem 1rem;
-  margin: 1rem 0;
-}
-
-.error {
-  background: #fff0f0;
-  border-left: 4px solid var(--bad);
-  color: var(--bad);
-  padding: 0.75rem 1rem;
-}
-
-.run { margin: 0.5rem 0 1.25rem; }
-
-.runid {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--quiet);
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-}
-
-.picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: flex-end;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 1rem;
-}
-
-.picker label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--quiet);
-}
-
-.picker select, .picker input {
+button {
   font: inherit;
-  padding: 0.45rem 0.5rem;
-  border: 1px solid #9aa3ad;
-  border-radius: 4px;
-  background: #fff;
-  color: var(--ink);
-}
-
-.picker input { width: 7rem; }
-
-.picker button {
-  font: inherit;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid #0b4f9c;
-  border-radius: 4px;
-  background: #0b4f9c;
-  color: #fff;
+  color: inherit;
   cursor: pointer;
 }
 
-.picker button:disabled { opacity: 0.6; cursor: default; }
-
-.where { margin: 1.25rem 0 0.5rem; }
-.moved { color: var(--warn); }
-
-table.counts {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.5rem 0 0.75rem;
+:focus-visible {
+  outline: 2px solid var(--picked);
+  outline-offset: 2px;
 }
 
-table.counts caption {
-  text-align: left;
-  font-size: 0.875rem;
+.small { font-size: 0.82rem; color: var(--quiet); }
+.note { font-size: 0.82rem; color: var(--quiet); margin: 0.3rem 0 0; }
+
+/* ------------------------------------------------------------- the shell */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  /* A definite height, not min-height: the map is the hero and fills the
+     screen, and the panel scrolls inside itself. With min-height the stage
+     grows to fit the panel's content and pushes the map below the fold,
+     which is what the first build did. */
+  height: 100dvh;
+  max-height: 100dvh;
+}
+
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+}
+
+.titles { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1rem; }
+
+.run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
+.runid {
+  margin-left: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* SPEC 11.28: visible without scrolling, on every screen. */
+.headwarn {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  border: 1px solid #f0d9b5;
+  border-radius: 6px;
+  padding: 0.15rem 0.5rem;
+}
+
+.headwarn a { color: #7a4100; }
+
+.stale {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: var(--warn-bg);
+  color: var(--warn-ink);
+  border-bottom: 1px solid #f0d9b5;
+  font-size: 0.88rem;
+}
+
+.error {
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--err-bg);
+  color: var(--err-ink);
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+.error p { margin: 0; }
+.error .why { margin-top: 0.25rem; font-size: 0.82rem; opacity: 0.85; }
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.mapwrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--sea);
+}
+
+/* Not `position: absolute; inset: 0`. MapLibre's own stylesheet sets
+   `.maplibregl-map { position: relative }` on this same element and loads
+   after this file, so the absolute positioning was overridden and the
+   container collapsed to zero height with the canvas floating in it. A
+   definite width and height needs no positioning and cannot be overridden
+   by a rule about position. */
+.map { width: 100%; height: 100%; }
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
   color: var(--quiet);
-  padding-bottom: 0.4rem;
+  font-size: 0.9rem;
 }
 
-table.counts th, table.counts td {
-  border: 1px solid var(--line);
-  padding: 0.5rem 0.6rem;
+/* SPEC 11.29. The map could not be drawn. The message is in the map's own
+   area, because that is the part of the page that is missing; everything
+   else still works and the message says so. */
+.mapgone { padding: 1rem; color: var(--ink); }
+
+.mapgone span {
+  max-width: 34ch;
+  text-align: center;
+  padding: 0.7rem 0.9rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+/* --------------------------------------------------------- the controls */
+
+/* SPEC 11.28. A bar above the map, at every width. As a card floating on the
+   map it sat on Tamil Nadu, Kerala and the southern tip, and on a phone it
+   covered the legend as well. Nothing is drawn over the country now except
+   the legend and MapLibre's own zoom buttons, and the fit leaves room for
+   both by measuring them. */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 1.6rem;
+  padding: 0.5rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--rule);
+}
+
+.group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+
+.grouplabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+
+.radios { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+.radios button {
+  padding: 0.3rem 0.55rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.radios button.on {
+  background: var(--picked);
+  border-color: var(--picked);
+  color: #ffffff;
+}
+
+.window { margin: 0; font-size: 0.75rem; color: var(--quiet); }
+
+/* ----------------------------------------------------- the place labels */
+
+/* SPEC 11.28 and 11.29. The names over the canvas: 36 states and union
+   territories, one city in each, and the chosen square's own. MapLibre draws
+   text from glyph files fetched from a font server, and there is no font
+   server here on purpose, so these are elements and the halo is four text
+   shadows. Above the canvas, below MapLibre's own controls. */
+.maplabels {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.maplabel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  white-space: nowrap;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 500;
+  color: var(--ink);
+  text-shadow:
+    0 0 2px #ffffff, 0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff;
+}
+
+.maplabel.chosen { font-weight: 700; font-size: 0.78rem; }
+
+/* The unit's own name, inside the unit: quieter than a town, and in small
+   capitals, so a reader can tell at a glance which words are a state and
+   which are a place that has numbers. */
+.maplabel.state {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--quiet);
+  text-shadow:
+    0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff, 0 0 5px #ffffff;
+}
+
+/* The city's dot, drawn at the point the name belongs to. It belongs to the
+   name: the same item owns both, so a dot is never drawn where its name was
+   hidden (SPEC 11.29). Six pixels across, in a white ring of its own. */
+.mapdot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5b6b7b;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+/* Kavaratti and Port Blair: a place the grid has no square for (SPEC 11.28).
+   The name is there because the islands are, and the dot is hollow because
+   there is no count behind it. */
+.maplabel.city.absent { color: var(--quiet); font-weight: 400; }
+
+.mapdot.absent {
+  background: #ffffff;
+  box-shadow: 0 0 0 1.5px #5b6b7b;
+}
+
+/* ----------------------------------------------------------- the legend */
+
+/* SPEC 11.28. In the bar, next to the threshold buttons it describes, not
+   floating over the Bay of Bengal. A horizontal ramp: the swatches are the
+   scale and the numbers under them are the classes. */
+.legend { gap: 0.3rem; }
+
+.legend .grouplabel {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.legend-foot { margin: 0; font-size: 0.7rem; color: var(--quiet); }
+
+/* SPEC 11.30. The white squares inside the outline: inside India, and not
+   forecast, because the model's own land fraction for them is under a half.
+   One line, with the colour beside it, at every width. */
+.legend-white {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.7rem;
+  color: var(--quiet);
+}
+
+.legend-white .swatch {
+  background: #ffffff;
+}
+
+.legend-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0;
+}
+
+.legend-rows li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 2.3rem;
+  font-size: 0.66rem;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend-rows .swatch {
+  width: 100%;
+  height: 0.8rem;
+  border-radius: 0;
+  border-left-width: 0;
+}
+
+.legend-rows li:first-child .swatch { border-left-width: 1px; }
+
+/* SPEC 11.31. A colour, and nothing that can be pressed.
+   These were 0.95rem squares with a hairline border and a 2px radius, which
+   is what an empty checkbox looks like in every browser there is -- and the
+   one in the panel sits inside a row that really is a radio button, so it
+   read as a tick box that would not tick. A swatch is wider than it is tall
+   with square corners now: the shape of a colour chip, which is not the
+   shape of a control. None of them has ever been focusable or had a handler;
+   `pointer-events: none` says so in the stylesheet as well, and a click that
+   lands on one goes to whatever is behind it. */
+.swatch {
+  display: inline-block;
+  width: 1.5rem;
+  height: 0.6rem;
+  border: 1px solid rgba(31, 41, 51, 0.25);
+  border-radius: 0;
+  flex: none;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------ the panel */
+
+.panel {
+  flex: 0 0 var(--panel);
+  width: var(--panel);
+  overflow-y: auto;
+  background: var(--card);
+  border-left: 1px solid var(--rule);
+  padding: 0.8rem 0.9rem 1.2rem;
+}
+
+.handle { display: none; }
+
+.finder { margin-bottom: 0.8rem; }
+
+.search label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  margin-bottom: 0.2rem;
+}
+
+.searchrow { display: flex; gap: 0.35rem; }
+
+.searchrow input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.searchrow button,
+.mine button,
+.reveal {
+  padding: 0.35rem 0.7rem;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.mine { margin-top: 0.4rem; }
+
+.matches {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.matches button {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.3rem 0.5rem;
+  background: var(--card);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
   text-align: left;
-  vertical-align: top;
+  font-size: 0.85rem;
 }
 
-table.counts thead th { background: var(--panel); font-size: 0.875rem; }
+.matches li:last-child button { border-bottom: 0; }
 
-table.counts tbody th { font-weight: 600; }
+/* SPEC 11.29. Nothing matched, so the nearest few names are offered as
+   buttons. Offered, never chosen: one tap away, and never a tap the reader
+   did not make. */
+.didyoumean {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.4rem;
+  margin-top: 0.4rem;
+}
 
-.daynum { display: block; }
-.daylabel { display: block; font-weight: 400; }
-
-table.counts td strong { font-size: 1.1rem; }
-
-.memberday h3 .daylabel { display: block; }
-
-ol.values {
+.didyoumean ul {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+}
+
+.didyoumean button {
+  padding: 0.2rem 0.55rem;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
+.didyoumean button:hover { background: var(--card); }
+
+.placeline h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cityname { font-size: 0.85rem; font-weight: 400; color: var(--quiet); }
+
+.moved {
+  font-size: 0.82rem;
+  color: var(--warn-ink);
+  background: var(--warn-bg);
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+}
+
+.sentence {
+  font-size: 1rem;
+  margin: 0.5rem 0 0.7rem;
+  padding: 0.5rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--picked);
+  border-radius: 0 6px 6px 0;
+}
+
+/* --------------------------------------- how to read this, and a notice */
+
+.howto h2 { font-size: 1rem; }
+
+.howto ul {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+  color: var(--quiet);
+}
+
+.howto li { margin-bottom: 0.45rem; }
+.howto strong { color: var(--ink); }
+
+.prompt {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--picked);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+}
+
+/* SPEC 11.30. What the panel says while a square's numbers are on their way.
+   It names the square, because the fault it replaces was the panel showing
+   another square's numbers under this square's heading. */
+.loadingsquare {
+  margin: 0 0 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--page);
+  border-left: 3px solid var(--rule);
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An island the grid cannot carry is not an error, and is not red. */
+.notice {
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.7rem;
+  background: var(--page);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
+
+.notice h2 { font-size: 0.95rem; }
+.notice p { margin: 0; font-size: 0.86rem; color: var(--quiet); }
+
+/* ------------------------------------------------------------ the counts */
+
+.counts { margin-bottom: 0.4rem; }
+
+.counts h3 {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--quiet);
+  margin-bottom: 0.3rem;
+}
+
+/* SPEC 11.28. These were table rows with the chosen one shaded, which looked
+   like a control and was not one. Three radio buttons now, the same three
+   choices as the buttons over the map and bound to the same state. */
+.countrows {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.countrow {
+  display: grid;
+  grid-template-columns: 6.6rem 1fr auto;
+  align-items: baseline;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.countrow:hover { background: var(--page); }
+
+.countrow.on {
+  border-color: var(--picked);
+  box-shadow: inset 0 0 0 1px var(--picked);
+  background: var(--page);
+}
+
+.rowwhat { color: var(--quiet); }
+.rowband { font-size: 0.78rem; color: var(--quiet); white-space: nowrap; }
+
+.rowband .swatch {
+  margin-right: 0.3rem;
+  vertical-align: -1px;
+}
+
+/* -------------------------------------------------------- the day strip */
+
+.strip { margin-top: 1rem; }
+
+.strip ol {
+  list-style: none;
+  display: flex;
   gap: 0.25rem;
-  margin: 0.4rem 0 0;
+  margin: 0 0 0.3rem;
+  padding: 0;
+}
+
+.strip li { flex: 1 1 0; min-width: 0; }
+
+.cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.35rem 0.1rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.cell.chosen { outline: 2px solid var(--picked); outline-offset: 1px; }
+/* `color` comes from the palette's own ink for that class, set inline. */
+.cellday { font-size: 0.64rem; white-space: nowrap; }
+.cellcount {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* -------------------------------------------------------------- the dots */
+
+.dots { margin-top: 1rem; }
+
+.dotgrid {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(17, 1fr);
+  gap: 2px;
+  margin: 0 0 0.4rem;
+  padding: 0;
+}
+
+.dotgrid li {
+  aspect-ratio: 1;
+  border: 1px solid rgba(31, 41, 51, 0.2);
+  border-radius: 50%;
+}
+
+.dotkey {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dotkey li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--quiet);
+  font-variant-numeric: tabular-nums;
+}
+
+.dotkey .swatch { width: 0.8rem; height: 0.8rem; border-radius: 50%; }  /* round on purpose: it is the key to the dots */
+
+/* ------------------------------------------------------------ the members */
+
+.members { margin-top: 1rem; }
+.spread { font-size: 0.86rem; color: var(--ink); margin: 0 0 0.4rem; }
+.reveal { margin-bottom: 0.45rem; }
+
+ol.values {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(2.6rem, 1fr));
+  gap: 2px;
+  margin: 0 0 0.4rem;
   padding: 0;
 }
 
 ol.values li {
-  min-width: 3.1rem;
-  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.15rem 0;
+  background: var(--page);
   border-radius: 4px;
-  padding: 0.2rem 0.3rem;
-  text-align: center;
-  font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
 }
 
-ol.values li.control { border-color: #0b4f9c; border-width: 2px; }
+ol.values li.control { outline: 1px solid var(--picked); }
+.who { font-size: 0.6rem; color: var(--faint); }
+.mm { font-size: 0.85rem; }
 
-ol.values .who { display: block; color: var(--quiet); font-size: 0.68rem; }
-ol.values .mm { display: block; font-size: 0.95rem; }
+.arith {
+  margin-top: 0.8rem;
+  font-size: 0.72rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- the footer */
 
 footer {
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--line);
-  padding-top: 1rem;
-  font-size: 0.8125rem;
+  margin-top: 1.2rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.78rem;
   color: var(--quiet);
 }
 
-footer .warning {
-  background: var(--warn-panel);
-  border-left: 4px solid var(--warn);
-  color: var(--warn);
-  padding: 0.75rem 1rem;
-  font-size: 0.9375rem;
+footer .warning { color: var(--ink); }
+footer .credit { margin-bottom: 0.4rem; }
+footer summary { cursor: pointer; margin-bottom: 0.4rem; }
+footer p { max-width: 70ch; }
+
+/* ------------------------------------- phone and tablet: a bottom sheet */
+
+@media (max-width: 1023px) {
+  header { gap: 0.3rem; }
+  .headwarn { width: 100%; }
+
+  .stage { flex-direction: column; }
+
+  .mapwrap { flex: 0 0 52vh; min-height: 52vh; order: 1; }
+
+  .controls { gap: 0.4rem 1rem; padding: 0.45rem 0.6rem; }
+
+  .radios { flex-wrap: nowrap; }
+
+  .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
+
+  /* SPEC 11.29. The five days share the width instead of scrolling off it.
+     Five buttons reading "Fri 13 Nov" come to 418 pixels on a 390 pixel
+     phone, so the row had a horizontal scrollbar and days 4 and 5 were off
+     the edge with nothing to say they existed. The labels are "Fri 13" now
+     (Controls.jsx), and each button takes a fifth of whatever width there
+     is, so the row cannot overflow however wide the words are. The full
+     window, with the month and the times and IST, is the line below. */
+  .days { flex: 1 1 100%; }
+  .days .radios { display: flex; gap: 0.2rem; }
+  .days .radios button { flex: 1 1 0; min-width: 0; padding: 0.3rem 0.1rem; }
+
+  .panel {
+    order: 3;
+    flex: 1 1 auto;
+    width: 100%;
+    max-height: 45vh;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    padding-top: 0;
+  }
+
+  .handle {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--card);
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.85rem;
+    color: var(--quiet);
+  }
+
+  .handle::before {
+    content: "";
+    display: block;
+    width: 2.2rem;
+    height: 3px;
+    margin: 0 auto 0.35rem;
+    background: var(--rule);
+    border-radius: 2px;
+  }
+
+  .shell.open .mapwrap { flex-basis: 26vh; min-height: 26vh; }
+  .shell.open .panel { max-height: none; }
+
+  /* The legend is in the bar at every width, so there is nothing to hide
+     when the sheet opens and nothing to lift clear of the attribution. It
+     spans the bar on a phone, where there is no room beside the buttons. */
+  .legend { flex: 1 1 100%; }
+  .legend-rows li { flex: 1 1 0; min-width: 0; }
+  .legend-foot { display: none; }
+
+  .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
 }
 
-footer h2 { font-size: 0.9375rem; color: var(--ink); }
+/* ------------------------------------------- phone: the map is the hero */
+
+/* SPEC 11.29. On a 390 by 844 screen the map used to start 367 pixels down,
+   which is 55 pixels above the middle of the screen: a reader's first sight
+   of the site was two cards of controls with a strip of India under them.
+   Nothing here is removed except the title's second clause; the rest is the
+   same information set smaller and arranged in fewer lines, and the measured
+   result is in SPEC 11.29. */
+@media (max-width: 560px) {
+  .title-rest { display: none; }
+
+  header {
+    align-items: center;
+    gap: 0.15rem 0.5rem;
+    padding: 0.4rem 0.7rem;
+  }
+
+  h1 { font-size: 1.02rem; margin: 0; }
+
+  /* The warning sits beside the title rather than under it, which is one
+     line rather than two, and it is still the first thing on the page after
+     the title itself. */
+  .headwarn { width: auto; font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+
+  .titles { flex: 1 1 auto; gap: 0 0.6rem; }
+  .run { font-size: 0.7rem; line-height: 1.35; }
+  .runid { margin-left: 0.4rem; font-size: 0.66rem; }
+
+  .controls { gap: 0.35rem 0.6rem; padding: 0.4rem 0.6rem; }
+
+  /* "Day" is hidden, not dropped: the radio group still names itself with
+     it through aria-labelledby, which works on a hidden element. Five dates
+     in a row do not need a word over them. */
+  .days .grouplabel { display: none; }
+  .days .radios button { font-size: 0.76rem; }
+  .window { font-size: 0.7rem; line-height: 1.3; }
+
+  .group { gap: 0.15rem; }
+  .grouplabel { font-size: 0.66rem; letter-spacing: 0.02em; }
+
+  /* A thinner legend: the same seven classes and the same seven numbers,
+     in two thirds of the height. */
+  .legend { gap: 0.15rem; }
+  .legend .grouplabel { font-size: 0.72rem; }
+  .legend-rows .swatch { height: 0.6rem; }
+  .legend-rows li { font-size: 0.58rem; min-width: 0; }
+
+  .mapwrap { flex: 0 0 55vh; min-height: 55vh; }
+  .shell.open .mapwrap { flex-basis: 28vh; min-height: 28vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

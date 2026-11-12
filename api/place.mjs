@@ -60,6 +60,107 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// SPEC 11.23. The same function as in api/health.mjs; see the note above
+// about the lines these two files share.
+export function shortIst(fromIst) {
+  const at = Date.parse(fromIst);
+  if (Number.isNaN(at)) return null;
+  const ist = new Date(at + 5.5 * 3_600_000);
+  return `${DAYS[ist.getUTCDay()]} ${ist.getUTCDate()} `
+    + `${MONTHS[ist.getUTCMonth()]}`;
+}
+
+function mm(threshold) {
+  // 1.0 prints as "1 mm", and a fractional threshold would print as itself.
+  return `${Number.isInteger(threshold) ? threshold : threshold} mm`;
+}
+
+// SPEC 11.20: one plain sentence for one day, built from that day's counts
+// and nothing else.
+//
+// There is no judgement in here and there must never be: no "dry", no
+// "likely", no "chance", no percentage, no banding. The thresholds come from
+// the manifest rather than from a constant, so the sentence cannot describe
+// a threshold the run did not publish. Counts are monotone by SPEC 4.2, so a
+// higher threshold is named only once a lower one has been reached, and the
+// first threshold nothing reaches ends the sentence.
+export function daySentence(counts, thresholds, members) {
+  const have = thresholds.map((threshold, k) => ({
+    threshold,
+    count: Number(counts[k]),
+  }));
+  if (!have.length || !Number.isFinite(have[0].count)) return null;
+
+  const verb = (count) => (count === 1 ? 'reaches' : 'reach');
+  const first = have[0];
+  if (first.count === 0) {
+    return `0 of ${members} model runs reach ${mm(first.threshold)}.`;
+  }
+
+  let sentence = `${first.count} of ${members} model runs `
+    + `${verb(first.count)} ${mm(first.threshold)}`;
+  for (const next of have.slice(1)) {
+    if (!Number.isFinite(next.count)) break;
+    if (next.count === 0) {
+      sentence += `, none reach ${mm(next.threshold)}`;
+      break;
+    }
+    sentence += `, ${next.count} ${verb(next.count)} ${mm(next.threshold)}`;
+  }
+  return `${sentence}.`;
+}
+
+// SPEC 11.28. The island groups this grid cannot carry, and the one plain
+// sentence each. This is the same table as web/src/islands.js, word for word,
+// because a reader with no JavaScript asks this function the same question
+// the page asks itself; a test drives both files and fails if one word
+// differs. See the note in that file.
+export const ISLANDS = [
+  {
+    group: 'Lakshadweep',
+    lat: [8.0, 12.5],
+    lon: [71.5, 74.0],
+    note: 'Lakshadweep is not forecast. Every island in the group is far '
+      + 'smaller than one square of this grid, which is about 28 km across: '
+      + 'of the 209 squares covering Lakshadweep, not one has its centre on '
+      + 'land, so there is no square here to forecast. This is a limit of '
+      + 'the grid, not a forecast of no rain.',
+  },
+  {
+    group: 'Andaman & Nicobar',
+    lat: [6.0, 14.0],
+    lon: [92.0, 94.5],
+    note: 'This part of the Andaman and Nicobar Islands is not forecast. The '
+      + 'islands here are narrower than one square of this grid, about 28 km, '
+      + 'so the model treats the square as sea. Three squares in the group '
+      + 'are land on this grid and are forecast: 12.75 N 92.75 E, '
+      + '12.50 N 92.75 E and 10.75 N 92.50 E. This is a limit of the grid, '
+      + 'not a forecast of no rain.',
+  },
+];
+
+/** The sentence for a point no square could be found for, or null. */
+export function notFoundNote(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const found = ISLANDS.find(
+    (island) => lat >= island.lat[0] && lat <= island.lat[1]
+      && lon >= island.lon[0] && lon <= island.lon[1]);
+  return found ? found.note : null;
+}
+
+/** The group a point is in, for a short label beside the sentence. */
+export function islandGroup(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const found = ISLANDS.find(
+    (island) => lat >= island.lat[0] && lat <= island.lat[1]
+      && lon >= island.lon[0] && lon <= island.lon[1]);
+  return found ? found.group : null;
+}
+
 // SPEC 8.4: a tile is named after its south-west corner in whole degrees.
 function tileName(lat, lon) {
   const south = Math.floor(lat / TILE) * TILE;
@@ -75,6 +176,12 @@ function snap(lat, lon) {
   const j = Math.round((lon - LON_MIN) / STEP);
   return { i, j, lat: round2(LAT_MAX - STEP * i), lon: round2(LON_MIN + STEP * j) };
 }
+
+// SPEC 11.19 and 11.24: the page snaps a map click and the browser's own
+// location to a square before sending anything, so a position never reaches
+// a URL. That is only safe if the page's copy of this arithmetic and this one
+// never disagree, which a test checks by driving both over a grid of points.
+export { snap as snapSquare };
 
 function squareOf(i, j) {
   return { i, j, lat: round2(LAT_MAX - STEP * i), lon: round2(LON_MIN + STEP * j) };
@@ -128,8 +235,10 @@ function daysFrom(manifest, record) {
     return {
       lead_day: day.lead_day,
       label: day.label,
+      short_ist: shortIst(day.from_ist),
       from_ist: day.from_ist,
       to_ist: day.to_ist,
+      sentence: daySentence(counts, thresholds, manifest.members),
       counts: {
         ge1: counts[0],
         ge10: counts[1],
@@ -226,9 +335,15 @@ export default {
     }
 
     if (!record) {
+      // SPEC 11.28. "Outside the forecast area" is true for Lakshadweep and
+      // for the south of the Andamans, and reads as though the reader had
+      // clicked the open ocean. Where a group is named, its own sentence is
+      // the error, and the generic line stays as the detail.
+      const island = islandGroup(lat, lon);
       return json({
         ok: false,
-        error: 'outside the forecast area',
+        error: island ? notFoundNote(lat, lon) : 'outside the forecast area',
+        island_group: island,
         detail: 'that square, and all eight squares around it, are sea or '
           + 'outside India on this 0.25 degree grid',
         asked: { lat, lon },
@@ -267,7 +382,13 @@ export default {
       days: daysFrom(manifest, record),
       notes: {
         zero: '0 mm means under 1 mm.',
-        counts: 'These are model-run counts, not probabilities.',
+        // SPEC 11.21, amended twice. It first read "These are model-run
+        // counts, not probabilities."; then "N of 51 model runs, which is
+        // not a calibrated probability.", which with the count filled in
+        // ("1 of 51 model runs, which is not a calibrated probability.") is
+        // a sentence fragment with no verb. This one is a sentence.
+        counts: `These are counts out of ${manifest.members} model runs, `
+          + 'not a calibrated probability.',
         warning: 'Not an official warning.',
       },
       checked_at_ist: istNow(now),

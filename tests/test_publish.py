@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from pipeline import config as cfg
-from pipeline import india_mask, publish
+from pipeline import india_mask, publish, run_live
 from pipeline.publish import (
     MANIFEST,
     MANIFEST_MAX_AGE,
@@ -82,9 +82,12 @@ def write_run(root: Path, run_id: str, india: np.ndarray,
         lat=np.asarray(cfg.INDIA_LATS, dtype=np.float64),
         lon=np.asarray(cfg.INDIA_LONS, dtype=np.float64),
     )
+    # The real day records, from the code that writes them in a live run, so
+    # the fixture carries real IST windows and real labels. They used to be
+    # `{"lead_day": d, "label": "day d"}`, which was enough for publishing but
+    # gave api/health nothing to derive a date from (SPEC 11.23).
     (out / "days.json").write_text(json.dumps(
-        [{"lead_day": d, "label": f"day {d}"} for d in range(1, N_DAYS + 1)],
-        indent=2), encoding="utf-8")
+        run_live.day_records(run_id[:8]), indent=2), encoding="utf-8")
     if with_manifest:
         (out / MANIFEST).write_text(json.dumps({
             "run_id": run_id,
