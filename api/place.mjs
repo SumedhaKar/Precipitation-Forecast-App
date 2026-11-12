@@ -114,6 +114,53 @@ export function daySentence(counts, thresholds, members) {
   return `${sentence}.`;
 }
 
+// SPEC 11.28. The island groups this grid cannot carry, and the one plain
+// sentence each. This is the same table as web/src/islands.js, word for word,
+// because a reader with no JavaScript asks this function the same question
+// the page asks itself; a test drives both files and fails if one word
+// differs. See the note in that file.
+export const ISLANDS = [
+  {
+    group: 'Lakshadweep',
+    lat: [8.0, 12.5],
+    lon: [71.5, 74.0],
+    note: 'Lakshadweep is not forecast. Every island in the group is far '
+      + 'smaller than one square of this grid, which is about 28 km across: '
+      + 'of the 209 squares covering Lakshadweep, not one has its centre on '
+      + 'land, so there is no square here to forecast. This is a limit of '
+      + 'the grid, not a forecast of no rain.',
+  },
+  {
+    group: 'Andaman & Nicobar',
+    lat: [6.0, 14.0],
+    lon: [92.0, 94.5],
+    note: 'This part of the Andaman and Nicobar Islands is not forecast. The '
+      + 'islands here are narrower than one square of this grid, about 28 km, '
+      + 'so the model treats the square as sea. Three squares in the group '
+      + 'are land on this grid and are forecast: 12.75 N 92.75 E, '
+      + '12.50 N 92.75 E and 10.75 N 92.50 E. This is a limit of the grid, '
+      + 'not a forecast of no rain.',
+  },
+];
+
+/** The sentence for a point no square could be found for, or null. */
+export function notFoundNote(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const found = ISLANDS.find(
+    (island) => lat >= island.lat[0] && lat <= island.lat[1]
+      && lon >= island.lon[0] && lon <= island.lon[1]);
+  return found ? found.note : null;
+}
+
+/** The group a point is in, for a short label beside the sentence. */
+export function islandGroup(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const found = ISLANDS.find(
+    (island) => lat >= island.lat[0] && lat <= island.lat[1]
+      && lon >= island.lon[0] && lon <= island.lon[1]);
+  return found ? found.group : null;
+}
+
 // SPEC 8.4: a tile is named after its south-west corner in whole degrees.
 function tileName(lat, lon) {
   const south = Math.floor(lat / TILE) * TILE;
@@ -288,9 +335,15 @@ export default {
     }
 
     if (!record) {
+      // SPEC 11.28. "Outside the forecast area" is true for Lakshadweep and
+      // for the south of the Andamans, and reads as though the reader had
+      // clicked the open ocean. Where a group is named, its own sentence is
+      // the error, and the generic line stays as the detail.
+      const island = islandGroup(lat, lon);
       return json({
         ok: false,
-        error: 'outside the forecast area',
+        error: island ? notFoundNote(lat, lon) : 'outside the forecast area',
+        island_group: island,
         detail: 'that square, and all eight squares around it, are sea or '
           + 'outside India on this 0.25 degree grid',
         asked: { lat, lon },
@@ -329,10 +382,13 @@ export default {
       days: daysFrom(manifest, record),
       notes: {
         zero: '0 mm means under 1 mm.',
-        // SPEC 11.21, amended 12 November 2026. This used to read "These are
-        // model-run counts, not probabilities."
-        counts: `N of ${manifest.members} model runs, which is not a `
-          + 'calibrated probability.',
+        // SPEC 11.21, amended twice. It first read "These are model-run
+        // counts, not probabilities."; then "N of 51 model runs, which is
+        // not a calibrated probability.", which with the count filled in
+        // ("1 of 51 model runs, which is not a calibrated probability.") is
+        // a sentence fragment with no verb. This one is a sentence.
+        counts: `These are counts out of ${manifest.members} model runs, `
+          + 'not a calibrated probability.',
         warning: 'Not an official warning.',
       },
       checked_at_ist: istNow(now),
