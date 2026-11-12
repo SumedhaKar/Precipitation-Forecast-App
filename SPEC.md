@@ -393,6 +393,19 @@ plus or minus 15%.
 If errors appear at 8 during the real run, the downloader drops to 4 and
 records that it did so. It never silently retries forever.
 
+**And it comes back.** Three file-level failures drop it to 4; then, once
+`RECOVER_AFTER_SECONDS` (900 s, fifteen minutes) have passed with no further
+file error, the next file that arrives puts it back to 8 and logs that it
+did. The counter resets on each change, so going down again takes three fresh
+errors, not one. There is no timer thread: the check happens on the success
+path of `download_one`, costs nothing in a run that never dropped, and a run
+that never errs is never touched by it.
+
+The drop used to be permanent, and that is what Pile A actually ran under.
+Fifteen minutes is chosen against what the real run measured: the errors came
+in two bursts of a few minutes each, so a shorter window would flap and a
+longer one would have cost most of the run anyway.
+
 #### Date order: spread, not sequential
 
 Dates are downloaded in a spread order so that stopping early still leaves
@@ -454,6 +467,72 @@ silently and produce nothing overnight.
 - Leftover `.part` files from an interrupted run are deleted and that date is
   redone from the start.
 - The run stops cleanly if free disk space falls below 15 GB.
+
+#### What the real run did, 12 November 2026
+
+The whole of Pile A ran in one day, and is **[verified]** from
+`data/logs/pile_a.log`, `data/logs/supervisor.log` and the 177 done records.
+
+| | |
+|---|---|
+| Dates | **177**, 20260513 to 20261105, every calendar day |
+| Failed, finally | **0** |
+| Raw downloaded | **50.7 GB**, 2,124 GRIB files |
+| Kept | **3.38 GB**, 19.1 MB a date |
+| Per date, 16-bit era | 160 dates: min 121 s, **median 304 s**, mean 345 s, max 965 s |
+| Per date, 12-bit era | 15 dates: min 226 s, **median 283 s**, mean 288 s, max 343 s |
+| First log line to last | 14.09 h |
+| Of which frozen | **7.66 h** |
+| So actually moving | **6.43 h**, against the 4.6 h estimated above at 3.21 MB/s |
+
+The two eras cost almost the same per date even though a 12-bit date is half
+the bytes (156 MB against 300 MB), which says the limit was not bandwidth.
+
+#### The freeze, and why there is a supervisor
+
+At 01:55 the run logged `progress 6/171` and then **nothing at all for 7
+hours 40 minutes**. The laptop's Wi-Fi had gone away under it. The sockets
+did not error and did not time out: the read timeout of 120 s in
+`ecmwf_download.py` only fires when a socket is open and silent, and these
+connections were neither open nor refused, so eight threads sat in a kernel
+wait and the process stayed alive, idle and completely quiet. At 09:35,
+when the network came back, the retries that had been queued all failed at
+once: five `ConnectionAbortedError 10053` and three `IncompleteRead`, which
+took out seven dates and dropped the limiter to 4 connections at 09:57.
+
+Nothing in the run was wrong. A hung download looks exactly like a slow one
+from inside the process, and a process that is waiting cannot notice that it
+has stopped making progress. That is a job for something outside it:
+
+| The supervisor, `scripts/supervise.py` | |
+|---|---|
+| Checks | every 120 s |
+| Stall limit | **600 s** with no new done record |
+| On a stall | kill the run and relaunch it; dates with a done record are skipped, so it resumes where it stopped |
+| Restart limit | 10, so a genuinely broken run cannot spin for ever |
+| On an all-network-errors finish | archive the failure records to `data/logs/failures/archived/` and relaunch once more |
+| Stops when | every date has a done record, and says so |
+
+It earned its place twice on the day. Pile B finished under it at 11:26
+(181/181). Pile A was relaunched by hand at 11:16 after the freeze, ran 146
+dates to 15:28:55 with `done=145 failed=1`, and then the supervisor did the
+last piece itself:
+
+```
+15:29:12  Pile A ended with 1 failure(s), all network errors. Archived 1 record(s) and relaunching once more.
+15:29:12  relaunched Pile A as PID 16276
+15:33:12  Pile A complete: 177/177 done. Supervisor stopping.
+```
+
+That relaunch is the run with `done=1`: it recomputed the full 177 date list,
+skipped the 176 that already had a done record, and did the one that was
+left, 20260621, in 121 s. 20260621 had failed at 13:43:17 with
+`IncompleteRead(965118 bytes read, 100503 more expected)` on `pf` step 120
+after 3 retries — a broken connection, nothing about the data. Its raw files
+were kept for inspection, as 2.6 requires, then redownloaded cleanly on the
+retry. Its failure record is kept at
+`data/logs/failures/archived/20260621_20261112T152912.json`, so the one
+failure in the archive is still on the record rather than tidied away.
 
 #### Raw-file retention
 

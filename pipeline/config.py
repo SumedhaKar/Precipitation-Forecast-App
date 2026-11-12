@@ -78,6 +78,7 @@ PILE_A_START = "20260513"  # first 00 UTC run on AIFS ENS v2
 MAX_CONNECTIONS = 8
 REDUCED_CONNECTIONS = 4
 DROP_AFTER_FILE_ERRORS = 3   # drop 8 -> 4 after this many file-level failures
+RECOVER_AFTER_SECONDS = 900  # back to 8 after 15 quiet minutes, SPEC 2.6
 DATES_IN_FLIGHT = 3          # keeps the 8-connection pool busy across dates
 MIN_FREE_GB = 15             # SPEC 2.6, stop cleanly below this
 

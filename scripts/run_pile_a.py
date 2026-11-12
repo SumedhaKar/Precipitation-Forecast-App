@@ -182,7 +182,7 @@ def run_date(date: str, pool: ThreadPoolExecutor, limiter: ConnectionLimiter,
     try:
         futures = {
             pool.submit(download_one, d, typ, step,
-                        cfg.ARCHIVE_SOURCE, limiter): (typ, step)
+                        cfg.ARCHIVE_SOURCE, limiter, log): (typ, step)
             for (d, typ, step) in files_for_date(date)
         }
         for fut in as_completed(futures):
@@ -227,7 +227,7 @@ def run_date(date: str, pool: ThreadPoolExecutor, limiter: ConnectionLimiter,
     record["finished_at"] = dt.datetime.now().isoformat(timespec="seconds")
     record["seconds_total"] = round(time.time() - t0, 2)
     record["free_gb_after"] = round(free_gb(), 2)
-    record["connections"] = limiter.limit
+    record.update(limiter.state())
 
     cfg.failure_path(date).unlink(missing_ok=True)
     cfg.done_path(date).write_text(
