@@ -1741,6 +1741,371 @@ a threshold after seeing which side of it the answer fell.
 
 ---
 
+## 8. Publishing
+
+Section 4.6 builds a run and publishes nothing. This section is how a built
+run reaches the website, and nothing else. Two constraints shape all of it:
+
+1. **The write token never touches this laptop.** Every write to the store
+   happens inside GitHub Actions. This laptop can only read public URLs.
+2. **Nothing is published unless the run passed every check.** The local
+   `manifest.json` of section 4.6 is the only thing that says it did.
+
+### 8.1 A note on the section number
+
+The first draft list called section 8 "Website and API". Publishing turned out
+to be the whole of it, so section 8 is publishing and the data contract the
+site reads from the store. The React and MapLibre pages and the `api/`
+functions move to section 11, display rules. Nothing else is renumbered.
+
+Three things are added to the fixed structure in CLAUDE.md:
+
+| Added | Why |
+|---|---|
+| `scripts/publish/` with `package.json`, `package-lock.json`, `blob.mjs` | the only Node in the project, kept in one folder so it cannot be mistaken for the website's own `web/` dependencies |
+| `.github/workflows/live.yml` | already in the fixed structure as `forecast.yml`; the live schedule is a different thing from a backfill, so it gets its own file and `forecast.yml` stays for section 9 |
+| `data/publish/<run_id>/` | the exact bytes that were uploaded, kept locally for comparison. Never committed, like the rest of `data/` |
+
+### 8.2 The store, the library and the pinned versions
+
+One **public** Blob store. Public because the forecast is meant to be public,
+and a public blob is readable by URL with no credential: the website needs no
+server in front of it, and this laptop can check what was published without a
+token. Access is chosen when the store is created and each upload must state
+the same access.
+
+Everything below was read from Vercel's own documentation on 12 November 2026
+and is marked `[verified]` where the behaviour the code depends on is stated
+there explicitly.
+
+| Fact | Value |
+|---|---|
+| Library | `@vercel/blob` **2.9.0**, `engines.node >= 20.0.0` `[verified]` |
+| Public URL form | `https://<store-id>.public.blob.vercel-storage.com/<pathname>` `[verified]` |
+| Reading a public blob | no token, no credential `[verified]` |
+| `put` option `addRandomSuffix` | default `false` `[verified]` |
+| `put` option `allowOverwrite` | default `false`; an existing pathname otherwise throws `[verified]` |
+| `put` option `cacheControlMaxAge` | default one month, 2,592,000 s; **minimum 60 s** `[verified]` |
+| `put` option `contentType` | guessed from the pathname extension when not given `[verified]` |
+| Token | read by the SDK from `process.env.BLOB_READ_WRITE_TOKEN` `[verified]` |
+| `list({prefix, cursor, limit, mode})` | returns `pathname`, `url`, `size`, `uploadedAt`, `etag`, plus `cursor` and `hasMore` `[verified]` |
+| `del(pathname or array)` | permanent; deleting a blob that does not exist still succeeds `[verified]` |
+| CDN after a delete | a deleted blob can still be served from cache for up to a minute `[verified]` |
+| Conditional reads | the CDN sends an `ETag`; a browser `If-None-Match` gets `304` with no code on our side `[verified]` |
+| HTML | cannot be hosted: Blob sets `content-disposition` itself `[verified]` |
+
+Pinned for the workflow, all checked on 12 November 2026:
+
+| Thing | Version | Why this one |
+|---|---|---|
+| Python | 3.13.4 | the same as `.python-version` and this laptop |
+| Node | 24.22.3 | Active LTS, supported to 30 April 2028; 2.9.0 needs 20 or newer |
+| `@vercel/blob` | 2.9.0 | exact, in `package.json` and locked in `package-lock.json`, installed with `npm ci` |
+| Runner image | `ubuntu-24.04` | pinned, not `ubuntu-latest`: a runner image change should not change a forecast quietly |
+| `actions/checkout` | v7.0.1 | |
+| `actions/setup-python` | v7.1.0 | |
+| `actions/setup-node` | v7.1.0 | |
+
+### 8.3 What is published and what is not
+
+| Published | Not published |
+|---|---|
+| the count out of 51 for each of 3 thresholds and 5 days, per square | the 51 member millimetre totals (8.13) |
+| per square, the counts and the four dot category totals | the raw GRIB, 149 MB a run |
+| the day labels and windows | anything else in `data/` |
+| the run's own checks and download summary | the IMERG observations and the verification archive |
+
+### 8.4 The layout in the store
+
+Sizes are the real ones from run `20261112T00Z`.
+
+| Pathname | Bytes | Cache max age | Contents |
+|---|---|---|---|
+| `manifest.json` | about 10 KB, 57 files with a sha256 each | **60 s** | the only blob that is ever rewritten: which `run_id` is current, the list of that run's files with a sha256 each, the day labels, the thresholds, the dot category names, and the last retention result |
+| `runs/<run_id>/run.json` | about 3 KB | 2,592,000 s | the run's section 4.6 manifest: every check result, the download summary, the India maxima |
+| `runs/<run_id>/grid.json` | about 3 KB | 2,592,000 s | the 129 latitudes, the 121 longitudes, the array order, the thresholds, the dot categories, the tile rule |
+| `runs/<run_id>/days.json` | 1,571 | 2,592,000 s | per lead day: steps, the window in UTC and IST, the label |
+| `runs/<run_id>/india.u8` | 15,609 | 2,592,000 s | 1 for an India square, 0 otherwise |
+| `runs/<run_id>/counts/ge1mm_day1.u8` ... `ge50mm_day5.u8` | 15,609 each, 15 files | 2,592,000 s | the count out of 51, one byte a square |
+| `runs/<run_id>/tiles/<lat>_<lon>.json` | 616,134 over 38 files | 2,592,000 s | per-square counts and dots |
+
+**57 blobs and about 0.87 MB a run**, so the eight runs of 8.7 are about
+7 MB and 456 blobs.
+
+#### Why raw bytes for the grids
+
+A count is an integer from 0 to 51, so one byte holds it exactly. 15,609
+bytes read with one `fetch` and an `ArrayBuffer` beats about 60 KB of JSON
+text that then has to be parsed, there is no number formatting to get wrong,
+and the map fetches only the threshold and day it is showing rather than all
+fifteen. The content type is set explicitly to `application/octet-stream`,
+because `.u8` is not an extension Blob knows.
+
+The order is stated in `grid.json` and here: **row major, index =
+i × 121 + j**, with i going north to south from 38.00 N and j west to east
+from 68.00 E, which is the same order as everything else in this project.
+
+**255 means "outside India".** Counts are 0 to 51, so 255 cannot be mistaken
+for one. Squares outside the India mask carry 255 rather than their computed
+count, because a count for a square we never verify is a number we do not
+stand behind. `india.u8` carries the same information and is published as
+well, so a reader can mask without special-casing a magic number.
+
+#### The tiles
+
+A tile is a **4 degree by 4 degree block, named after its south-west corner
+in whole degrees**: `tiles/20N_72E.json` holds the squares from 20.00 N to
+23.75 N and 72.00 E to 75.75 E. For a square at (lat, lon) the tile is
+`floor(lat / 4) × 4`, `floor(lon / 4) × 4`.
+
+Measured on the real mask: the 4,613 India squares fall into **38 tiles**,
+median 15.2 KB, largest 34.0 KB with 256 squares in it. Only tiles that hold
+at least one India square exist, and `manifest.json` lists which, so the site
+never asks for one that is not there.
+
+One square's record, the real numbers for the HC6 rainy square on run
+`20261112T00Z`:
+
+```json
+{"lat": 34.25, "lon": 73.5,
+ "c": [[51,40,0],[41,3,0],[9,1,0],[0,0,0],[0,0,0]],
+ "d": [[0,11,40,0],[10,38,3,0],[42,8,1,0],[51,0,0,0],[51,0,0,0]]}
+```
+
+`c` is five days of three counts, at 1, 10 and 50 mm. `d` is five days of the
+four dot categories, in the order of section 4.3. The four identities of
+section 4.6 are asserted again on the published numbers, not assumed: a tile
+whose `c` and `d` disagree stops the publish.
+
+### 8.5 The order of writing, and why the manifest is last
+
+Run files first, in any order, because none of them refers to another. Then
+`manifest.json`.
+
+Until the manifest is rewritten, the store still describes the **previous**
+run and the site still shows it, however many of the new run's files are
+already uploaded. The manifest moving is the one moment the published
+forecast changes, and it is a single small write. This is the same rule as
+on disk in section 4.6, for the same reason.
+
+Run files are written with `allowOverwrite: true` even though a run id is
+immutable. A publish that dies halfway has to be retryable, and the default
+would make the retry throw on the files that already arrived. What stops a
+run being published twice is the manifest comparison in 8.6, not the store
+refusing a write. The bytes cannot differ between attempts: both the run id
+and the bytes come from the same checked run directory.
+
+`addRandomSuffix` stays `false`, because every pathname has to be predictable
+from the run id.
+
+### 8.6 Run selection in Actions reads the store, not the disk
+
+The Actions disk is empty at the start of every run, so
+`data/live/last_run.json` is never there and rule 3 of section 4.6 would
+never bite: every run would look unbuilt, and the same forecast could be
+published twice a day. In Actions the "already built" value comes from the
+store instead.
+
+| # | Step |
+|---|---|
+| 1 | read `manifest.json` from the store and take its `run_id` |
+| 2 | `run_live --published <that run id>`, so the section 4.6 rules apply unchanged |
+| 3 | if a run was built, publish it; if not, exit 0 and leave the store alone |
+
+The manifest is read through the SDK's `list` and the URL it returns, not
+through a hostname written into the repository. The store id is not a secret,
+it appears in every public URL, but hard-coding it would mean editing the
+repository if the store were ever recreated. With `list`, the token is the
+only thing that has to exist.
+
+An empty store, before the first publish, gives no manifest. That is not an
+error: `published` is then `None` and the newest complete run is built and
+published.
+
+#### Exit codes
+
+| Situation | `run_live` | `publish` | Workflow | What the site shows |
+|---|---|---|---|---|
+| nothing new | 0 | 0, "nothing to publish" | success | the previous run, correctly |
+| the newest run is incomplete | 0 | 0 | success | the previous run |
+| a check failed | **1** | not run | **failure** | the previous run |
+| upload failed before the manifest | 0 | **1** | **failure** | the previous run, because the manifest never moved |
+| upload failed after the manifest | 0 | **1** | **failure** | the new run, with retention not yet done |
+
+Deciding not to publish is never a failure. Failing a check always is.
+
+### 8.7 Retention: the newest eight runs
+
+| # | Rule |
+|---|---|
+| 1 | Retention runs **after** the new manifest is in place, never before |
+| 2 | The run the manifest points at is **never** deleted, whatever its position in the list |
+| 3 | Run prefixes sort as plain text, which is chronological for a run id, so the newest eight are kept and anything older is deleted |
+| 4 | Every deletion is logged with its pathname, its bytes and the run it belonged to, and the totals go into the next manifest's `retention` block |
+| 5 | A prefix under `runs/` that is not a valid 12-character run id is logged and **left alone**, so a stray hand-uploaded file cannot be destroyed by a cron |
+
+Eight is about a week of daily runs: enough to show the site's recent history
+and to re-check a published forecast against the bytes that were published,
+while the store stays near 7 MB.
+
+Deleting an old run blob loses nothing the track record needs. The forecast
+archive that verification uses is `data/india/ecmwf/` on this laptop, and the
+frozen results are `results/` in the repository. The store is a delivery
+copy, not a record.
+
+### 8.8 The workflow
+
+`.github/workflows/live.yml`.
+
+| Setting | Value | Why |
+|---|---|---|
+| Triggers | `schedule` and `workflow_dispatch` | the dispatch is for the first publish and after a failure |
+| Concurrency | group `live`, `cancel-in-progress: false` | two overlapping publishes could interleave uploads; a queued second attempt simply finds nothing new |
+| Permissions | `contents: read` | the workflow writes nothing back to the repository |
+| Timeout | 30 minutes | the first real run took 2 min 26 s |
+| Runner | `ubuntu-24.04` | pinned |
+
+**Schedule: `17,47 6-11 * * *`.** Twelve attempts, 06:17 to 11:47 UTC, which
+is 11:47 to 17:17 India time.
+
+Why it starts at 06:17 UTC. ECMWF publishes AIFS as soon as it is produced
+and documents the 00 UTC deterministic AIFS at 05:45 UTC; our own first live
+run found `20261112T00Z` complete at about 07:06 UTC. 06:17 is after the
+earliest time ECMWF describes and before the time we have actually observed.
+
+Why every thirty minutes until 11:47 UTC. If the run is late, or a scheduled
+job starts late, the next attempt is half an hour away instead of a day. Once
+the run is published, each remaining attempt costs one listing check and
+exits 0.
+
+Why minute 17 and 47. GitHub documents that scheduled workflows can be
+delayed when load is high, and load clusters at the start of an hour, so
+`:00` and `:30` are the two worst minutes available.
+
+### 8.9 The token
+
+| Question | Answer |
+|---|---|
+| Where it lives | a GitHub Actions secret named `BLOB_READ_WRITE_TOKEN`, and Vercel's own project environment |
+| How the code gets it | `env: BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}` on the publish step only, read by the SDK from `process.env` |
+| What the repository holds | the name, and nothing else. `.env.example` gains the name with an empty value |
+| What this laptop can do | read public URLs. It cannot list, upload or delete, and it has no token |
+| Never | printed, echoed, written to a file, passed on a command line, or put in a `.env` here |
+
+There is no `--token` flag on the uploader, on purpose: a command-line flag
+appears in process listings and in Actions logs. The uploader never prints
+its environment; a failure prints the error class and message only. If a
+token is ever exposed it is rotated in the Vercel dashboard, not reused.
+
+### 8.10 The two programs
+
+**`pipeline/publish.py`** makes every decision and touches no network:
+
+- which local run to publish: the newest `data/live/<run_id>/` that has a
+  `manifest.json` and `"published": false`,
+- whether it is newer than the store's current run id, and refusing if not,
+- building the payload into `data/publish/<run_id>/`, exactly the bytes to
+  be uploaded,
+- the sha256 of every file, which goes into the manifest,
+- the write order, the cache ages and the retention plan.
+
+It reaches the store only through a `Store` interface with three methods:
+`put(pathname, data, content_type, max_age)`, `list(prefix)` and
+`delete(pathnames)`. `BlobStore` runs the Node script; `FakeStore` keeps
+everything in a dictionary and records the order of every call, and is what
+the tests use. No network code in the module that holds the rules.
+
+**`scripts/publish/blob.mjs`** is the only code that talks to Vercel. One
+JSON request on standard input, one JSON reply on standard output, three
+verbs: `put`, `list`, `delete`. It holds no logic about runs, tiles or
+retention.
+
+#### Reading it back
+
+After the manifest is written, `publish.py` fetches every published file from
+its **public URL with no token** and compares the sha256 against the
+manifest. A file that cannot be read back is a failure even though the bytes
+are in the store, because the site reads those same URLs. It costs 0.87 MB of
+download a run.
+
+The manifest itself is fetched with a cache-busting query, because the CDN
+may serve the previous manifest for up to the 60 s of 8.4. The run files are
+new pathnames that were never cached, so they need no such trick.
+
+### 8.11 What the website reads
+
+The whole contract, in three requests:
+
+| # | Request | For |
+|---|---|---|
+| 1 | `manifest.json` | the current run id, the day labels, the tile list, the thresholds |
+| 2 | `runs/<run_id>/counts/ge<T>mm_day<d>.u8` | the map, 15,609 bytes, 255 outside India |
+| 3 | `runs/<run_id>/tiles/<lat>_<lon>.json` | the place panel, on a square click |
+
+No server, no database, no key. `api/health` and `api/place` stay in the
+fixed structure for section 11, but with this contract the site can read the
+store directly and `api/place` is a convenience rather than a requirement.
+
+A reader who loads the page within 60 s of a publish may be served the
+previous manifest. The page always shows the run id and the run time in IST,
+so which forecast is on screen is never ambiguous.
+
+### 8.12 Where the numbers live
+
+In `pipeline/publish.py`, not `config.py`, for the same reason as section
+3.7: `config.py` is imported by Pile A, which is still running, and it is not
+being touched until it stops.
+
+| Name | Value |
+|---|---|
+| `KEEP_RUNS` | 8 |
+| `MANIFEST_MAX_AGE` | 60 s |
+| `RUN_FILE_MAX_AGE` | 2,592,000 s |
+| `TILE_DEGREES` | 4.0 |
+| `NOT_INDIA` | 255 |
+
+### 8.13 Tests
+
+`tests/test_publish.py`, all against `FakeStore`, no network and no token.
+
+| Test | Covers |
+|---|---|
+| the manifest is the last write, and every file it names was written before it | 8.5 |
+| an older local run never replaces a newer published one, and nothing at all is written | 8.6 |
+| the same run is never republished, and nothing at all is written | 8.6 |
+| a local run with no manifest, or already marked published, is not published | 8.1 |
+| an empty store publishes the first run | 8.6 |
+| retention keeps the newest eight prefixes and deletes the rest, blob by blob | 8.7 |
+| retention never deletes the run the manifest points at, even when that run is the ninth newest | 8.7 |
+| retention leaves a prefix that is not a valid run id, and logs it | 8.7 |
+| no deletion happens before the manifest write | 8.7 |
+| every sha256 in the manifest matches the bytes handed to the store | 8.10 |
+| counts files are 15,609 bytes, 0 to 51 on India squares, 255 everywhere else | 8.4 |
+| every India square is in exactly one tile, and in the tile the formula names | 8.4 |
+| the four identities of 4.6 hold in the published tiles | 8.4 |
+| the cache ages are 60 s on the manifest and 2,592,000 s on every run file | 8.4 |
+
+#### HC7
+
+After the first real publish, and from this laptop with no token:
+`handchecks/hc7_published.py` fetches the published tile and the published
+counts byte for one square from their public URLs, and compares them against
+that square's numbers in `data/live/<run_id>/squares.npz`, with the index
+arithmetic written out longhand. Saved to
+`handchecks/results/hc7_published.csv`.
+
+### 8.14 Still open
+
+| # | Open | Note |
+|---|---|---|
+| 1 | each member's millimetre value in the place panel | the tiles carry the four dot category totals, which is enough to draw 51 correctly coloured dots, but not what each run actually said in mm. Section 4.3 wants the dots; whether the panel should also show the values is a section 11 decision. It would need member totals per tile, about 2.4 MB a run as 16-bit integers in 0.25 mm steps, or one file per square |
+| 2 | the store name and id | created by hand in the dashboard. Nothing in the repository depends on either |
+| 3 | whether `api/place` is built at all | 8.11 |
+| 4 | a Python-only publisher | `vercel-blob` 0.5.1 has a synchronous API with the same four operations and would remove Node, npm and `package-lock.json` from the project. Not taken because the brief asked for `@vercel/blob`; recorded so the choice can be reopened |
+| 5 | `robots.txt` in the store | Blob serves none by default, so the data files can be indexed if they are ever linked from a page |
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:
@@ -1760,15 +2125,16 @@ Nothing in sections 1-4 is now blocked.
 ## Sections still to draft
 
 7. Pipeline stages and file layout
-8. Website and API
 9. Automation and failure handling
 10. Testing strategy
-11. Display rules
+11. Display rules, the website pages and the `api/` functions (8.1)
 12. Tiers and acceptance tests
 
 ### Requirements already fixed for later sections
 
 Recorded here so they are not lost between drafting groups.
+
+**Section 8 is drafted** and is publishing, not "Website and API": see 8.1.
 
 **Section 11, display rules.** A large percentage may be displayed **only**
 when that forecast carries a "Good track record" label. Without that label the
