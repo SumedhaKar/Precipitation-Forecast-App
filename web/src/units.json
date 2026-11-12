@@ -1,0 +1,494 @@
+{
+ "note": "SPEC 11.29. The 28 states and 8 union territories of Natural Earth 1:10m admin-1, `admin = India`, listed largest polygon first, which is the order the map tries to place their names in. `lat` and `lon` are where the unit's name is written and are inside the unit. `code` is Natural Earth's own `postal` field, shown instead of the name where the name does not fit. `city` is the one town the map labels in that unit -- its capital where Natural Earth marks one inside the unit, otherwise the largest town inside it by population -- and its `lat` and `lon` are the 0.25 degree square the page shows, never the town's own position. Built by scripts/build_towns.py.",
+ "source": {
+  "units": "ne_10m_admin_1_states_provinces",
+  "cities": "ne_10m_populated_places",
+  "version": "5.1.2",
+  "licence": "public domain",
+  "rule": "admin = India, and the town's point inside the unit's own polygon"
+ },
+ "units": [
+  {
+   "name": "Rajasthan",
+   "code": "RJ",
+   "lat": 26.747,
+   "lon": 73.856,
+   "span": 8.61,
+   "city": {
+    "name": "Jaipur",
+    "pop": 2917000,
+    "lat": 27.0,
+    "lon": 75.75
+   }
+  },
+  {
+   "name": "Madhya Pradesh",
+   "code": "MP",
+   "lat": 22.94,
+   "lon": 78.421,
+   "span": 7.58,
+   "city": {
+    "name": "Bhopal",
+    "pop": 1727000,
+    "lat": 23.25,
+    "lon": 77.5
+   }
+  },
+  {
+   "name": "Maharashtra",
+   "code": "MH",
+   "lat": 19.472,
+   "lon": 75.465,
+   "span": 5.54,
+   "city": {
+    "name": "Mumbai",
+    "pop": 18978000,
+    "lat": 19.25,
+    "lon": 73.0,
+    "moved_from": {
+     "lat": 19.0,
+     "lon": 73.0
+    }
+   }
+  },
+  {
+   "name": "Uttar Pradesh",
+   "code": "UP",
+   "lat": 26.72,
+   "lon": 80.997,
+   "span": 5.5,
+   "city": {
+    "name": "Lucknow",
+    "pop": 2695000,
+    "lat": 26.75,
+    "lon": 81.0
+   }
+  },
+  {
+   "name": "Gujarat",
+   "code": "GJ",
+   "lat": 22.75,
+   "lon": 71.301,
+   "span": 4.13,
+   "city": {
+    "name": "Gandhinagar",
+    "pop": 195891,
+    "lat": 23.25,
+    "lon": 72.75
+   }
+  },
+  {
+   "name": "Karnataka",
+   "code": "KA",
+   "lat": 14.368,
+   "lon": 75.667,
+   "span": 2.46,
+   "city": {
+    "name": "Bengaluru",
+    "pop": 6787000,
+    "lat": 13.0,
+    "lon": 77.5
+   }
+  },
+  {
+   "name": "Andhra Pradesh",
+   "code": "AP",
+   "lat": 15.896,
+   "lon": 79.407,
+   "span": 2.51,
+   "city": {
+    "name": "Amaravati",
+    "pop": 5800000,
+    "lat": 16.5,
+    "lon": 80.5
+   }
+  },
+  {
+   "name": "Odisha",
+   "code": "OR",
+   "lat": 20.625,
+   "lon": 84.434,
+   "span": 4.58,
+   "city": {
+    "name": "Bhubaneswar",
+    "pop": 844000,
+    "lat": 20.25,
+    "lon": 85.75
+   }
+  },
+  {
+   "name": "Chhattisgarh",
+   "code": "CT",
+   "lat": 21.804,
+   "lon": 82.307,
+   "span": 2.65,
+   "city": {
+    "name": "Raipur",
+    "pop": 875000,
+    "lat": 21.25,
+    "lon": 81.75
+   }
+  },
+  {
+   "name": "Tamil Nadu",
+   "code": "TN",
+   "lat": 11.016,
+   "lon": 78.27,
+   "span": 3.17,
+   "city": {
+    "name": "Chennai",
+    "pop": 7163000,
+    "lat": 13.0,
+    "lon": 80.25
+   }
+  },
+  {
+   "name": "Telangana",
+   "code": "TG",
+   "lat": 17.427,
+   "lon": 78.468,
+   "span": 3.95,
+   "city": {
+    "name": "Hyderabad",
+    "pop": 6376000,
+    "lat": 17.5,
+    "lon": 78.5
+   }
+  },
+  {
+   "name": "Bihar",
+   "code": "BR",
+   "lat": 25.685,
+   "lon": 85.813,
+   "span": 3.71,
+   "city": {
+    "name": "Patna",
+    "pop": 2158000,
+    "lat": 25.75,
+    "lon": 85.25
+   }
+  },
+  {
+   "name": "West Bengal",
+   "code": "WB",
+   "lat": 23.052,
+   "lon": 87.729,
+   "span": 2.73,
+   "city": {
+    "name": "Kolkata",
+    "pop": 14787000,
+    "lat": 22.5,
+    "lon": 88.25
+   }
+  },
+  {
+   "name": "Arunachal Pradesh",
+   "code": "AR",
+   "lat": 28.406,
+   "lon": 94.467,
+   "span": 3.12,
+   "city": {
+    "name": "Itanagar",
+    "pop": 44971,
+    "lat": 27.0,
+    "lon": 93.5
+   }
+  },
+  {
+   "name": "Assam",
+   "code": "AS",
+   "lat": 26.33,
+   "lon": 92.993,
+   "span": 4.3,
+   "city": {
+    "name": "Dispur",
+    "pop": 16140,
+    "lat": 26.25,
+    "lon": 91.75
+   }
+  },
+  {
+   "name": "Jharkhand",
+   "code": "JH",
+   "lat": 23.522,
+   "lon": 85.058,
+   "span": 2.02,
+   "city": {
+    "name": "Ranchi",
+    "pop": 1044000,
+    "lat": 23.25,
+    "lon": 85.25
+   }
+  },
+  {
+   "name": "Ladakh",
+   "code": "LA",
+   "lat": 34.026,
+   "lon": 77.481,
+   "span": 2.93,
+   "city": {
+    "name": "Leh",
+    "pop": 30870,
+    "lat": 34.25,
+    "lon": 77.5
+   }
+  },
+  {
+   "name": "Himachal Pradesh",
+   "code": "HP",
+   "lat": 31.675,
+   "lon": 77.287,
+   "span": 2.72,
+   "city": {
+    "name": "Simla",
+    "pop": 173503,
+    "lat": 31.0,
+    "lon": 77.25
+   }
+  },
+  {
+   "name": "Uttarakhand",
+   "code": "UT",
+   "lat": 30.058,
+   "lon": 79.284,
+   "span": 2.95,
+   "city": {
+    "name": "Dehra Dun",
+    "pop": 714223,
+    "lat": 30.25,
+    "lon": 78.0
+   }
+  },
+  {
+   "name": "Punjab",
+   "code": "PB",
+   "lat": 31.024,
+   "lon": 75.376,
+   "span": 2.06,
+   "city": {
+    "name": "Ludhiana",
+    "pop": 1649000,
+    "lat": 31.0,
+    "lon": 75.75
+   }
+  },
+  {
+   "name": "Jammu and Kashmir",
+   "code": "JK",
+   "lat": 33.52,
+   "lon": 75.293,
+   "span": 2.29,
+   "city": {
+    "name": "Srinagar",
+    "pop": 1140000,
+    "lat": 34.0,
+    "lon": 74.75
+   }
+  },
+  {
+   "name": "Haryana",
+   "code": "HR",
+   "lat": 29.1,
+   "lon": 76.271,
+   "span": 1.75,
+   "city": {
+    "name": "Faridabad",
+    "pop": 1394000,
+    "lat": 28.5,
+    "lon": 77.25
+   }
+  },
+  {
+   "name": "Kerala",
+   "code": "KL",
+   "lat": 10.367,
+   "lon": 76.524,
+   "span": 0.73,
+   "city": {
+    "name": "Thiruvananthapuram",
+    "pop": 954000,
+    "lat": 8.5,
+    "lon": 77.0
+   }
+  },
+  {
+   "name": "Meghalaya",
+   "code": "ML",
+   "lat": 25.48,
+   "lon": 91.303,
+   "span": 2.71,
+   "city": {
+    "name": "Shillong",
+    "pop": 375527,
+    "lat": 25.5,
+    "lon": 92.0
+   }
+  },
+  {
+   "name": "Manipur",
+   "code": "MN",
+   "lat": 24.744,
+   "lon": 93.846,
+   "span": 1.48,
+   "city": {
+    "name": "Imphal",
+    "pop": 264986,
+    "lat": 24.75,
+    "lon": 94.0
+   }
+  },
+  {
+   "name": "Mizoram",
+   "code": "MZ",
+   "lat": 23.204,
+   "lon": 92.841,
+   "span": 1.05,
+   "city": {
+    "name": "Aizawl",
+    "pop": 283021,
+    "lat": 23.75,
+    "lon": 92.75
+   }
+  },
+  {
+   "name": "Nagaland",
+   "code": "NL",
+   "lat": 26.109,
+   "lon": 94.566,
+   "span": 1.08,
+   "city": {
+    "name": "Kohima",
+    "pop": 92113,
+    "lat": 25.75,
+    "lon": 94.0
+   }
+  },
+  {
+   "name": "Tripura",
+   "code": "TR",
+   "lat": 23.852,
+   "lon": 91.703,
+   "span": 1.06,
+   "city": {
+    "name": "Agartala",
+    "pop": 203264,
+    "lat": 23.75,
+    "lon": 91.25
+   }
+  },
+  {
+   "name": "Sikkim",
+   "code": "SK",
+   "lat": 27.571,
+   "lon": 88.448,
+   "span": 0.69,
+   "city": {
+    "name": "Gangtok",
+    "pop": 77900,
+    "lat": 27.25,
+    "lon": 88.5
+   }
+  },
+  {
+   "name": "Andaman and Nicobar",
+   "code": "AN",
+   "lat": 6.837,
+   "lon": 93.79,
+   "span": 0.11,
+   "city": {
+    "name": "Port Blair",
+    "pop": 127562,
+    "lat": 11.75,
+    "lon": 92.75,
+    "not_forecast": "Andaman & Nicobar"
+   }
+  },
+  {
+   "name": "Goa",
+   "code": "GA",
+   "lat": 15.313,
+   "lon": 73.995,
+   "span": 0.4,
+   "city": {
+    "name": "Panaji",
+    "pop": 65586,
+    "lat": 15.75,
+    "lon": 73.75,
+    "moved_from": {
+     "lat": 15.5,
+     "lon": 73.75
+    }
+   }
+  },
+  {
+   "name": "Delhi",
+   "code": "DL",
+   "lat": 28.69,
+   "lon": 77.086,
+   "span": 0.37,
+   "city": {
+    "name": "New Delhi",
+    "pop": 317797,
+    "lat": 28.5,
+    "lon": 77.25
+   }
+  },
+  {
+   "name": "Dadra and Nagar Haveli and Daman and Diu",
+   "code": "DH",
+   "lat": 20.184,
+   "lon": 73.029,
+   "span": 0.1,
+   "city": {
+    "name": "Daman",
+    "pop": 39737,
+    "lat": 20.5,
+    "lon": 73.0,
+    "moved_from": {
+     "lat": 20.5,
+     "lon": 72.75
+    }
+   }
+  },
+  {
+   "name": "Puducherry",
+   "code": "PY",
+   "lat": 10.922,
+   "lon": 79.776,
+   "span": 0.13,
+   "city": {
+    "name": "Puducherry",
+    "pop": 227411,
+    "lat": 12.0,
+    "lon": 79.75
+   }
+  },
+  {
+   "name": "Chandigarh",
+   "code": "CH",
+   "lat": 30.745,
+   "lon": 76.76,
+   "span": 0.12,
+   "city": {
+    "name": "Chandigarh",
+    "pop": 979000,
+    "lat": 30.75,
+    "lon": 76.75
+   }
+  },
+  {
+   "name": "Lakshadweep",
+   "code": "LD",
+   "lat": 11.225,
+   "lon": 72.781,
+   "span": 0.01,
+   "city": {
+    "name": "Kavaratti",
+    "pop": 10688,
+    "lat": 10.5,
+    "lon": 72.75,
+    "not_forecast": "Lakshadweep"
+   }
+  }
+ ]
+}

@@ -12,9 +12,18 @@
 // `node` can test it against this very file. This is the glue.
 
 import townList from './towns.json';
+import unitList from './units.json';
 import * as list from './townlist';
+import * as units from './unitlist';
 
 export const TOWNS = townList.towns;
+
+// SPEC 11.29. The 36 states and union territories, largest first, and the one
+// city each of them labels, largest population first. Both are only ever
+// drawn as names on the map; the search still reads all 215 towns.
+export const UNITS = unitList.units;
+export const STATE_LABELS = units.unitLabels(UNITS);
+export const CITY_LABELS = units.cityLabels(UNITS);
 
 export const townLabel = list.townLabel;
 
@@ -28,4 +37,9 @@ export function nameOfSquare(lat, lon) {
 
 export function findTowns(text, most) {
   return list.findTowns(TOWNS, text, most);
+}
+
+/** The nearest names to something that matched nothing. Never auto-picked. */
+export function nearTowns(text, most) {
+  return list.nearTowns(TOWNS, text, most);
 }
