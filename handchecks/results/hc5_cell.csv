@@ -1,0 +1,27 @@
+# HC5: every IMERG pixel overlapping one ECMWF cell
+# IMERG file,3B-DAY-L.MS.MRG.3IMERG.20260722-S000000-E235959.V07C.nc4
+# date,20260722
+# cell centre lat N,20.25
+# cell centre lon E,72.75
+# cell latitude range,20.125 to 20.375
+# cell longitude range,72.625 to 72.875
+# weight,overlap_lon_degrees * (sin(overlap_lat_top) - sin(overlap_lat_bottom))
+# cell value = sum(weight * value over complete pixels) / sum(weight over complete pixels)
+# sum of weights,0.0010234071772524111
+# analytic cell area,0.0010234071772524111
+# sum of weights over complete pixels,0.0010234071772524111
+# complete_fraction reported by the program,1.0
+# usable threshold,0.9
+# cell value reported by the program mm,406.09262545270906
+# cell value recomputed here from these rows mm,406.09262545270906
+# pixels overlapping this cell,9
+pixel_lat_bottom,pixel_lat_top,pixel_lon_left,pixel_lon_right,overlap_lat_bottom,overlap_lat_top,overlap_lon_left,overlap_lon_right,value_mm,cnt,complete,overlap_fraction_of_pixel,weight
+20.3,20.4,72.6,72.7,20.3,20.375,72.625,72.7,358.135009765625,48,1,0.5625455345740504,9.205471211479954e-05
+20.3,20.4,72.7,72.8,20.3,20.375,72.7,72.8,459.4849853515625,48,1,0.7500607127653294,0.0001227396161530544
+20.3,20.4,72.8,72.9,20.3,20.375,72.8,72.875,328.69000244140625,48,1,0.5625455345739705,9.205471211479954e-05
+20.2,20.3,72.6,72.7,20.2,20.3,72.625,72.7,398.00994873046875,48,1,0.750000000000071,0.0001228089431040904
+20.2,20.3,72.7,72.8,20.2,20.3,72.7,72.8,445.0699462890625,48,1,1.0,0.00016374525747210502
+20.2,20.3,72.8,72.9,20.2,20.3,72.8,72.875,337.0400390625,48,1,0.7499999999999645,0.0001228089431040904
+20.1,20.2,72.6,72.7,20.125,20.2,72.625,72.7,513.89501953125,48,1,0.5624549877939827,9.215849795684505e-05
+20.1,20.2,72.7,72.8,20.125,20.2,72.7,72.8,437.5849914550781,48,1,0.7499399837252392,0.00012287799727578175
+20.1,20.2,72.8,72.9,20.125,20.2,72.8,72.875,343.9449768066406,48,1,0.5624549877939028,9.215849795684505e-05

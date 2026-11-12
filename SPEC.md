@@ -681,6 +681,205 @@ weather, and must be reported as such rather than explained away.
 
 This limitation is published on the site alongside the track record.
 
+### 3.7 IMERG processing
+
+`pipeline/nasa_process.py`. One IMERG file is one date. Written and run on
+12 November 2026 while Pile A was still downloading, so `pipeline/config.py`
+was not touched; see "Where the numbers live" below.
+
+```
+python -m pipeline.nasa_process --all        process every Pile B date
+python -m pipeline.nasa_process 20260722     process one date
+python -m pipeline.nasa_process --summary    report over what is done
+```
+
+#### Which IMERG date verifies which lead day
+
+The run of date **R**, lead day **n**, covers forecast steps 24n to 24(n+1),
+which is the 00 UTC to 00 UTC day starting n days after R. IMERG files are
+named for the day they cover. So:
+
+| Lead day | Steps | IMERG date |
+|---|---|---|
+| 1 | 24-48 | R + 1 |
+| 2 | 48-72 | R + 2 |
+| 3 | 72-96 | R + 3 |
+| 4 | 96-120 | R + 4 |
+| 5 | 120-144 | R + 5 |
+
+This is `imerg_date_for(run_date, lead_day)`, one function, used by anything
+that pairs a forecast with an observation, including the cases of section 5.1.
+It is tested across a month end, a year end and the ends of its own range.
+
+#### Checks before any value is used
+
+Read from the file itself, not from its name alone, and any failure stops that
+date:
+
+| What | Check |
+|---|---|
+| Version | `DOI` attribute is exactly `10.5067/GPM/IMERGDL/DAY/07` |
+| Version | `title` attribute contains `Late`, `1 day` and `0.1 degree` |
+| Version | the file name contains `V07C` |
+| Units | `precipitation.units` is `mm/day` |
+| Shape | `precipitation` is `(1, 3600, 1800)` and `precipitation_cnt` matches |
+| Date | the `time` coordinate, converted using its own `units` attribute, is 00:00 UTC on the file-name date |
+| Date | the `BeginDate` attribute is that same date |
+| Counts | `precipitation_cnt` in the India window lies between 0 and 48 |
+
+**Limitation, recorded rather than hidden.** The revision letter `C` of
+`V07C` appears only in the file name; the `DOI` attribute carries version
+`07` without it. So the major version is checked from inside the file and the
+revision letter from the name. If NASA issues a `V07D`, the name check is what
+catches it.
+
+The `time` coordinate is converted by parsing its `units` string, currently
+`days since 1980-01-06 00:00:00Z`. The epoch is never hardcoded.
+
+#### Values
+
+| Value | Treatment |
+|---|---|
+| `-9999.9`, the `_FillValue`, within 0.01 | **missing**, excluded like an incomplete pixel |
+| any other negative value | **fails the date** |
+| NaN that is not the fill value | **fails the date** |
+
+Checked over the India window, which is the only data this step uses. A
+negative rainfall that is not the documented fill value means the file is not
+what it claims to be, and guessing what it meant is not allowed.
+
+#### The grid is rebuilt from the coordinate values
+
+Pixel edges come from the `lat` and `lon` vectors in the file, never from an
+assumed index order:
+
+- spacing is checked to be 0.1 degrees everywhere, within 1e-4,
+- the vectors are checked to be ascending,
+- edges are centre plus or minus 0.05, and the **outermost edges are asserted
+  to be -90 and +90 in latitude and -180 and +180 in longitude**,
+- only once the file has proved it is that grid are the edges snapped to exact
+  multiples of 0.1, so that the overlap arithmetic does not carry the float32
+  noise the file stores longitude in.
+
+The India window is then chosen by which pixel edges actually overlap the
+India box, not by arithmetic on index numbers. It comes out 324 pixels of
+latitude by 304 of longitude.
+
+The first operation on the data itself is the transpose and latitude flip of
+section 3.2, `(lon, lat)` ascending to `(lat, lon)` descending, and it has its
+own test that a transpose without the flip would fail.
+
+#### The weight matrix
+
+The overlap weights of section 3.3 are computed **once** and reused for every
+date, as a sparse matrix in coordinate form: a row index into the 15,609 cells,
+a column index into the window pixels, and the spherical area of the overlap
+rectangle. It holds 191,648 entries, about 12.3 pixels per cell.
+
+One identity is asserted every time it is built: because the 0.1 degree pixels
+tile the globe, **the weights of each cell must sum to that cell's analytic
+area**, `0.25 * (sin(top) - sin(bottom))`. This is required to hold to 1e-9
+relative. If the overlap arithmetic were wrong anywhere, this is what would
+catch it before any rainfall was computed.
+
+#### Completeness
+
+Exactly as section 3.4. Only pixels with `precipitation_cnt == 48` and a
+non-missing value contribute; the weights are renormalised over them; a cell
+is usable when they cover at least 0.90 of the cell's area. **Exactly 0.90
+passes**, with a 1e-12 tolerance so that float dust cannot push a cell that is
+arithmetically on the line to the wrong side. An unusable cell is NaN, and the
+count of unusable cells is in every done record.
+
+`complete_fraction` is published alongside the rainfall for every cell, so a
+reader can see how much of each cell was observed rather than inferring it.
+
+#### Output
+
+| Path | Contents |
+|---|---|
+| `data/india/nasa/<date>.npz` | `rain` (129, 121) float32 mm, NaN where unusable; `complete_fraction` (129, 121) float32; `lat` 38.0 down to 6.0; `lon` 68.0 up to 98.0 |
+| `data/logs/done/nasa_<date>.json` | done record: file identity, window summary, grid, usable and unusable counts, lowest complete fraction, wettest cell |
+| `data/logs/failures/nasa_<date>.json` | error type, message and traceback |
+
+Written to `<date>.npz.part`, reopened, compared array by array against what
+was in memory including NaN positions, and only then renamed. A date is
+skipped on a later run when both its done record and its output file exist,
+so the step resumes exactly like Pile A.
+
+**The raw IMERG files are kept.** Nothing in this step deletes them. The
+standing permission to delete raw files after checks pass covers Pile A's
+GRIB only.
+
+#### Where the numbers live
+
+The IMERG constants (0.1 degree, 3600 by 1800, the fill value, 48, 0.90) are
+in `pipeline/nasa_process.py` rather than in `pipeline/config.py`, because
+Pile A was running and imports `config.py`. They belong in `config.py` and
+move there the next time Pile A is stopped.
+
+#### What the first full run found
+
+181 dates processed on 12 November 2026, **0 failures**, 23.1 MB of output.
+
+| Measure | Result |
+|---|---|
+| India square-days | 834,953 (4,613 squares x 181 dates) |
+| Unusable square-days | **0** |
+| Dates with more than 10% of India squares unusable | 0 |
+| Lowest `complete_fraction` of any cell, any date | 1.0 |
+| Lowest `precipitation_cnt` in any India window | 48 |
+| Fill values in any India window | 0 |
+| Wettest India square-day | 22 July 2026, 20.25 N 72.75 E, 406.1 mm |
+
+Every IMERG pixel over India, on all 181 days, was complete. So the
+completeness rule of section 3.4 has **never yet excluded anything in
+practice**, and the only evidence that it works is the unit tests that build
+incomplete pixels on purpose. That is worth knowing before anyone reads the
+0% unusable figure as a property of the code.
+
+#### Tests
+
+`tests/test_nasa_process.py`:
+
+| Test | What it would catch |
+|---|---|
+| transpose and flip | a wrong orientation, including a transpose without the flip |
+| weights sum to the cell area | any error in the overlap arithmetic |
+| constant field unchanged | a broken normalisation |
+| field linear in longitude returns the cell centre | asymmetric longitude weights |
+| `lon * 1000 + lat` against longhand expected means at 7 cells | a flip, a transpose or a swapped axis |
+| single-pixel spike against a hand-computed weight | a wrong weight or a leak into the neighbouring cell |
+| conserved total over latitude 10-20 N, longitude 70-80 E | a systematic area error |
+| incomplete pixels excluded, not zeroed | treating a gap as no rain |
+| the 0.90 boundary, exactly and just below | an off-by-epsilon on the usability rule |
+| `imerg_date_for` across a month end and a year end | a date-mapping error |
+| grid rejection: descending, wrong spacing, shifted, uneven | accepting a file that is not the IMERG grid |
+| **a second implementation on real data** | anything the first six tests share an assumption about |
+
+The last one re-implements the remapping a different way: it supersamples each
+cell 50 by 50, takes each sub-point's pixel by nearest neighbour, and weights
+by `cos(latitude)` instead of sine differences. It shares no code with the
+sparse-matrix path. On 14 July 2026 the two agree to within **1e-3 mm**, the
+required tolerance, and the completeness fractions agree to 1e-6. It skips
+when the raw IMERG files are absent, because `data/` is never committed, so it
+does not run in CI.
+
+#### HC5
+
+`handchecks/hc5_cell.py` writes `handchecks/results/hc5_cell.csv`: every
+IMERG pixel overlapping one cell, with its own edges, the overlap rectangle's
+edges, its value, its count, the fraction of the pixel inside the cell, and
+its weight. The header carries the sum of weights, the analytic cell area, the
+complete fraction, and the cell value the program produced, so the weighted
+mean can be recomputed by hand in a spreadsheet.
+
+The cell is chosen by rule, not picked: the wettest India square-day in July
+2026 with its centre between 8 and 22 N and at or west of 76 E. That is
+22 July 2026 at 20.25 N, 72.75 E, on the Gujarat-Maharashtra coast. Nine
+pixels overlap it, all complete, and the recomputed mean matches the program's
+406.09262545270906 mm exactly.
+
 ---
 
 ## 4. The forecast product
