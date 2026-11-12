@@ -622,7 +622,17 @@ export default function ForecastMap({
         // SPEC 11.25: reading a pixel back from a WebGL canvas needs this,
         // and it costs every reader a copy on every frame, so HC8 asks for it
         // with ?handcheck=1 and the map everyone else loads does without it.
-        preserveDrawingBuffer: Boolean(handcheck),
+        //
+        // It must go inside `canvasContextAttributes`. MapLibre 6 takes the
+        // WebGL attributes as one object and **ignores a top level
+        // `preserveDrawingBuffer` in silence**, which is how this was
+        // written first: `?handcheck=1` changed nothing at all, every pixel
+        // read back was transparent black, and HC8 could not have run. The
+        // page now says what it got (`mapFacts`) so the hand check can
+        // refuse to go on if the flag did not take.
+        canvasContextAttributes: {
+          preserveDrawingBuffer: Boolean(handcheck),
+        },
       });
     } catch (error) {
       onProblem('maplibre');
@@ -890,6 +900,47 @@ export default function ForecastMap({
     // The view itself, for the checks that have to know what is on screen:
     // which zoom, and which corner of the world is in which corner of the
     // canvas (SPEC 11.25, 11.31).
+    // What the map is made of, for HC8 (SPEC 11.25). The hand check samples
+    // a drawn pixel and compares it with a palette hex, and that comparison
+    // is only meaningful while the basemap slot is empty, the squares are
+    // drawn at full opacity, and nothing in NOT_DATA_LAYERS is painting over
+    // the square it samples. It has to be able to assert all three on the
+    // live page rather than trust the source it cannot see, so the page says
+    // them out loud. Reading only, and nothing here changes what is drawn.
+    created.getContainer().mapFacts = () => {
+      const order = created.getStyle().layers.map((layer) => layer.id);
+      const land = order.indexOf('india-fill');
+      const squares = order.indexOf('squares');
+      return {
+        zoom: created.getZoom(),
+        gridFromZoom: GRID_FROM_ZOOM,
+        // Whether the pixel can be read back at all. HC8 asserts this
+        // before it believes a single colour it sampled.
+        preserveDrawingBuffer: Boolean(created.getCanvas()
+          .getContext('webgl2').getContextAttributes()
+          .preserveDrawingBuffer),
+        // Everything between our own land fill and the squares, with the
+        // slot marker itself taken out. Empty means no basemap is drawn
+        // under the squares, which is the promise of SPEC 11.14.
+        basemapSlot: order.slice(land + 1, squares)
+          .filter((id) => id !== SLOT_BASEMAP),
+        slotOpacity: created.getPaintProperty(SLOT_BASEMAP,
+          'background-opacity'),
+        squareOpacity: created.getPaintProperty('squares', 'fill-opacity'),
+        // The mark on the chosen square: how many features of it are in
+        // view at all. None, and none of the ring or outline layers can put
+        // a pixel anywhere near what is being sampled.
+        picked: created.querySourceFeatures('picked').length
+          + created.querySourceFeatures('picked-centre').length,
+        notData: NOT_DATA_LAYERS.map((id) => {
+          const layer = created.getLayer(id);
+          const key = layer.type === 'circle'
+            ? 'circle-stroke-opacity' : 'line-opacity';
+          return [id, created.getPaintProperty(id, key)];
+        }),
+        layers: order,
+      };
+    };
     created.getContainer().mapView = () => {
       const box = created.getBounds();
       return { zoom: created.getZoom(),

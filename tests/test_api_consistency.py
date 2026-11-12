@@ -1924,3 +1924,66 @@ def test_a_colour_swatch_is_not_a_control():
             assert "aria-hidden=\"true\"" in after[:120], name
             assert "tabIndex" not in after[:200], name
             assert "onClick" not in after[:200], name
+
+# --------------------------- SPEC 11.25: the page can be hand checked at all
+
+def test_the_hand_check_flag_reaches_the_canvas():
+    """SPEC 11.25. ?handcheck=1 must actually turn the read-back on.
+
+    It did not. MapLibre 6 takes the WebGL attributes as one
+    `canvasContextAttributes` object and ignores a top level
+    `preserveDrawingBuffer` **in silence**, which is how this was written
+    first: the flag changed nothing, every pixel HC8 read back was
+    transparent black, and the one check that looks at what a reader looks
+    at could not run. Nothing in the page breaks when this regresses, so a
+    test holds it instead.
+    """
+    text = (ROOT / "web" / "src" / "Map.jsx").read_text("utf-8")
+    assert "canvasContextAttributes: {" in text
+    inside = text.split("canvasContextAttributes: {")[1].split("}")[0]
+    assert "preserveDrawingBuffer: Boolean(handcheck)" in inside
+    # Not as a sibling of `container` and `style`, where it does nothing.
+    # Comments are dropped first: this one is explained at length in a
+    # comment right above it, and a test that reads comments reads nothing.
+    code = "\n".join(line for line in text.split("\n")
+                     if not line.strip().startswith("//"))
+    options = code.split("new maplibregl.Map({")[1].split("});")[0]
+    assert options.count("preserveDrawingBuffer") == 1
+    assert "canvasContextAttributes: {" in options
+    # And the page says what it got, so HC8 can refuse to believe a pixel
+    # that was never preserved.
+    assert "preserveDrawingBuffer: Boolean(created.getCanvas()" in text
+
+    pinned = json.loads(
+        (ROOT / "web" / "package.json").read_text("utf-8"))
+    assert pinned["dependencies"]["maplibre-gl"].startswith("6.")
+
+
+def test_the_page_says_what_the_hand_check_has_to_assert():
+    """SPEC 11.25. HC8 asserts the two conditions rather than assuming them.
+
+    A sampled pixel equals an unblended palette hex only while the basemap
+    slot is empty and the squares are drawn at full opacity, and only if no
+    layer of NOT_DATA_LAYERS is painting over the square being sampled. The
+    hand check cannot see the source, so the live page says all of it.
+    """
+    text = (ROOT / "web" / "src" / "Map.jsx").read_text("utf-8")
+    facts = text.split("mapFacts = () => {")[1].split("\n    };")[0]
+    for said in ("basemapSlot", "slotOpacity", "squareOpacity", "picked",
+                 "notData", "gridFromZoom", "preserveDrawingBuffer"):
+        assert said in facts, said
+    # Read-only: nothing in there sets anything.
+    for wrote in ("setPaintProperty", "setData", "addLayer", "removeLayer",
+                  "setStyle", "jumpTo", "easeTo", "flyTo"):
+        assert wrote not in facts, wrote
+
+    check = (ROOT / "handchecks" / "hc8_map_square.py").read_text("utf-8")
+    # The palette is copied out in the hand check, not imported from the
+    # page: a second opinion is only an opinion if it is a second one.
+    assert "from pipeline" not in check and "import pipeline" not in check
+    for _, _, label, colour in [
+            (0, 0, "0", "#eceff1"), (1, 10, "1-10", "#c7e9b4"),
+            (11, 20, "11-20", "#7fcdbb"), (21, 30, "21-30", "#41b6c4"),
+            (31, 40, "31-40", "#1d91c0"), (41, 50, "41-50", "#225ea8"),
+            (51, 51, "51", "#0c2c84")]:
+        assert f'"{label}", "{colour}"' in check, label
