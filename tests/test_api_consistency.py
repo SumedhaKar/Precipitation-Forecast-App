@@ -631,3 +631,181 @@ def test_the_mask_is_identical_in_every_counts_file(store):
             assert data.shape == mask.shape
             assert ((data != 255) == expected).all(), name
             assert (data[expected] <= 51).all(), name
+
+
+# ------------------------------------- SPEC 11.17: the palette and the legend
+
+PALETTE = ROOT / "web" / "src" / "palette.js"
+SNAP = ROOT / "web" / "src" / "snap.js"
+
+# SPEC 11.17, written out again here rather than imported, so the test holds
+# the published table and not whatever the file happens to say.
+PUBLISHED_CLASSES = [
+    (0, 0, "#eceff1", "0"),
+    (1, 10, "#c7e9b4", "1-10"),
+    (11, 20, "#7fcdbb", "11-20"),
+    (21, 30, "#41b6c4", "21-30"),
+    (31, 40, "#1d91c0", "31-40"),
+    (41, 50, "#225ea8", "41-50"),
+    (51, 51, "#0c2c84", "51"),
+]
+
+
+@needs_node
+def test_every_count_falls_in_exactly_one_published_class(exports):
+    """0 to 51, no gap and no overlap, and the boundaries of SPEC 11.17."""
+    colours = exports(PALETTE, "colourOf", [[c] for c in range(52)])
+    labels = exports(PALETTE, "labelOf", [[c] for c in range(52)])
+
+    for count in range(52):
+        wanted = [row for row in PUBLISHED_CLASSES
+                  if row[0] <= count <= row[1]]
+        assert len(wanted) == 1, f"{count} is in {len(wanted)} classes"
+        assert colours[count] == wanted[0][2], count
+        assert labels[count] == wanted[0][3], count
+
+    # Contiguous and complete: every class is used and they run end to end.
+    assert len(set(colours)) == len(PUBLISHED_CLASSES)
+    assert colours[0] != colours[1], "0 has its own class"
+    assert colours[51] != colours[50], "51 has its own class"
+
+
+@needs_node
+def test_nothing_that_is_not_a_count_gets_a_colour(exports):
+    """255 is "outside India" (SPEC 8.4) and must never be painted."""
+    # No NaN here: JSON cannot carry it, so the harness could not pass one.
+    # classOf rejects it anyway, because Number.isInteger(NaN) is false.
+    cases = [[255], [52], [-1], [0.5], ["7"], [None], [True]]
+    for colour in exports(PALETTE, "colourOf", cases):
+        assert colour is None, colour
+    for label in exports(PALETTE, "labelOf", cases):
+        assert label is None, label
+
+
+@needs_node
+def test_the_step_expression_paints_what_the_palette_says(exports):
+    """The map's fill expression, evaluated here the way MapLibre would.
+
+    A `step` expression is a base colour and then (stop, colour) pairs: the
+    colour of the last stop at or below the value. If that ever disagreed with
+    classOf, the map and the panel would describe the same square differently.
+    """
+    expression = exports(PALETTE, "fillExpression", [["ge1_d1"]])[0]
+    assert expression[0] == "step"
+    assert expression[1] == ["get", "ge1_d1"]
+
+    base = expression[2]
+    stops = [(expression[k], expression[k + 1])
+             for k in range(3, len(expression), 2)]
+    assert len(stops) == len(PUBLISHED_CLASSES) - 1
+
+    colours = exports(PALETTE, "colourOf", [[c] for c in range(52)])
+    for count in range(52):
+        painted = base
+        for stop, colour in stops:
+            if count >= stop:
+                painted = colour
+        assert painted == colours[count], count
+
+
+@needs_node
+def test_the_count_key_is_the_one_the_map_reads(exports):
+    keys = exports(PALETTE, "countKey", [[1, 1], [10, 3], [50, 5]])
+    assert keys == ["ge1_d1", "ge10_d3", "ge50_d5"]
+
+
+@needs_node
+def test_the_not_a_probability_sentence_is_the_approved_wording(exports):
+    said = exports(PALETTE, "notProbability", [[], [40]])
+    assert said[0] == ("N of 51 model runs, which is not a calibrated "
+                       "probability.")
+    assert said[1] == ("40 of 51 model runs, which is not a calibrated "
+                       "probability.")
+    # This is the one sentence on the site that is *allowed* to say
+    # "probability", because its whole job is to say these numbers are not
+    # one. The forbidden-word list of the day sentence does not apply to it.
+    for sentence in said:
+        low = sentence.lower()
+        assert "%" not in sentence and "percent" not in low
+        assert "chance of rain" not in low, "the sentence this replaced"
+        assert low.count("probability") == 1
+        assert "not a calibrated probability" in low
+
+
+# ------------------------------ SPEC 11.19: the page snaps before it asks
+
+@needs_node
+def test_the_page_and_the_function_agree_on_every_square(exports):
+    """The reason it is safe for the page to round a location itself.
+
+    If these two ever named different squares, the page would show one
+    square's numbers under another square's coordinates.
+    """
+    points = []
+    lat = 6.0
+    while lat <= 38.0001:
+        lon = 68.0
+        while lon <= 98.0001:
+            points.append([round(lat, 4), round(lon, 4)])
+            lon += 1.3
+        lat += 1.1
+    # And a sweep of awkward offsets around one square's edges.
+    for d in (-0.1249, -0.125, -0.1251, -0.0001, 0.0, 0.0001, 0.1249,
+              0.125, 0.1251):
+        points.append([round(28.5 + d, 6), round(77.25 + d, 6)])
+    assert len(points) > 300
+
+    page = exports(SNAP, "snap", [[lat, lon] for lat, lon in points])
+    api = exports(ROOT / "api" / "place.mjs", "snapSquare",
+                  [[lat, lon] for lat, lon in points])
+    for (lat, lon), mine, theirs in zip(points, page, api):
+        assert mine == theirs, (lat, lon, mine, theirs)
+
+
+@needs_node
+def test_snapping_lands_on_the_grid_and_reports_its_own_centre(exports):
+    got = exports(SNAP, "snap", [[28.5, 77.25], [28.6, 77.3], [38.0, 68.0]])
+    assert got[0] == {"i": 38, "j": 37, "lat": 28.5, "lon": 77.25}
+    assert got[1] == got[0], "a tenth of a degree is the same square"
+    assert got[2] == {"i": 0, "j": 0, "lat": 38.0, "lon": 68.0}
+
+
+@needs_node
+def test_the_tile_name_and_byte_index_match_the_published_layout(exports):
+    """SPEC 8.4: tiles are named after their south-west corner, row major."""
+    tiles = exports(SNAP, "tileName",
+                    [[34.25, 73.5], [28.5, 77.25], [8.5, 77.0]])
+    assert tiles == ["32N_72E", "28N_76E", "8N_76E"]
+    index = exports(SNAP, "byteIndex", [[15, 22, 121]])[0]
+    assert index == 15 * 121 + 22
+
+
+@needs_node
+@pytest.mark.parametrize(("typed", "expected"), [
+    ("28.5, 77.25", {"lat": 28.5, "lon": 77.25}),
+    ("28.5 77.25", {"lat": 28.5, "lon": 77.25}),
+    ("  -8.5,77  ", {"lat": -8.5, "lon": 77.0}),
+    ("Delhi", None),
+    ("28.5", None),
+    ("28.5, 77.25, 3", None),
+    ("", None),
+])
+def test_two_typed_numbers_are_a_place_and_anything_else_is_a_name(
+        exports, typed, expected):
+    assert exports(SNAP, "parseLatLon", [[typed]])[0] == expected
+
+
+@needs_node
+def test_the_box_test_is_the_india_box_of_spec_one_four(exports):
+    cases = [[28.5, 77.25, True], [6.0, 68.0, True], [38.0, 98.0, True],
+             [5.99, 77.0, False], [38.01, 77.0, False],
+             [20.0, 67.99, False], [20.0, 98.01, False]]
+    answers = exports(SNAP, "inBox", [[lat, lon] for lat, lon, _ in cases])
+    for (lat, lon, wanted), got in zip(cases, answers):
+        assert got is wanted, (lat, lon, got)
+
+
+@needs_node
+def test_the_square_text_always_shows_two_decimals(exports):
+    said = exports(SNAP, "squareText", [[28.5, 77.25], [8.0, 73.0]])
+    assert said == ["28.50 N 77.25 E", "8.00 N 73.00 E"]

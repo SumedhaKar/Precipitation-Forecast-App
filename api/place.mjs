@@ -130,6 +130,12 @@ function snap(lat, lon) {
   return { i, j, lat: round2(LAT_MAX - STEP * i), lon: round2(LON_MIN + STEP * j) };
 }
 
+// SPEC 11.19 and 11.24: the page snaps a map click and the browser's own
+// location to a square before sending anything, so a position never reaches
+// a URL. That is only safe if the page's copy of this arithmetic and this one
+// never disagree, which a test checks by driving both over a grid of points.
+export { snap as snapSquare };
+
 function squareOf(i, j) {
   return { i, j, lat: round2(LAT_MAX - STEP * i), lon: round2(LON_MIN + STEP * j) };
 }
