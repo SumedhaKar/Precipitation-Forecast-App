@@ -55,7 +55,7 @@ none is implied by its use here.
 | layer | what it draws |
 |---|---|
 | `ne_10m_admin_0_countries_ind` | India's outline — the **India point-of-view edition**, which is the same geometry the forecast mask was cut with, so the country on screen and the squares that are coloured are the same shape |
-| `ne_10m_admin_1_states_provinces` | the state and union territory lines, and their names and label points. Only boundaries **shared by two Indian units** are drawn: Natural Earth publishes no point-of-view edition of admin-1, so an outer edge taken from it would be a different boundary from the one the mask was cut with |
+| `ne_10m_admin_1_states_provinces` | the state and union territory lines, their names and label points, and -- measured from the same polygons -- how much room there is to write each name inside its own unit, which is what decides whether the page writes the name or the two letter code. Only boundaries **shared by two Indian units** are drawn: Natural Earth publishes no point-of-view edition of admin-1, so an outer edge taken from it would be a different boundary from the one the mask was cut with |
 | `ne_10m_populated_places` | the 215 towns the search offers, and the one city labelled in each unit |
 | `ne_10m_land` | the land around India, as one quiet fill under India's own. It is **coastline and nothing else** — the layer holds no boundary of any kind, which is why it is the one used — clipped to the box the map can show and simplified to 0.05 degrees. Without it, every country around India was painted the colour of the sea |
 

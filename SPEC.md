@@ -4567,6 +4567,158 @@ byte for byte what they were.
 
 ---
 
+### 11.31 A name belongs to one state, and a swatch is not a tick box
+
+Two things, both seen on the built page. The first is the only kind of
+mistake this map cannot make and still be a map: a word in the wrong place.
+
+Measured on the local production build serving `web/dist` and reading the
+real public store, in Chrome, in an iframe of a fixed size so that the same
+view can be measured before and after: a 1,440 by 765 viewport with a 1,060
+by 572 map, and a 390 by 844 phone viewport with a 390 by 464 map.
+
+#### The fault: state names written across other states
+
+Seen on the page. On the phone, HIMACHAL PRADESH was written across
+Uttarakhand and ARUNACHAL PRADESH across Bhutan and Sikkim; on the desktop,
+JAMMU AND KASHMIR began outside the outline altogether and UTTARAKHAND hung
+over Nepal. 11.29 let a name hang over the unit by its own width again on
+each side, and nudged it up to sixteen pixels to dodge a clash -- which at
+the whole-India view is half a degree, the width of a small state.
+
+How wrong the four of them were, measured against the Natural Earth polygons
+by the word's own box at the desktop default view:
+
+| the word | outside the unit it names | and it reached into |
+|---|---|---|
+| UTTARAKHAND | 49.4% | Uttar Pradesh, Himachal Pradesh, Haryana, Punjab |
+| JAMMU AND KASHMIR | 70.8% | Himachal Pradesh, Ladakh, and 29.0% of the box over Pakistan |
+| HIMACHAL PRADESH | 64.5% | Punjab, Uttarakhand |
+| ARUNACHAL PRADESH | 56.5% | no other Indian unit: 51.0% of the box over China, 4.1% over Myanmar, 1.4% over Bhutan |
+
+An Indian state's name written across Pakistan and China is not a label that
+needs tidying. It is the one thing a project that draws only the India
+point-of-view outline (11.14) must not do, and it was on the page.
+
+#### The rule
+
+**A unit's full name is drawn at the unit's own label point, centred, with no
+offset of any kind, and only when the whole label box is inside the unit's
+own polygon at the current zoom. Everywhere else the unit is marked with its
+two letter code**, which may still look for a gap in the 25 placements of
+11.30 and is still written anyway if there is none, so no unit is ever
+unlabelled.
+
+The box is the word's own box as the browser laid it out, line box and all,
+unprojected back to degrees. Nothing smaller is tested: the test is about
+where the label is, not where the ink is.
+
+#### How the page knows, without the polygons
+
+The polygons are 3 MB of shapefile and the page has no other use for them.
+So the question is answered where the polygons are -- in
+`scripts/build_towns.py` -- and `web/src/units.json` carries the answer.
+
+A label box is centred on the label point, so boxes of one shape nest: if a
+box of some height fits inside the unit, every shorter box of the same shape
+fits too, and there is a tallest one that does. One number settles each shape.
+
+| | |
+|---|---|
+| shapes measured | width over height in degrees: 2, 4, 6, 9, 13, 18 and 25 |
+| what is stored | `fit`, half the height in degrees of the tallest box of each shape, centred on the label point, that is `within` the polygon |
+| how | binary search over shapely's `within` to a tenth of a second of arc, at the **rounded** label point the page itself uses, then floored to four decimal places -- never rounded up, because a number rounded up is a box the polygon does not contain |
+| how the page reads it | `web/src/fits.js`: the shape asked about is rounded **up** to the first shape measured, so the box tested is at least as wide as the box drawn; wider than 25 to 1 and there is no answer, so the answer is no |
+| the cost | units.json goes from 8,385 bytes to 12,123, and from 2,197 gzipped to 3,299, in the first chunk. The budget in the build script goes from 2,500 to 4,000 |
+
+`span` -- the unit's width in degrees at the label point, which 11.29 added
+and which the overhang rule read -- is gone from units.json, from
+`unitlist.js` and from the map. A width was never the question. A box inside
+a polygon was.
+
+#### What it costs, and what it buys
+
+| default view | before: full names | codes | forced codes | after: full names | codes | forced codes | city names |
+|---|---|---|---|---|---|---|---|
+| desktop, 1,060 by 572 map, zoom 3.28 | 12 | 18 | 6 | **0** | 31 | 5 | 26 |
+| phone, 390 by 464 map, zoom 3.00 | 2 | 25 | 9 | **0** | 29 | 7 | 24 |
+
+**No state name is drawn at either default view, and that is the true
+answer.** At the whole-India view a word 14 pixels tall is 0.78 degrees tall
+and MADHYA PRADESH is 6.9 degrees wide; the tallest box of that shape which
+stays inside Madhya Pradesh is 0.72 degrees. The word is bigger than the
+state. Two units do have room at the desktop default view -- Rajasthan and
+Odisha -- and both lose their one placement to a city label, because cities
+are placed first (11.30) and the capital is usually near the middle of the
+unit, which is also where the unit's name goes.
+
+Names come back as the reader zooms in, which is the point of "at the current
+zoom". Three zoom steps in from the desktop default view, at zoom 5.28:
+**ODISHA, CHHATTISGARH, WEST BENGAL, HARYANA and MEGHALAYA**, and eleven more
+that now fit inside their unit but lose the place to a city.
+
+Every unit still carries at least its code at both default views: 31 + 5 and
+29 + 7 are both 36.
+
+#### The second thing: swatches that looked like tick boxes
+
+The legend's white swatch and the swatch in each panel row were 0.95rem
+squares with a hairline border and a 2px radius, which is what an empty
+checkbox looks like in every browser there is -- and the panel one sits
+inside a row that really is a radio button, so it read as a tick box that
+would not tick.
+
+| | |
+|---|---|
+| shape | 1.5rem by 0.6rem, square cornered: a colour chip, not a control |
+| pointer | `pointer-events: none`, so a click goes to whatever is behind it |
+| reading order | `aria-hidden="true"` on all four, because the words beside them carry the meaning |
+| focus | they are `span`s with no handler and no `tabIndex`, as they always were |
+
+The one round swatch stays round and says why in the stylesheet: it is the
+key to the round dots of the 51 runs.
+
+#### One more fix, found while measuring
+
+The label count changed from one load of the same page at the same size to
+the next: 26 city names on one load and 31 on the next. A word's width is
+measured once and kept, because reading it back forces the browser to lay the
+page out again and doing that on every frame of a drag is the one thing here
+that could be slow -- but the first draw happens while the map is still being
+fitted and flexbox is still sizing, and a width measured then was kept for
+the rest of the page's life. The words are measured once more when the map
+goes idle, and again when `document.fonts` is ready. Three consecutive loads
+now give the same counts and the same zoom to four places.
+
+#### Tests
+
+Seven more, and eight sabotages run against them.
+
+| what it holds |
+|---|
+| every unit has a fit table, of the right length, that never rises as the box widens |
+| every number in every fit table is a box inside the unit's own polygon, and a box a tenth taller plus one rounding step is not |
+| every unit name the built page actually drew, at three recorded views, is inside the unit it names |
+| the shape of a box is rounded up and never down, and anything wider than the widest shape measured is refused |
+| the map offers a name one placement and only one, after the box test, and the overhang rule is gone |
+| a swatch is a chip, not a control: shape, pointer-events, aria-hidden, no handler |
+
+`tests/sample/names_on_screen.json` is the boxes themselves, recorded from
+the page, because only a browser knows how wide a word came out. What they
+are checked against is the polygon. Three of the eight sabotages were edits
+to `units.json`, and each of those failed the test it was aimed at **and**
+the check that the committed file is what the build script writes, which is
+the right answer for a built file edited by hand.
+
+#### What this does not change
+
+The run, the counts, the mask, the tiles, the publishing, the workflow, the
+verification, `pipeline/`, `scripts/publish/`, `.github/workflows/` and
+`config/store.json`. No colour, no wording and no number in the panel. The
+three geometry files in `web/src/geo/` are byte for byte what they were.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:

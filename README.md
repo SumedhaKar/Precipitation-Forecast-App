@@ -76,6 +76,12 @@ actually happened, and there is not one yet.
   ours. The land around India is shaded so it does not read as ocean, from a
   layer that is coastline only: the one national boundary this site draws is
   India's own outline.
+- **Zoomed out, a state shows its two letter code.** A state's full name is
+  written only where the whole word fits inside that state at the zoom you
+  are looking at, which at the whole-country view is almost nowhere: a word
+  14 pixels tall is most of a degree, and most states are narrower than their
+  own names. Zoom in and the names appear. A name written across the
+  neighbours would be a false statement about where a place is.
 - **Some squares inside India are white.** They are inside the outline and
   not forecast, because the model's own land fraction for them is under a
   half — mostly a coast or a narrow island. The legend says so.

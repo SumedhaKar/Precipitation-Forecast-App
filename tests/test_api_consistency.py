@@ -1183,8 +1183,12 @@ def test_the_unit_list_is_the_natural_earth_list_it_says_it_is():
         assert len(unit["code"]) == 2, unit
         assert 6.0 <= unit["lat"] <= 38.0, unit
         assert 68.0 <= unit["lon"] <= 98.0, unit
-        assert unit["span"] > 0, unit
         assert unit["city"]["name"], unit
+        # SPEC 11.31: the room to write the name in, measured against the
+        # polygon. `span`, the unit's width at the label point, is gone: a
+        # width was never the question, a box inside a polygon was.
+        assert "span" not in unit, unit
+        assert len(unit["fit"]) == len(body["fit"]["aspects"]), unit
 
     # Largest polygon first, which is the order the map places names in.
     assert units[0]["name"] == "Rajasthan"
@@ -1242,7 +1246,7 @@ def test_the_map_is_given_the_names_in_the_order_it_places_them(exports):
     for label in labels:
         # The room there is to write the name in has to reach the map, or it
         # cannot tell a name from a word written across the neighbours.
-        assert label["span"] > 0, label
+        assert label["fit"] and label["fit"][0] > 0, label
         assert label["code"], label
 
     pops = [c["pop"] for c in cities]
@@ -1706,3 +1710,217 @@ def test_the_twenty_city_list_is_gone_and_nothing_looks_for_it():
             if path.suffix not in suffixes or path.resolve() == here:
                 continue
             assert "cities.json" not in path.read_text("utf-8"), path
+
+# ------------- SPEC 11.31: a unit's name is never written outside the unit
+
+FITS = ROOT / "web" / "src" / "fits.js"
+ADMIN1 = ROOT / "data" / "raw" / "ne" / "ne_10m_admin_1_states_provinces.shp"
+ON_SCREEN = Path(__file__).parent / "sample" / "names_on_screen.json"
+
+needs_admin1 = pytest.mark.skipif(
+    not ADMIN1.exists(),
+    reason="the Natural Earth admin-1 shapefile is not here; "
+           "data/ is never committed")
+
+
+def india_units() -> dict:
+    """The India admin-1 polygons, by name, straight from the shapefile."""
+    import shapefile
+    from shapely.geometry import shape
+
+    reader = shapefile.Reader(str(ADMIN1.with_suffix("")))
+    fields = [f[0] for f in reader.fields[1:]]
+    found = {}
+    for item in reader.iterShapeRecords():
+        record = dict(zip(fields, item.record))
+        if str(record.get("admin")) != "India":
+            continue
+        found[str(record["name"]).strip()] = shape(
+            item.shape.__geo_interface__)
+    return found
+
+
+def test_the_fit_table_is_there_for_every_unit_and_never_rises():
+    """SPEC 11.31. The room to write a name in, one number per shape of box.
+
+    A wider box of the same height contains a narrower one, so the room can
+    only shrink as the box widens. If this list ever rose, a name could pass
+    the test by claiming to be wider than it is.
+    """
+    body = json.loads(UNITS_FILE.read_text("utf-8"))
+    aspects = body["fit"]["aspects"]
+    assert aspects == [2.0, 4.0, 6.0, 9.0, 13.0, 18.0, 25.0]
+    assert aspects == sorted(aspects)
+    for unit in body["units"]:
+        room = unit["fit"]
+        assert len(room) == len(aspects), unit["name"]
+        assert room[0] > 0, unit["name"]
+        assert room == sorted(room, reverse=True), unit["name"]
+
+
+@needs_admin1
+def test_the_room_for_a_name_is_the_polygon_and_not_an_estimate_of_it():
+    """SPEC 11.31. Every number in the table is a box inside the unit.
+
+    The page cannot hold the polygons -- 3 MB of shapefile for 36 words -- so
+    it holds the answer instead, and this is what makes the answer worth
+    holding: for every unit and every shape of box, the box the table allows
+    is inside the unit's own polygon, and a box a tenth taller is not. Tight
+    from both sides, so the table can neither write a name on the neighbours
+    nor refuse a name there is room for.
+    """
+    from shapely.geometry import box as make_box
+
+    polygons = india_units()
+    body = json.loads(UNITS_FILE.read_text("utf-8"))
+    aspects = body["fit"]["aspects"]
+    for unit in body["units"]:
+        poly = polygons[unit["name"]]
+        lon, lat = unit["lon"], unit["lat"]
+        for aspect, room in zip(aspects, unit["fit"]):
+            fits = make_box(lon - room * aspect, lat - room,
+                            lon + room * aspect, lat + room)
+            assert fits.within(poly), (unit["name"], aspect, room)
+            # Tight to a tenth plus one rounding step. The step matters only
+            # for the islands, whose room is a few ten-thousandths of a
+            # degree: four decimal places is most of the number there.
+            over = room * 1.1 + 1e-4
+            bigger = make_box(lon - over * aspect, lat - over,
+                              lon + over * aspect, lat + over)
+            assert not bigger.within(poly), (unit["name"], aspect, room)
+
+
+@needs_admin1
+def test_every_name_the_map_drew_is_inside_the_unit_it_names():
+    """SPEC 11.31, and the fault it is for.
+
+    Seen on the page: HIMACHAL PRADESH written across Uttarakhand, ARUNACHAL
+    PRADESH across Bhutan and Sikkim, JAMMU AND KASHMIR beginning outside the
+    country, UTTARAKHAND hanging over Nepal. A name on the wrong state is not
+    an untidy label, it is a false statement about where a place is, on a map
+    whose only subject is where things are.
+
+    tests/sample/names_on_screen.json is every unit name the built page
+    actually drew, with the box it drew it in, at the desktop default view,
+    the phone default view and a view three zoom steps in. Only a browser
+    knows how wide a word came out, so the boxes are recorded from the page;
+    what they are checked against is the polygon itself.
+    """
+    from shapely.geometry import box as make_box
+
+    polygons = india_units()
+    body = json.loads(ON_SCREEN.read_text("utf-8"))
+    views = {view["view"]: view for view in body["views"]}
+    assert "desktop default" in views and "phone default" in views
+    drawn = 0
+    for view in body["views"]:
+        assert [one["name"] for one in view["boxes"]] == view["names"], view
+        for one in view["boxes"]:
+            poly = polygons[one["name"]]
+            assert make_box(*one["box"]).within(poly), (view["view"], one)
+            drawn += 1
+        # Every unit is labelled somehow, at both views a reader starts at.
+        if view["view"].endswith("default"):
+            counts = view["counts"]
+            assert (counts["full"] + counts["coded"] + counts["forced"]
+                    == 36), view
+    # A rule that drew nothing anywhere would pass the loop above. Zoomed in,
+    # names are drawn, and those are the ones with something to prove.
+    assert drawn >= 3
+
+
+@needs_node
+def test_a_name_is_drawn_only_when_it_is_provably_inside(exports):
+    """SPEC 11.31. The lookup is conservative in every direction.
+
+    The shape asked about is rounded up to the first shape measured, so the
+    box tested is never narrower than the box drawn; anything wider than the
+    widest shape measured has no answer, so the answer is no.
+    """
+    body = json.loads(UNITS_FILE.read_text("utf-8"))
+    aspects = body["fit"]["aspects"]
+    unit = next(u for u in body["units"] if u["name"] == "Rajasthan")
+    room = unit["fit"]
+
+    # Rounded up: a box of shape 5 is tested against the entry for 6.
+    said = exports(FITS, "roomFor",
+                   [[aspects, room, 5], [aspects, room, 6],
+                    [aspects, room, 6.0001], [aspects, room, 1],
+                    [aspects, room, 25], [aspects, room, 25.0001],
+                    [aspects, room, 0], [aspects, room, -3]])
+    assert said[0] == room[2] == said[1]
+    assert said[2] == room[3]
+    assert said[3] == room[0]
+    assert said[4] == room[-1]
+    assert said[5] == 0            # wider than anything measured
+    assert said[6] == 0 and said[7] == 0
+
+    # At the limit and a hair over it, for a box of exactly a measured shape.
+    tall = room[2]
+    said = exports(FITS, "fitsInside",
+                   [[aspects, room, tall * 6, tall],
+                    [aspects, room, tall * 6, tall * 1.001],
+                    [aspects, room, tall * 25.1, tall / 4],
+                    [aspects, room, 0, tall],
+                    [aspects, room, tall * 6, 0],
+                    [aspects, room, None, tall],
+                    [aspects, [], tall * 6, tall],
+                    [[], room, tall * 6, tall]])
+    assert said == [True, False, False, False, False, False, False, False]
+
+
+def test_the_map_offers_a_unit_s_name_one_place_and_only_one():
+    """SPEC 11.31. Centre, inside, or the two letter code.
+
+    The old rule let a name hang over the unit by its own width on each side
+    and nudged it eight or sixteen pixels to dodge a clash, which at the
+    whole-India view is half a degree -- the width of a small state. Both are
+    gone: a name has one placement, the middle of the unit, and it is drawn
+    there only if the box is inside the unit's own polygon.
+    """
+    text = (ROOT / "web" / "src" / "Map.jsx").read_text("utf-8")
+    assert "const NAME_TRIES = [['centre', 0]];" in text
+    assert "NAME_OVERHANG" not in text
+    assert "item.span" not in text and "unit.span" not in text
+    # The name is offered to the placement loop only after the box test.
+    assert "if (nameInside(map, at, item)) {" in text
+    assert "import { fitsInside, roomFor } from './fits';" in text
+    # The code may still look around: it is two letters and it is not a name
+    # for anybody else.
+    assert ("words.push([item.code, item.codeW, 'coded', CODE_TRIES, 1]);"
+            in text)
+
+
+def test_a_colour_swatch_is_not_a_control():
+    """SPEC 11.31. Seen on the page: swatches that look like tick boxes.
+
+    A 0.95rem square with a hairline border and a 2px radius is what an empty
+    checkbox looks like in every browser there is, and the one in the panel
+    sits inside a row that really is a radio button. They are spans with no
+    handler and nothing focusable in them, and now they do not look like
+    controls either: wider than they are tall, square cornered, and
+    `pointer-events: none` so a click goes to whatever is behind them.
+    """
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    base = css.split("\n.swatch {")[1].split("}")[0]
+    assert "border-radius: 0;" in base
+    assert "pointer-events: none;" in base
+    width = float(base.split("width: ")[1].split("rem")[0])
+    height = float(base.split("height: ")[1].split("rem")[0])
+    assert width >= height * 2, (width, height)
+    # The one round swatch is the key to the round dots, and says so.
+    assert (".dotkey .swatch { width: 0.8rem; height: 0.8rem; "
+            "border-radius: 50%; }") in css
+
+    for name in ("Legend.jsx", "Panel.jsx"):
+        text = (ROOT / "web" / "src" / name).read_text("utf-8")
+        parts = text.split('className="swatch"')
+        assert len(parts) == 3, name          # two swatches, three pieces
+        assert text.count('aria-hidden="true"') == 2, name
+        for before, after in zip(parts[:-1], parts[1:]):
+            # A span, hidden from the reading order, with nothing that can be
+            # pressed or tabbed to anywhere near it.
+            assert before.rstrip().endswith("<span"), name
+            assert "aria-hidden=\"true\"" in after[:120], name
+            assert "tabIndex" not in after[:200], name
+            assert "onClick" not in after[:200], name

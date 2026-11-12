@@ -1,0 +1,155 @@
+{
+ "note": "SPEC 11.31. Every unit name the map actually drew, and the box it drew it in, measured in Chrome on the local production build of g3-map on 13 November 2026. `box` is [west, south, east, north] in degrees, taken from the page itself: the word's own pixel box, unprojected. The test that reads this file checks every box against the Natural Earth polygon of the unit it names, which is the whole of the rule. `fits_but_blocked` is the units whose name would fit inside them at that view but was not drawn because a city label or dot already had the place -- cities are placed first (SPEC 11.30) and a name has one placement and no other. Recorded rather than measured by the test because only a browser knows how wide a word came out; if the font or the layout changes, this file is made again from the page and the change shows up in its diff.",
+ "views": [
+  {
+   "view": "desktop default",
+   "viewport": [
+    1440,
+    765
+   ],
+   "canvas": [
+    1060,
+    572
+   ],
+   "zoom": 3.2763,
+   "bounds": [
+    45.9509,
+    5.2778,
+    122.879,
+    42.3229
+   ],
+   "counts": {
+    "full": 0,
+    "coded": 31,
+    "forced": 5,
+    "cities": 26
+   },
+   "names": [],
+   "boxes": [],
+   "fits_but_blocked": [
+    "Rajasthan",
+    "Odisha"
+   ]
+  },
+  {
+   "view": "phone default",
+   "viewport": [
+    390,
+    844
+   ],
+   "canvas": [
+    390,
+    464
+   ],
+   "zoom": 3.0,
+   "bounds": [
+    67.6827,
+    6.3463,
+    101.96,
+    42.576
+   ],
+   "counts": {
+    "full": 0,
+    "coded": 29,
+    "forced": 7,
+    "cities": 24
+   },
+   "names": [],
+   "boxes": [],
+   "fits_but_blocked": [
+    "Rajasthan"
+   ]
+  },
+  {
+   "view": "desktop, three zoom steps in",
+   "viewport": [
+    1440,
+    765
+   ],
+   "canvas": [
+    1060,
+    572
+   ],
+   "zoom": 5.2763,
+   "bounds": [
+    74.7989,
+    20.4067,
+    94.0309,
+    29.7897
+   ],
+   "counts": {
+    "full": 5,
+    "coded": 11,
+    "forced": 2,
+    "cities": 18
+   },
+   "names": [
+    "Odisha",
+    "Chhattisgarh",
+    "West Bengal",
+    "Haryana",
+    "Meghalaya"
+   ],
+   "boxes": [
+    {
+     "name": "Odisha",
+     "box": [
+      84.0802,
+      20.52308,
+      84.7878,
+      20.72685
+     ]
+    },
+    {
+     "name": "Chhattisgarh",
+     "box": [
+      81.58126,
+      21.70289,
+      83.03274,
+      21.90504
+     ]
+    },
+    {
+     "name": "West Bengal",
+     "box": [
+      87.05769,
+      22.95179,
+      88.40031,
+      23.15213
+     ]
+    },
+    {
+     "name": "Haryana",
+     "box": [
+      75.82649,
+      29.00484,
+      76.71551,
+      29.19508
+     ]
+    },
+    {
+     "name": "Meghalaya",
+     "box": [
+      90.73148,
+      25.38169,
+      91.87452,
+      25.57823
+     ]
+    }
+   ],
+   "fits_but_blocked": [
+    "Rajasthan",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Uttar Pradesh",
+    "Bihar",
+    "Assam",
+    "Jharkhand",
+    "Ladakh",
+    "Uttarakhand",
+    "Punjab",
+    "Manipur"
+   ]
+  }
+ ]
+}
