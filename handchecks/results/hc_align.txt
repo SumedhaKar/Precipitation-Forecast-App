@@ -152,3 +152,182 @@ read-only check; nothing but this file is written
 ========================================================================
 HC-ALIGN FAILED
 ========================================================================
+
+########################################################################
+HC-ALIGN part 4 and 5, appended 2026-11-12T12:51:44
+########################################################################
+
+========================================================================
+4. Mapping the correlation surface on a fine shift grid
+========================================================================
+   Added 12 November 2026 because the whole-cell scan was not
+   symmetric: 0.5666 at one cell south, 0.5863 unshifted, 0.5865 at
+   one cell north, 0.5678 at two cells north, and east ahead of
+   west by 0.016. That shape peaks near half a cell, which is what
+   a centre-versus-corner mistake would produce.
+
+   SIGN CONVENTION, stated once because everything turns on it:
+   dlat and dlon move the TARGET CELL EDGES, positive north and
+   east. Moving our cell north makes it read IMERG from further
+   north, which is the same as moving the IMERG map SOUTH, so
+   positive dlat here is the opposite direction to 'IMERG one cell
+   north' in part 2. Both conventions are reported at the peak.
+
+   padded pixel window: 332 latitudes x 312 longitudes, pad 0.45 degrees
+   local builder vs pipeline at zero shift: worst difference 0.000e+00 mm over 15,609 cells
+   identical, so the surface below is a property of the data and
+   not of this script.
+
+   caching 82 dates ...
+     dlat -0.250 done
+     dlat -0.200 done
+     dlat -0.150 done
+     dlat -0.125 done
+     dlat -0.100 done
+     dlat -0.050 done
+     dlat +0.000 done
+     dlat +0.050 done
+     dlat +0.100 done
+     dlat +0.125 done
+     dlat +0.150 done
+     dlat +0.200 done
+     dlat +0.250 done
+
+   dates: 82  (20260513 to 20261105)
+   mean r, lead day 1 ensemble mean, all India squares
+
+   dlat/dlon   -0.250  -0.200  -0.150  -0.125  -0.100  -0.050  +0.000  +0.050  +0.100  +0.125  +0.150  +0.200  +0.250
+      -0.250   0.5858  0.5886  0.5907  0.5905  0.5921  0.5927  0.5923  0.5908  0.5883  0.5859  0.5850  0.5808  0.5759
+      -0.200   0.5881  0.5908  0.5927  0.5925  0.5940  0.5946  0.5940  0.5924  0.5898  0.5873  0.5863  0.5821  0.5770
+      -0.150   0.5896  0.5922  0.5940  0.5938  0.5952  0.5956  0.5949  0.5932  0.5905  0.5880  0.5870  0.5826  0.5775
+      -0.125   0.5888  0.5914  0.5931  0.5928  0.5942  0.5945  0.5938  0.5921  0.5893  0.5867  0.5857  0.5814  0.5763
+      -0.100   0.5903  0.5928  0.5945  0.5942  0.5955  0.5958  0.5951  0.5932  0.5904  0.5878  0.5868  0.5824  0.5773
+      -0.050   0.5905  0.5929  0.5944  0.5940  0.5953  0.5955  0.5946  0.5927  0.5898  0.5871  0.5860  0.5816  0.5765
+      +0.000   0.5899  0.5921  0.5935  0.5930  0.5943  0.5943  0.5933  0.5913  0.5883  0.5855  0.5845  0.5801  0.5749
+      +0.050   0.5888  0.5907  0.5918  0.5912  0.5924  0.5923  0.5912  0.5890  0.5860  0.5832  0.5821  0.5777  0.5725
+      +0.100   0.5869  0.5885  0.5893  0.5886  0.5896  0.5894  0.5882  0.5860  0.5829  0.5801  0.5790  0.5745  0.5694
+      +0.125   0.5844  0.5858  0.5865  0.5857  0.5868  0.5865  0.5853  0.5831  0.5799  0.5771  0.5760  0.5715  0.5664
+      +0.150   0.5842  0.5855  0.5860  0.5852  0.5862  0.5860  0.5847  0.5824  0.5792  0.5764  0.5753  0.5708  0.5657
+      +0.200   0.5809  0.5819  0.5823  0.5814  0.5823  0.5820  0.5807  0.5784  0.5750  0.5722  0.5711  0.5666  0.5615
+      +0.250   0.5769  0.5777  0.5779  0.5769  0.5778  0.5774  0.5760  0.5736  0.5702  0.5674  0.5663  0.5619  0.5568
+
+   peak on this grid: dlat -0.100, dlon -0.050, r = 0.5958
+   unshifted:         dlat +0.000, dlon +0.000, r = 0.5933
+   gain from shifting: +0.0025
+
+   same peak in the part 2 convention, moving the IMERG map:
+     +0.100 degrees north, +0.050 degrees east
+
+   parabola through the three grid points either side of the peak:
+     latitude  vertex  n/a, peak at a grid edge
+     longitude vertex  -0.0616
+
+   EVERY SLICE, AT ZERO, AT THE ALL-INDIA PEAK, AND AT ITS OWN PEAK
+
+     slice                       squares dates  r at 0,0  r at peak          own peak  r there
+     all India, day 1, mean        4,613    82    0.5933     0.5958    -0.100, -0.050   0.5958
+     Northwest India               1,501    82    0.4842     0.4848    +0.000, -0.200   0.4877
+     Central India                 1,510    82    0.5487     0.5485    +0.000, -0.050   0.5495
+     South Peninsula                 857    82    0.6118     0.6050    +0.050, +0.000   0.6120
+     East & Northeast India          745    82    0.4365     0.4416    -0.100, +0.050   0.4434
+     all India, day 3, mean        4,613    82    0.5385     0.5397    -0.100, -0.050   0.5397
+     all India, day 1, control     4,613    82    0.5013     0.5043    -0.150, -0.050   0.5044
+
+   THE DECISION RULE, FIXED BEFORE THESE NUMBERS WERE SEEN
+   'If the peak is within 0.03 degrees of +0.125 in both
+   directions, and the same in all four regions and at lead day 3,
+   treat it as a bug in our grid handling. Otherwise it is a
+   property of the model or of IMERG.'
+
+   Applied on magnitude, because the sign depends on which grid is
+   described as moving, and a half cell is a half cell either way.
+
+     slice                         |dlat|   |dlon|  |dlat|-0.125  |dlon|-0.125  within 0.03
+     all India, day 1, mean         0.100    0.050        0.0250        0.0750           no
+     Northwest India                0.000    0.200        0.1250        0.0750           no
+     Central India                  0.000    0.050        0.1250        0.0750           no
+     South Peninsula                0.050    0.000        0.0750        0.1250           no
+     East & Northeast India         0.100    0.050        0.0250        0.0750           no
+     all India, day 3, mean         0.100    0.050        0.0250        0.0750           no
+     all India, day 1, control      0.150    0.050        0.0250        0.0750           no
+
+   every slice within 0.03 of a half cell in both directions: NO
+   => by the rule this is not a grid bug. Recorded as a finding
+      about the model or about IMERG. No data is shifted to
+      improve any score.
+
+========================================================================
+5. The grids, read without our pipeline code
+========================================================================
+   GRIB 20261112T00Z/cf_024.grib2
+     latitudeOfFirstGridPointInDegrees      90.0
+     longitudeOfFirstGridPointInDegrees     180.0
+     latitudeOfLastGridPointInDegrees       -90.0
+     longitudeOfLastGridPointInDegrees      179.75
+     iDirectionIncrementInDegrees           0.25
+     jDirectionIncrementInDegrees           0.25
+     Ni                                     1440
+     Nj                                     721
+     scanningMode                           0
+     iScansNegatively                       0
+     jScansPositively                       0
+     jPointsAreConsecutive                  0
+     gridType                               regular_ll
+
+   find_nearest at 20.25 N 72.75 E:
+     grid point            20.25 N, 72.75 E
+     distance              0.000000 km
+     accumulated tp step24 0.000000 mm
+     accumulated tp step48 0.000000 mm
+     day 1 total, 48 - 24  0.000000 mm
+
+   our stored array, same cell, control member, lead day 1:
+     our lat, lon          20.25 N, 72.75 E
+     our day 1 total       0.000000 mm
+     difference            0.000e+00 mm
+
+   IMERG 3B-DAY-L.MS.MRG.3IMERG.20260722-S000000-E235959.V07C.nc4
+     lat: 1800 values, first np.float64(-89.95), second np.float64(-89.85000000000001), last np.float64(89.95)
+       attributes {'units': 'degrees_north', 'long_name': 'Latitude'}
+     lon: 3600 values, first np.float32(-179.95), second np.float32(-179.85), last np.float32(179.95)
+       attributes {'units': 'degrees_east', 'long_name': 'Longitude'}
+     datasets with 'bnds' or 'bounds' in the name: ['time_bnds']
+     lat_bnds present: False   lon_bnds present: False
+     no latitude or longitude bounds are published, so pixel
+     edges must be derived as centre plus or minus 0.05 and
+     checked against -90/90 and -180/180 (SPEC 3.7).
+
+
+########################################################################
+HC-ALIGN part 6, appended 2026-11-12T12:59:25
+########################################################################
+========================================================================
+6. The same comparison on wet cells, so it is not 0 against 0
+========================================================================
+   run 20261112T00Z
+
+   wettest by ensemble mean, member 0
+     asked for             34.25 N, 73.5 E
+     ecCodes grid point    34.25 N, 73.5 E, distance 0.000000 km
+     accumulated step 24   23.625000 mm
+     accumulated step 48   26.375000 mm
+     48 - 24               2.750000 mm
+     our stored day 1      2.750000 mm
+     difference            0.000e+00 mm
+     ensemble mean here    15.242647 mm
+
+   wettest for the control, member 0
+     asked for             35.5 N, 76.75 E
+     ecCodes grid point    35.5 N, 76.75 E, distance 0.000000 km
+     accumulated step 24   11.750000 mm
+     accumulated step 48   34.000000 mm
+     48 - 24               22.250000 mm
+     our stored day 1      22.250000 mm
+     difference            0.000e+00 mm
+     ensemble mean here    15.131127 mm
+
+   ecCodes lands on our cell centre with distance 0, and its own
+   48 minus 24 equals our stored daily total, on cells where both
+   numbers are large. Our cell centres are ECMWF grid points, and
+   our differencing is the same differencing.
+

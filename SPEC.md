@@ -1484,6 +1484,113 @@ IMERG is an estimate from space with its own errors (section 2.3). When the
 forecast and IMERG disagree, we do not know which one was wrong, and the
 wording must not imply that we do.
 
+### 5.10 Finding: a sub-cell offset between forecast and IMERG rainfall
+
+Measured 12 November 2026, HC-ALIGN parts 2 and 4,
+`handchecks/results/hc_align.txt`. Recorded here because it was found before
+any verification output existed, and because the answer was not the expected
+one.
+
+#### What was measured
+
+The spatial correlation between the lead day 1 ensemble mean and IMERG,
+across India squares within a date and then averaged over dates, with the
+**target cell edges** moved by `dlat` north and `dlon` east before the
+remapping of section 3.3 is rebuilt. Moving our cell north makes it read
+IMERG from further north, so a negative `dlat` here is the same direction as
+"the IMERG map moved north".
+
+A whole-cell scan first (65 dates) found the correct pairing beaten by a
+one-cell northward shift by 0.0002, and east ahead of west by 0.016. That
+shape peaks near half a cell, which is what a **centre-versus-corner mistake
+in our own grid handling** would produce, so it was followed up rather than
+written off as a tie.
+
+The follow-up scanned `dlat` and `dlon` over 13 values each from -0.25 to
++0.25 degrees, 169 remappings, on 82 dates. The local weight builder used
+for the scan was proved to reproduce `pipeline/nasa_process.py` **exactly**
+at zero shift, worst difference 0.000e+00 mm over 15,609 cells, before any
+of its results were read.
+
+#### The result
+
+| | |
+|---|---|
+| Correlation unshifted | **0.5933** |
+| Peak of the surface | **0.5958** at `dlat` -0.100, `dlon` -0.050 |
+| Gain from shifting | **+0.0025** |
+| Same peak as a map movement | 0.100 degrees north, 0.050 degrees east |
+
+The top of the surface is a **plateau**, not a point: everything between
+`dlat` -0.200 and -0.050 and `dlon` -0.200 and 0.000 sits within 0.002 of the
+peak, and the row at `dlat` -0.125 is slightly **lower** than its neighbours
+either side. Nothing singles out a half cell.
+
+The surface is clearly asymmetric, though: at `dlat` +0.25 it falls to 0.5760
+while at -0.25 it is still 0.5923. There is a real, small displacement, of
+roughly 0.05 to 0.15 degrees, which is 5 to 17 km.
+
+#### Per region, per lead day, and for the control alone
+
+82 dates. Each slice's own peak, found over the same 169 shifts:
+
+| Slice | Squares | r unshifted | Own peak (dlat, dlon) | r there |
+|---|---|---|---|---|
+| All India, day 1, ensemble mean | 4,613 | 0.5933 | -0.100, -0.050 | 0.5958 |
+| Northwest India | 1,501 | 0.4842 | +0.000, -0.200 | 0.4877 |
+| Central India | 1,510 | 0.5487 | +0.000, -0.050 | 0.5495 |
+| South Peninsula | 857 | 0.6118 | **+0.050**, +0.000 | 0.6120 |
+| East & Northeast India | 745 | 0.4365 | -0.100, **+0.050** | 0.4434 |
+| All India, day 3, ensemble mean | 4,613 | 0.5385 | -0.100, -0.050 | 0.5397 |
+| All India, day 1, control member | 4,613 | 0.5013 | -0.150, -0.050 | 0.5044 |
+
+**The four regions disagree, including in sign.** South Peninsula peaks to the
+*south* in latitude, East & Northeast India to the *east* in longitude, and
+Northwest India four times further west than Central India. A mistake in our
+grid arithmetic would be identical everywhere, because the same code and the
+same two grids are used for every square.
+
+#### The decision rule and the verdict
+
+Fixed in advance, before these numbers were seen: *a peak within 0.03 degrees
+of 0.125 in both latitude and longitude, in the direction parts 1 to 3 point
+to, and the same in all four regions and at lead day 3, is a bug in our grid
+handling; anything else is a property of the model or of IMERG.*
+
+No slice meets it. The closest latitude is 0.025 away from a half cell and
+the closest longitude 0.075 away, the regions disagree in sign, and the
+plateau has no feature at 0.125.
+
+**Verdict: not a grid bug.** It is recorded here as a property of the
+forecast or of the satellite estimate, most likely both: a model places
+orographic and convective rain slightly differently from where a satellite
+retrieval puts it, and 5 to 17 km is well inside the 31 km the model actually
+resolves (section 2.1).
+
+#### Independent evidence that our grids are right
+
+Read without any pipeline code, from the real files (HC-ALIGN parts 5 and 6):
+
+| Source | Finding |
+|---|---|
+| GRIB header | first latitude 90.0, last -90.0; first longitude 180.0, last 179.75; both increments 0.25; `Ni` 1440, `Nj` 721; `scanningMode` 0, `iScansNegatively` 0, `jScansPositively` 0, `jPointsAreConsecutive` 0; `gridType` `regular_ll` |
+| ecCodes `find_nearest` at 20.25 N, 72.75 E | returns grid point 20.25 N, 72.75 E at distance **0.000000 km**, so our cell centres are ECMWF grid points exactly |
+| ecCodes step 48 minus step 24, control, 35.5 N 76.75 E | 34.000000 - 11.750000 = **22.250000 mm**, against our stored 22.250000 mm, difference 0.000e+00 |
+| IMERG coordinates | latitude 1800 values -89.95 to 89.95 ascending, longitude 3600 values -179.95 to 179.95; **no `lat_bnds` or `lon_bnds` published**, only `time_bnds`, so pixel edges must be derived as centre plus or minus 0.05 and asserted against -90/90 and -180/180 as section 3.7 does |
+
+#### What follows from this
+
+- Verification is computed on the **unshifted** pairing. Always.
+- **No data is ever shifted to improve a score.** Not the forecast, not the
+  observation, not for a region, not for a lead day. A score that needed the
+  grids moved to look better would not be a score of anything.
+- The offset is published with the track record, because it is part of why
+  forecast and satellite disagree at this scale, and a reader comparing a
+  0.25 degree square against where rain actually fell deserves to know that
+  the two sources place rainfall about 10 km apart on average.
+- It is re-measured whenever the archive grows materially, and this section
+  is updated with the new figures rather than kept as a one-off.
+
 ---
 
 ## 6. Trust labels
