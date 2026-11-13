@@ -2566,8 +2566,11 @@ def test_the_site_reads_one_file_and_it_is_the_frozen_one():
     src = ROOT / "web" / "src"
 
     def importers(name: str) -> list[str]:
-        return [path.name for path in src.glob("*.js*")
-                if f"from './{name}'" in path.read_text(encoding="utf-8")]
+        # sorted, because glob's order is the filesystem's and this test
+        # has to say the same thing on Windows and on the CI runner.
+        return sorted(path.name for path in src.glob("*.js*")
+                      if f"from './{name}'" in path.read_text(
+                          encoding="utf-8"))
 
     # SPEC 11.34. The summary is in the bundle already, so the report card
     # reads it directly; the 126 KB of working is imported by How we checked
