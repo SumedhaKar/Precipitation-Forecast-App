@@ -4988,6 +4988,33 @@ another region's square.
 | under the chosen count, at the same size as the count | the past-frequency sentence below |
 | behind "Why this label?" | the four conditions of 6.2 in plain words with their numbers, the 6.5 luck sentence where it applies, the CRPS note where the two scores disagree, and the period sentence |
 
+#### The one line under the chip
+
+It names what went wrong, in these words and no others:
+
+| check not passed | words |
+|---|---|
+| enough past cases | too few past cases |
+| better than the usual rain | not clearly better than the usual rain for this place and month |
+| a narrow enough range | too uncertain to tell |
+| counts that matched what happened | the counts were too confident: when many runs agreed, the satellite saw it less often |
+
+Joined in 6.2's order, the last two with "and", and ended with a full stop.
+**Where the group did beat the usual rain and is amber all the same, the line
+says both halves**, because leaving the good half out describes a worse record
+than the one we measured:
+
+> Better than the usual rain for this place and month, but the counts were too
+> confident: when many runs agreed, the satellite saw it less often.
+
+Where that check was not passed either, only the failed checks are named. All
+four passed reads "All four checks passed."
+
+"too uncertain to tell" is the one place the word "certain" appears on this
+site, inside its opposite. The forbidden list of 11.20 bans the claim
+"certain"; a confession that the range is too wide to tell is the opposite of
+that claim, so the test matches the whole word.
+
 #### The past-frequency sentence
 
 The count's reliability bucket (5.11) for that region, lead day and threshold,
@@ -4996,13 +5023,15 @@ said as one sentence:
 > In May to November 2026, when 36 to 40 of 51 runs said 10 mm or more in
 > Northwest India on day 1, the satellite saw it about 5 times in 10.
 
+| the two ends | 0 reads as never and 10 reads as always, which a rounded band did not earn. 0 is said as **"fewer than 1 time in 10"** and 10 as **"nearly every time"** |
+
 | | |
 |---|---|
 | the bucket | the counted bucket holding this count. `k = 0` and `k = 51` have their own, and read "when none of the 51 runs said" and "when all 51 runs said" |
 | the number | the bucket's `times_in_10`, which the verification rounded. The page never rounds a frequency itself |
 | one time | "about 1 time in 10", not "1 times" |
-| not a counted bucket | "Too few past cases with this many runs agreeing to say how often it came true." The floor of 6.4 -- 100 cases from 10 start dates -- governs what we say out loud as well as what we test |
-| the satellite, always | "the satellite saw it", never "it rained". 5.9: the satellite is an estimate and the forecast agreed with it or did not. The one place "came true" survives is the line above, carried word for word from 6.7 |
+| not a counted bucket | "Too few past cases with this many runs agreeing to say how often the satellite saw it." The floor of 6.4 -- 100 cases from 10 start dates -- governs what we say out loud as well as what we test |
+| the satellite, always | "the satellite saw it", never "it rained" and never "came true". 5.9: the satellite is an estimate, and the strongest thing that can be said is that the forecast agreed with it. 6.7's shorthand "came true about N times in 10" names the same quantity; the page says it in full |
 | a run with any other number of members | nothing is said. The bands are counts out of 51 (2.1), and a count out of some other number is not the same question |
 
 #### Percentages
@@ -5032,7 +5061,7 @@ with that file.
 
 #### Tests
 
-Ten. Most of them drive `web/src/record.js`, which has no imports so `node`
+Twelve. Most of them drive `web/src/record.js`, which has no imports so `node`
 can run it against the real file, over all 60 groups at all 52 counts -- 3,120
 answers, each one compared with `results/site_summary.json`:
 
@@ -5043,6 +5072,8 @@ answers, each one compared with `results/site_summary.json`:
 | a share of ten | appears for no group of the real record, and a made-up green one gets "about 4 in 10" |
 | the forbidden words of 11.20 | hold over every string the label can put on the page, and every sentence says "the satellite saw it" |
 | a run with other than 51 members | gets no sentence at all |
+| the two ends | 0 is "fewer than 1 time in 10" and 10 is "nearly every time"; the real record reaches 0 in 79 bands and 10 in none, so the top end is driven with a band moved there by hand |
+| the one line under the chip | says both halves for the 20 groups that beat the usual rain and are amber all the same, and only the failed checks for the other 40 |
 | `api/place` | gives all 15,609 squares of the box the region `config/regions.json` gives them, which for 4,613 is one of the four and for the rest is none, and those 4,613 are the India mask of 3.5 square for square |
 | the twelve place tests of 5.4 | answer through the function the site asks |
 | a whole request | carries `region` and `region_code` for the square it answers for, agreeing with that function |

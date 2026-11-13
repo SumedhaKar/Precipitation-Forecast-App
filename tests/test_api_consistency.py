@@ -2129,7 +2129,19 @@ process.stdout.write(JSON.stringify(calls.map(
 """
 
 TOO_FEW = ("Too few past cases with this many runs agreeing to say how often "
-           "it came true.")
+           "the satellite saw it.")
+
+# SPEC 11.33, the four checks said as what went wrong, in 6.2's order.
+MISSED = (
+    ("enough_data", "too few past cases"),
+    ("skill_above_zero",
+     "not clearly better than the usual rain for this place and month"),
+    ("range_narrow_enough", "too uncertain to tell"),
+    ("small_honesty_error",
+     "the counts were too confident: when many runs agreed, the satellite "
+     "saw it less often"),
+)
+SKILL_PASSED = "Better than the usual rain for this place and month, but "
 MEMBERS = 51
 COUNTS = list(range(MEMBERS + 1))
 
@@ -2181,12 +2193,29 @@ def expected_past(group: dict, count: int) -> str:
     else:
         many = f"{low} to {high} of {MEMBERS} runs"
     times = bucket["times_in_10"]
-    unit = "time" if times == 1 else "times"
+    if times <= 0:
+        often = "fewer than 1 time in 10"
+    elif times >= 10:
+        often = "nearly every time"
+    else:
+        often = f"about {times} {'time' if times == 1 else 'times'} in 10"
     threshold = group["threshold_mm"]
     amount = int(threshold) if float(threshold).is_integer() else threshold
     return (f"In May to November 2026, when {many} said {amount} mm or more "
             f"in {group['region']} on day {group['lead_day']}, the satellite "
-            f"saw it about {times} {unit} in 10.")
+            f"saw it {often}.")
+
+
+def expected_why(group: dict) -> str:
+    """The one line under the chip, SPEC 11.33, written out again."""
+    missed = [words for key, words in MISSED
+              if not group["conditions"][key]["pass"]]
+    if not missed:
+        return "All four checks passed."
+    joined = missed[0] if len(missed) == 1         else f"{', '.join(missed[:-1])}, and {missed[-1]}"
+    if group["conditions"]["skill_above_zero"]["pass"]:
+        return f"{SKILL_PASSED}{joined}."
+    return joined[0].upper() + joined[1:] + "."
 
 
 def every_group_and_count() -> list[list]:
@@ -2313,6 +2342,7 @@ def test_the_label_and_the_sentence_are_the_record_for_every_count(record):
             "Better than the usual rain for this place and month",
             "A narrow enough range",
             "Counts that matched what happened"], where
+        assert got["label"] != "Good track record" or "but" not in got["why"]
         passed = [line["pass"] for line in got["conditions"]]
         assert passed == [group["conditions"][key]["pass"] for key in (
             "enough_data", "skill_above_zero", "range_narrow_enough",
@@ -2327,17 +2357,9 @@ def test_the_label_and_the_sentence_are_the_record_for_every_count(record):
         worst = group["conditions"]["small_honesty_error"]["worst_error"]
         assert f"{worst:.2f}" in got["conditions"][3]["got"], where
 
-        # The line under the chip names the checks that were not passed.
-        failed = [name for key, name in (
-            ("enough_data", "enough past cases"),
-            ("skill_above_zero",
-             "beating the usual rain for this place and month"),
-            ("range_narrow_enough", "a narrow enough range"),
-            ("small_honesty_error", "counts that matched what happened"))
-            if not group["conditions"][key]["pass"]]
-        for name in failed:
-            assert name in got["why"], where
-        assert f"{data['dates']} start dates" in got["why"], where
+        # The line under the chip names the checks that were not passed,
+        # and the half that was passed where there is one.
+        assert got["why"] == expected_why(group), where
 
     assert seen_too_few > 0, "no group has an uncounted band, so the floor " \
         "of 6.4 was never exercised"
@@ -2398,9 +2420,7 @@ def test_no_share_of_ten_appears_until_a_label_is_green(record, tmp_path):
                   for count in (0, 20, 26, 51)], summary=path)
     assert [answer["percent"] for answer in got] == [
         "about 0 in 10", "about 4 in 10", "about 5 in 10", "about 10 in 10"]
-    assert got[1]["why"] == ("All four checks passed, on "
-                            f"{green['conditions']['enough_data']['dates']} "
-                            "start dates.")
+    assert got[1]["why"] == "All four checks passed."
     for answer in got:
         assert "%" not in json.dumps(answer)
 
@@ -2420,6 +2440,13 @@ def test_the_trust_wording_never_says_dry_or_likely(record):
         for text in strings_in(got):
             low = text.lower()
             for word in FORBIDDEN:
+                if word == "certain":
+                    # SPEC 11.33. The ban is on the claim "certain". "too
+                    # uncertain to tell" is the opposite of that claim -- a
+                    # confession that the range is too wide to say anything --
+                    # so the whole word is what is forbidden, not the letters.
+                    assert not re.search(r"certain", low), text
+                    continue
                 assert word not in low, f"{word} appears in: {text}"
             checked += 1
     assert checked > 10000, checked
@@ -2431,6 +2458,80 @@ def test_the_trust_wording_never_says_dry_or_likely(record):
         assert "the satellite saw it" in sentence
         assert "it rained" not in sentence
         assert sentence.startswith("In May to November 2026, when ")
+
+
+@needs_node
+def test_the_two_ends_of_the_rounded_share_are_said_in_words(
+        record, exports, tmp_path):
+    """SPEC 11.33. 0 is not never and 10 is not always.
+
+    A band rounded to 0 times in 10 holds hundreds of cases in which it did
+    happen -- 1.2 in 100 in the real record's driest band -- and "about 0
+    times in 10" reads as a promise that it never happens. 10 reads as a
+    promise that it always does. Both ends say what the rounding is.
+    """
+    ends = exports(ROOT / "web" / "src" / "record.js", "howOften",
+                   [[{"times_in_10": times}] for times in (0, 1, 2, 9, 10)])
+    assert ends == ["fewer than 1 time in 10", "about 1 time in 10",
+                    "about 2 times in 10", "about 9 times in 10",
+                    "nearly every time"]
+
+    # The real record reaches 0 but never 10, so the top end is driven with a
+    # band moved there by hand, and the whole sentence checked around it.
+    groups = summary_file()["groups"]
+    low = [expected_past(group, count) for group in groups for count in COUNTS]
+    assert sum("fewer than 1 time in 10" in said for said in low) > 100
+    assert not any("nearly every time" in said for said in low)
+
+    doctored = summary_file()
+    group = doctored["groups"][0]
+    group["buckets"][-1]["times_in_10"] = 10
+    path = tmp_path / "high.json"
+    path.write_text(json.dumps(doctored), encoding="utf-8")
+    got = record([["trustFor", group["region"], group["lead_day"],
+                   group["threshold_mm"], 51, MEMBERS]], summary=path)
+    assert got[0]["past"].endswith("the satellite saw it nearly every time.")
+    assert "about 10" not in got[0]["past"]
+
+
+@needs_node
+def test_the_line_under_the_chip_says_both_halves_when_there_are_two(record):
+    """SPEC 11.33. A group that beat the usual rain and is still amber.
+
+    Twenty of the sixty did: their skill range is wholly above 0 and they fail
+    only on the honesty check. Saying only what went wrong would describe a
+    worse record than the one we measured, so the line says both. The other
+    forty did not beat it, and their line names only the failed checks.
+    """
+    groups = summary_file()["groups"]
+    answers = record([["trustFor", group["region"], group["lead_day"],
+                       group["threshold_mm"], 25, MEMBERS]
+                      for group in groups])
+    both, failed_only = 0, 0
+    for group, got in zip(groups, answers):
+        where = (group["region"], group["lead_day"], group["threshold_mm"])
+        assert got["why"] == expected_why(group), where
+        if group["conditions"]["skill_above_zero"]["pass"]:
+            both += 1
+            assert got["why"].startswith(
+                "Better than the usual rain for this place and month, but "
+                "the counts were too confident:"), where
+            assert "not clearly better" not in got["why"], where
+        else:
+            failed_only += 1
+            assert got["why"].startswith(
+                "Not clearly better than the usual rain"), where
+            assert ", but " not in got["why"], where
+        assert got["why"].endswith("."), where
+    assert (both, failed_only) == (20, 40), (both, failed_only)
+
+    # Every line is built from the four fixed phrases and nothing else.
+    for group, got in zip(groups, answers):
+        for key, words in MISSED:
+            said = words in got["why"]
+            missed = not group["conditions"][key]["pass"]
+            if key != "skill_above_zero":
+                assert said == missed, (group["region"], key)
 
 
 @needs_node

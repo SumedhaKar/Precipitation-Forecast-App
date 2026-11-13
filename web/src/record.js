@@ -15,17 +15,37 @@
 // is not comparable with it, so nothing is said rather than something close.
 export const RECORD_MEMBERS = 51;
 
-const WORDS = ['no', 'one', 'two', 'three', 'four'];
-
-// The four conditions of SPEC 6.2, in the order they are checked, in words a
-// reader has a chance with.
+// The four conditions of SPEC 6.2, in the order they are checked, said as
+// what went wrong rather than as the name of a test. `name` is the short name
+// the "Why this label?" list uses; `missed` is the plain words the one line
+// under the chip uses when that check was not passed.
 export const CONDITIONS = [
-  { key: 'enough_data', name: 'enough past cases' },
+  { key: 'enough_data',
+    name: 'Enough past cases',
+    missed: 'too few past cases' },
   { key: 'skill_above_zero',
-    name: 'beating the usual rain for this place and month' },
-  { key: 'range_narrow_enough', name: 'a narrow enough range' },
-  { key: 'small_honesty_error', name: 'counts that matched what happened' },
+    name: 'Better than the usual rain for this place and month',
+    missed: 'not clearly better than the usual rain for this place and '
+      + 'month' },
+  { key: 'range_narrow_enough',
+    name: 'A narrow enough range',
+    missed: 'too uncertain to tell' },
+  { key: 'small_honesty_error',
+    name: 'Counts that matched what happened',
+    missed: 'the counts were too confident: when many runs agreed, the '
+      + 'satellite saw it less often' },
 ];
+
+// SPEC 11.33. Said where a group beat the usual rain and is still amber: the
+// honest line has to carry both halves, or it reads as a worse record than it
+// is.
+export const SKILL_PASSED = 'better than the usual rain for this place and '
+  + 'month';
+
+/** First letter up, the rest left alone. */
+function upper(text) {
+  return text ? text[0].toUpperCase() + text.slice(1) : text;
+}
 
 /** 265677 -> "265,677". Not toLocaleString: the grouping must not move. */
 export function grouped(value) {
@@ -88,8 +108,24 @@ function amount(threshold) {
   return `${Number.isInteger(threshold) ? threshold : threshold} mm`;
 }
 
+// SPEC 5.9 again: even the line that says nothing says the satellite.
 export const TOO_FEW = 'Too few past cases with this many runs agreeing to '
-  + 'say how often it came true.';
+  + 'say how often the satellite saw it.';
+
+/**
+ * "about 5 times in 10", and the two ends said in words.
+ *
+ * SPEC 11.33. "about 0 times in 10" reads as never, which is not what a band
+ * with a few hundred cases in it earned the right to say, and "about 10 times
+ * in 10" reads as always. Both ends are rounded, so both are said as the
+ * roundings they are.
+ */
+export function howOften(bucket) {
+  const times = bucket.times_in_10;
+  if (times <= 0) return 'fewer than 1 time in 10';
+  if (times >= 10) return 'nearly every time';
+  return `about ${times} ${times === 1 ? 'time' : 'times'} in 10`;
+}
 
 /**
  * What happened last time the model said something like this.
@@ -103,11 +139,9 @@ export function pastSentence(group, count, members) {
   if (!group || members !== RECORD_MEMBERS) return null;
   const bucket = bucketFor(group, count);
   if (!bucket) return TOO_FEW;
-  const times = bucket.times_in_10;
-  const unit = times === 1 ? 'time' : 'times';
   return `In May to November 2026, when ${howMany(bucket, members)} said `
     + `${amount(group.threshold_mm)} or more in ${group.region} on day `
-    + `${group.lead_day}, the satellite saw it about ${times} ${unit} in 10.`;
+    + `${group.lead_day}, the satellite saw it ${howOften(bucket)}.`;
 }
 
 /** The names of the conditions this group did not pass, in 6.2's order. */
@@ -118,28 +152,25 @@ export function failed(group) {
 }
 
 /**
- * One plain line saying why the chip is the colour it is.
+ * One plain line saying why the chip is the colour it is. SPEC 11.33.
  *
- * It names the checks that were not passed rather than a grade, because
- * "rough guide" on its own tells a reader nothing they can act on.
+ * It names what went wrong rather than a grade, because "rough guide" on its
+ * own tells a reader nothing they can act on. Where the group did beat the
+ * usual rain for this place and month and is amber all the same, the line
+ * says both halves: leaving the good half out would describe a worse record
+ * than the one we measured.
  */
 export function whyLine(group) {
   if (!group || !group.conditions) return null;
-  const data = group.conditions.enough_data || {};
-  const dates = data.dates || 0;
-  if (group.label === 'Not enough past data') {
-    return `Too few past cases here to check it: ${grouped(data.cases || 0)} `
-      + `cases on ${dates} start dates.`;
+  const missed = failed(group).map((condition) => condition.missed);
+  if (!missed.length) return 'All four checks passed.';
+  const joined = missed.length === 1 ? missed[0]
+    : `${missed.slice(0, -1).join(', ')}, and ${missed[missed.length - 1]}`;
+  const skill = group.conditions.skill_above_zero || {};
+  if (skill.pass) {
+    return `${upper(SKILL_PASSED)}, but ${joined}.`;
   }
-  const missed = failed(group);
-  if (!missed.length) {
-    return `All four checks passed, on ${dates} start dates.`;
-  }
-  const names = missed.map((condition) => condition.name);
-  const list = names.length === 1 ? names[0]
-    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
-  return `Checked on ${dates} start dates. It did not pass `
-    + `${WORDS[missed.length]} of the four checks: ${list}.`;
+  return `${upper(joined)}.`;
 }
 
 /**
@@ -172,7 +203,7 @@ export function conditionLines(summary, group) {
   const honest = got.small_honesty_error || {};
   return [
     {
-      name: 'Enough past cases',
+      name: CONDITIONS[0].name,
       pass: !!data.pass,
       got: `${grouped(data.cases || 0)} cases on ${data.dates || 0} start `
         + `dates, ${data.event_dates || 0} of them with the satellite seeing `
@@ -182,20 +213,20 @@ export function conditionLines(summary, group) {
         + `start dates and ${rules.min_event_dates} of them with it seen`,
     },
     {
-      name: 'Better than the usual rain for this place and month',
+      name: CONDITIONS[1].name,
       pass: !!skill.pass,
       got: `skill ${fixed(group.bss)}, and the range runs from `
         + `${fixed(group.bss_lo)} to ${fixed(group.bss_hi)}`,
       rule: 'the whole range above 0',
     },
     {
-      name: 'A narrow enough range',
+      name: CONDITIONS[2].name,
       pass: !!range.pass,
       got: `half the range is ${fixed(range.value)}`,
       rule: `at most ${fixed(rules.max_halfwidth)}`,
     },
     {
-      name: 'Counts that matched what happened',
+      name: CONDITIONS[3].name,
       pass: !!honest.pass,
       got: `over ${honest.counted_buckets || 0} counted bands of agreement, `
         + `the widest gap between what the runs said and what the satellite `
