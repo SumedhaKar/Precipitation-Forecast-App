@@ -3782,28 +3782,72 @@ def test_the_report_card_grid_fits_a_390_pixel_screen(viewport):
     assert page["wideFontScrollWidth"] <= 390, page["wideFontScrollWidth"]
 
 
-def test_no_height_rule_uses_a_viewport_unit_without_a_dvh_line_after_it():
-    """SPEC 11.35. `vh` may appear only as the line before its `dvh`.
+@pytest.fixture(scope="module")
+def built_css(tmp_path_factory):
+    """The stylesheet as it is actually served, not as it is written.
+
+    This exists because the two are not the same. The fallback of 11.35 was
+    first written as a `100vh` line immediately before its `100dvh` line,
+    which is the ordinary way to write one; the minifier dropped it, because
+    a declaration the next line overrides is dead weight to it, and the
+    stylesheet that went to readers carried `dvh` alone. A test that reads
+    `src/styles.css` cannot see that. This one reads the build.
+    """
+    web = ROOT / "web"
+    if node is None or not (web / "node_modules" / "vite").exists():
+        pytest.skip("node and the web dependencies are needed to build")
+    out = tmp_path_factory.mktemp("css")
+    vite = web / "node_modules" / ".bin" / (
+        "vite.cmd" if os.name == "nt" else "vite")
+    done = subprocess.run(
+        [str(vite), "build", "--outDir", str(out), "--emptyOutDir",
+         "--logLevel", "error"],
+        capture_output=True, text=True, check=False, cwd=web, timeout=600)
+    assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
+    sheets = sorted((out / "assets").glob("*.css"))
+    assert sheets, "the build wrote no stylesheet"
+    return "\n".join(path.read_text(encoding="utf-8")
+                     for path in sheets)
+
+
+def test_the_stage_is_sized_from_the_visible_viewport_in_the_built_sheet(
+        built_css):
+    """SPEC 11.35, checked on the bytes a reader is sent.
+
+    The real rule is `dvh`; the fallback is an @supports block, which no
+    minifier may drop, and not a line a later line overrides.
+    """
+    assert "100dvh" in built_css
+    fallback = re.search(
+        r"@supports not \(height: ?100dvh\)\s*\{\s*\.shell\s*\{"
+        r"([^}]*)\}", built_css)
+    assert fallback is not None, (
+        "the built stylesheet has no @supports fallback for a browser "
+        "without dvh")
+    inside = fallback.group(1)
+    assert "height:100vh" in inside.replace(" ", ""), inside
+    assert "max-height:100vh" in inside.replace(" ", ""), inside
+
+
+def test_no_height_rule_uses_a_viewport_unit_outside_the_dvh_fallback():
+    """SPEC 11.35. `vh` may appear only inside the @supports fallback.
 
     A phone's `100vh` includes the strip behind the browser's bars and
-    `100dvh` does not, so every `vh` height has to be followed by the `dvh`
-    that overrides it. Anything else is the bug waiting to come back.
+    `100dvh` does not, so a `vh` height anywhere else is the bug waiting to
+    come back.
     """
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    said = [(m.group(1).strip(), m.group(2).strip())
-            for m in re.finditer(r"([a-z-]+)\s*:\s*([^;{}]+);", bare)]
-    found = 0
-    for at, (prop, value) in enumerate(said):
-        if not re.search(r"\d+vh", value):
-            continue
-        found += 1
-        after = said[at + 1] if at + 1 < len(said) else ("", "")
-        assert after[0] == prop, (prop, value, after)
-        assert re.search(r"\d+dvh", after[1]), (prop, value, after)
-    assert found == 2, (
-        f"{found} viewport-unit heights; the only ones left should be the "
-        "shell's height and max-height fallbacks")
+    head = "@supports not (height: 100dvh)"
+    assert head in bare, "the fallback block is gone"
+    at = bare.index(head)
+    shut = bare.index("}\n}", at) + 3
+    block = bare[at:shut]
+    assert len(re.findall(r"\d+vh", block)) == 2, block
+    rest = bare[:at] + bare[shut:]
+    assert re.search(r"\d+vh", rest) is None, (
+        "a viewport-unit height outside the fallback: "
+        f"{re.search(r'[^;{{}}]*[0-9]+vh[^;{{}}]*', rest).group(0)}")
 
 
 def test_the_phone_layout_takes_the_map_s_height_out_of_the_stage():

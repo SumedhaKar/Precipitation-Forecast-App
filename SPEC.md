@@ -5293,11 +5293,24 @@ is left after the header and the controls -- and never out of the viewport:
 
 | | |
 |---|---|
-| `.shell` | `height: 100vh` then `height: 100dvh`, in that order, and the same pair for `max-height`. The `vh` line is the fallback for a browser with no `dvh`; the `dvh` line is the rule |
+| `.shell` | `height: 100dvh` and `max-height: 100dvh`, with the `100vh` fallback in an `@supports not (height: 100dvh)` block and **not** as a line before them |
 | `.mapwrap` | `flex: 1 1 auto` with a floor of 6rem (5rem under 560 pixels). It may shrink; it may not vanish |
 | `.panel` | `flex: 0 1 auto`, `min-height: 3.4rem`, `max-height: 45%` of the stage. The minimum is a little more than the handle, which is the guarantee the handle is on the screen |
 | `.shell.open .panel` | `max-height: 78%` of the stage, not `none`. With `none` the panel grew past the bottom of the screen and the 51 member values could not be scrolled to |
 | no viewport unit | may be used for the height of anything inside the shell |
+
+**The fallback had to move, and the reason is a rule of its own.** It was
+first written the ordinary way, a `100vh` line immediately before its
+`100dvh` line. The source was right and the site was not: the minifier drops
+a declaration the next line overrides, so the stylesheet actually served
+carried `dvh` alone, and a browser that had never heard of `dvh` would have
+had no height at all. It was found on 13 November 2026 by reading the
+deployed `assets/*.css` after the merge, not by reading the source. An
+`@supports` block cannot be dropped that way.
+
+The lesson is kept as a test rather than as a note: one test now builds the
+site and reads the stylesheet the build wrote, because a rule that is true in
+`src/styles.css` and false in what is served is worse than no rule.
 
 `viewport-fit=cover` is **not** set. Without it the page is laid out inside
 the safe area and the bars cannot cover it; with it every edge that touches

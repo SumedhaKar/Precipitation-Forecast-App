@@ -82,16 +82,26 @@ button {
      grows to fit the panel's content and pushes the map below the fold,
      which is what the first build did.
 
-     The vh line is a fallback and the dvh line is the real rule, in that
-     order, so a browser that has never heard of dvh keeps a working page
-     and every browser that has uses the viewport that is actually visible.
      On a phone with a toolbar at the bottom of the screen, 100vh is the
      screen and 100dvh is the part of it the reader can see; the difference
-     is the bars, and it is the whole of SPEC 11.35. */
-  height: 100vh;
+     is the bars, and it is the whole of SPEC 11.35.
+
+     The fallback is the @supports block below and not a vh line above
+     these, because a minifier drops a declaration the next line overrides:
+     written that way the built stylesheet carried the dvh line alone, and
+     a browser that had never heard of dvh got no height at all. */
   height: 100dvh;
-  max-height: 100vh;
   max-height: 100dvh;
+}
+
+/* SPEC 11.35. For a browser with no dvh: the whole screen, bars included,
+   which is the page as it was before 11.35 and still a working page. It
+   survives minification because nothing else in the rule overrides it. */
+@supports not (height: 100dvh) {
+  .shell {
+    height: 100vh;
+    max-height: 100vh;
+  }
 }
 
 header {
