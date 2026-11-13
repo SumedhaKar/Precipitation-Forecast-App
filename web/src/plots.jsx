@@ -158,7 +158,8 @@ export function CellMap({ title, cells, pick, high, least, width = 300 }) {
       <p className="plotfoot">
         One rectangle per 2 degree cell, 0 to {high.toFixed(2)}, lighter is
         lower; a tan cell is below 0. A dashed edge is a cell with fewer than
-        {' '}{least} forecast squares in it, which is drawn and not read from.
+        {' '}{least} forecast squares in it: shown, but too few squares to
+        give a number.
       </p>
     </figure>
   );

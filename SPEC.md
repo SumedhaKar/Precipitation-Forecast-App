@@ -217,23 +217,35 @@ Valid source values in the client are `ecmwf`, `aws`, `azure`, `google` and
 
 #### What AIFS ENS does and does not publish
 
-Checked on 12 November 2026 against the real URLs and the real index files:
+Checked on 12 November 2026 against the real URLs and the real index files,
+and **corrected on 13 November 2026 by HC-ECMWF**, which found that the
+12 November reading of the `ep` row was wrong:
 
 | Product | Available? |
 |---|---|
 | `aifs-ens` / `enfo` / `cf` | yes, about 58 MB per step |
 | `aifs-ens` / `enfo` / `pf` | yes, about 2.9 GB per step for all parameters |
-| `aifs-ens` / `enfo` / `ep` (probabilities) | **no**, HTTP 404 |
-| `aifs-ens` / `enfo` / `ef`, `em`, `es` | no, HTTP 404 |
+| `aifs-ens` / `enfo` / `ep` (probabilities) | **yes**, two files per run |
+| `aifs-ens` / `enfo` / `em`, `es` (mean and spread) | yes, inside the `ep` files |
+| `aifs-ens` / `enfo` / `ef` | no, HTTP 404 |
 | `aifs-ens` / `waef` / `cf` and `pf` (waves) | yes, not used here |
 
 The `pf` index lists 29 parameters, with `tp` the only precipitation total and
 no threshold-probability parameter such as `tpg1` or `tpg10`. **[verified]**
 
-So **there is no official AIFS ENS rain probability to compare our counts
-against**, which decides the shape of HC6 (section 4.6). It also means our
-counts cannot be cross-checked against an ECMWF-produced probability at all,
-and the only independent check available is a member-by-member dump.
+What was missed on 12 November is that the probabilities are not in the `pf`
+files and are not named per step. The whole set for a run sits in
+`...-240h-enfo-ep.grib2` and `...-360h-enfo-ep.grib2`, named for the end of
+their range, and a listing that walks the steps never shows them. Inside the
+first are `tpg1`, `tpg5`, `tpg10`, `tpg20`, `tpg25`, `tpg50`, `tpg100` and
+more, as percentages, for 24-hour windows including 24-48, which is our day
+1. **[verified]** by HC-ECMWF on run 20261112T00Z.
+
+So **there is an official AIFS ENS probability of 10 mm, and HC-ECMWF
+compares our counts against it**. It is not a count of members -- it holds
+values far below one member's worth of 51 -- so the two cannot be made equal
+by arithmetic; what HC-ECMWF measures is how closely they agree. HC6's
+member-by-member dump stands as the check of the counting itself.
 
 Licence: CC-BY-4.0. Attribution to ECMWF is required and goes in CREDITS.md and
 in the site footer.
@@ -5174,7 +5186,8 @@ rectangle per cell; skill by 30-day block; CRPS with its baseline and the 25
 disagreements explained as two yardsticks; the exclusion tally; the limits,
 including SPEC 5.10's sub-cell offset and the two Tier 2 checks that were not
 computed; and links to the repository, `SPEC.md`, all four result files and
-the nine hand checks.
+every hand check that has been done, each linking to the file it
+wrote (11.36).
 
 #### Rules both pages keep
 
@@ -5252,6 +5265,101 @@ left out of the map.
 
 ---
 
+### 11.35 The phone viewport: the handle under the bars
+
+**The bug.** On a Samsung A32 and an Oppo, in the browsers those phones
+ship, the forecast page's "Show the details" handle sat under the browser's
+bottom toolbar and the system's back and home bar. The panel could not be
+opened at all, so on those phones a square's numbers were unreachable. It
+did not show in a desktop browser's device emulation, which has no bars.
+
+**The cause, measured, not guessed.** `.mapwrap` was `flex: 0 0 55vh` with a
+matching `min-height`. That is a share of the **viewport**, inside a `.shell`
+that is `100dvh` and has already spent the header and the controls out of
+that same viewport. At 390 pixels wide the header and the controls come to
+339 pixels, which is 44% of a 764-pixel screen; 55% more for the map leaves
+5 pixels for the panel, and the handle is 46 pixels tall. Measured on the
+built site at 390 by 664: the map ran from 339 to 704, the panel was 20
+pixels tall, and the handle sat from 705 to 750 -- **41 pixels past the
+bottom of a 664-pixel screen, with the shell's `max-height` stopping the
+page from scrolling to it.** The bars on a real phone then make it worse in
+both directions at once: `100vh` includes the area behind them, so the map
+grows, while `100dvh` excludes it, so the shell shrinks. `min-height: 55vh`
+is what stopped flexbox from solving it.
+
+**The rule.** A share of the screen may be spent only on what is left of the
+screen. On a phone the map's height comes out of the stage -- the box that
+is left after the header and the controls -- and never out of the viewport:
+
+| | |
+|---|---|
+| `.shell` | `height: 100vh` then `height: 100dvh`, in that order, and the same pair for `max-height`. The `vh` line is the fallback for a browser with no `dvh`; the `dvh` line is the rule |
+| `.mapwrap` | `flex: 1 1 auto` with a floor of 6rem (5rem under 560 pixels). It may shrink; it may not vanish |
+| `.panel` | `flex: 0 1 auto`, `min-height: 3.4rem`, `max-height: 45%` of the stage. The minimum is a little more than the handle, which is the guarantee the handle is on the screen |
+| `.shell.open .panel` | `max-height: 78%` of the stage, not `none`. With `none` the panel grew past the bottom of the screen and the 51 member values could not be scrolled to |
+| no viewport unit | may be used for the height of anything inside the shell |
+
+`viewport-fit=cover` is **not** set. Without it the page is laid out inside
+the safe area and the bars cannot cover it; with it every edge that touches
+the bottom would need `env(safe-area-inset-bottom)` padding, and the handle
+is the one thing that must never be covered. If it is ever wanted for a
+full-bleed map, the padding comes first.
+
+The map resizes with the viewport because `.mapwrap` is sized by the stage
+and `Map.jsx` already watches its container with a `ResizeObserver`, so
+showing or hiding the address bar changes `100dvh`, which changes the
+stage, which resizes the map.
+
+**Measured after the fix, at 390 by 664.** Closed: map 339 to 518, panel 518
+to 664, handle 518 to 564, fully on the screen. Open: map 339 to 419, panel
+419 to 664 with 654 pixels of content in a 244-pixel box, so `overflow-y`
+scrolls to the last of the 51 values. The report card and How we checked are
+documents, not the shell; they use no viewport unit and were measured not to
+be clipped at the same size.
+
+### 11.36 The report card at 390 pixels, and the list of checks
+
+**The mark.** 20 of the 60 groups beat the usual rain for their place and
+month. The grid marks them with a plain `+` after the label, never by colour
+alone, and never with a tick: nothing here has passed, and a tick would say
+it had. The key line reads "+ better than the usual rain for this place and
+month, but still a rough guide", with the number on it. The flag is read
+from `site_summary.json`'s own `conditions.skill_above_zero.pass` and is
+never worked out again in the page, so the mark and the label beside it
+cannot disagree.
+
+**The width.** Under 560 pixels the grid is `table-layout: fixed` at full
+width, the chip words wrap rather than being cut, and the row heading keeps
+"1 mm" on one line. A table that scrolls sideways hides days 4 and 5 with
+nothing to say they are there. Measured at 390: the page's own scroll width
+is 373 and every grid's scroll width equals its client width. Above 560
+pixels nothing changes.
+
+**The wording.** "and all 60 were too confident" when it is every one of
+them, and "shown, but too few squares to give a number" for a 2-degree cell
+with too few squares, which is what a dashed edge means.
+
+**The list of checks.** How we checked carries every hand check that has
+been done, one line each, each linking to the file it wrote in
+`handchecks/results/`. HC4 and HC10 have no file: HC4's file was deleted
+after it was read (2.6) and HC10 is the checklist for the end of the build,
+listed as not done. Both link to "The hand checks" in the specification. No
+file is named that is not in the repository, and no file is created in order
+to be linked to.
+
+**The ECMWF line.** How we checked carries what HC-ECMWF found, in the units
+this site publishes: on the 12 November 2026 run, for day 1 at 10 mm, our
+count of 51 against ECMWF's own figure at all 4,613 squares, with the gap
+given as a number of runs -- the mean of the sizes of the differences, not a
+signed mean, which would hide them -- and the count of squares more than 5
+runs apart. Then, in those words: "This shows the counting is right. It does
+not show the model is right; that is what the report card checks." ECMWF's
+own word for its figure cannot be used here, because it is one of the
+forbidden words of 11.20; "its own figure for 10 mm or more" is the wording,
+with the point that it is not a count of runs said plainly beside it. This
+is on How we checked only, never on the forecast page and never on the
+report card.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
@@ -5278,6 +5386,13 @@ were added on 13 November 2026.
 | HC-ECMWF | ECMWF's own probability of 10 mm against our count | `hc_ecmwf.py` | `hc_ecmwf.csv` |
 | HC-REPORT | the report card's Brier scores, redone | `hc_report.py` | `hc_report.csv` |
 | HC-GHATS | one monsoon day of remapped IMERG, drawn | `hc_ghats.py` | `hc_ghats.csv`, `hc_ghats.png` |
+| HC10 | the final checklist, at the end of the build | not written yet | none: it has not been done, and nothing published depends on it |
+
+`hc6_members.csv` was written on 12 November 2026 and carries a line saying
+ECMWF publishes no probability product. That line is wrong and HC-ECMWF is
+the correction; the file is left as it was written, because a result file is
+a record of a run and not a draft. The script's wording is corrected, so a
+re-run does not repeat it.
 
 #### HC-FAIL
 
@@ -5287,7 +5402,14 @@ against an in-memory store that already publishes the real run. Nothing
 touches `data/`, nothing touches the network and no token exists.
 
 Seven ways of going wrong, and in **every one of them nothing was uploaded
-and the store went on publishing the run it already had**. A broken file --
+and the store went on publishing the run it already had**.
+
+**The two exit codes are a rule, not an accident.** A missing ECMWF run, or
+one that is not complete yet, exits **0**: the workflow tries all day
+(1.5, 8.6) and simply comes back later, and a run that is not there yet is
+not a failure. A broken or inconsistent file exits **1**: that is a failure
+and has to be seen. In both cases nothing is published and the run already
+published stays exactly where it is, which is the part a reader depends on. A broken file --
 a torn manifest, a missing `days.json`, a cut-off `squares.npz`, counts that
 no longer match their members, a different India mask -- exits 1. Nothing to
 publish -- no forecast at all, or a run with no manifest, which means it

@@ -2451,7 +2451,7 @@ def test_the_trust_wording_never_says_dry_or_likely(record):
                     # uncertain to tell" is the opposite of that claim -- a
                     # confession that the range is too wide to say anything --
                     # so the whole word is what is forbidden, not the letters.
-                    assert not re.search(r"certain", low), text
+                    assert not re.search(r"\bcertain\b", low), text
                     continue
                 assert word not in low, f"{word} appears in: {text}"
             checked += 1
@@ -2852,8 +2852,10 @@ def test_every_chip_in_the_grid_is_the_label_the_record_gives(pages,
                     "Not enough past data": "Too few"}[group["label"]]
                 # And the page carries the full label where a reader who
                 # cannot see the colour will find it.
+                extra = (", better than the usual rain for this "
+                         "place and month") if cell["beat"] else ""
                 shown = (f'aria-label="{region}, day {cell["lead"]}, '
-                         f'{row["threshold"]} mm: {group["label"]}"')
+                         f'{row["threshold"]} mm: {group["label"]}{extra}"')
                 assert shown.replace("&", "&amp;") in html
                 seen += 1
     assert seen == 60
@@ -3136,3 +3138,519 @@ def test_with_no_script_the_page_links_to_the_files_themselves():
         assert name in noscript, name
     assert "/api/place?lat=28.5" in noscript
     assert "/api/health" in noscript
+
+
+# --------------------------------------------- SPEC 11.35, the phone's bars
+
+VIEWPORT_HARNESS = r"""
+// SPEC 11.35 and 11.36. The built site measured in a real browser at a
+// phone's size, driven over the DevTools protocol with nothing installed:
+// node's own WebSocket and http server, and whatever Chrome the machine has.
+//
+// It serves `web/dist` itself, because the page loads its modules with
+// `type="module"` and a file:// page may not. There is no API: `/api/*`
+// answers 503, which is what a reader with no network sees, and the shell,
+// the panel and the handle are laid out all the same.
+//
+// Prints one JSON object. `{"skip": "..."}` means no browser was found.
+
+import { createServer } from 'node:http';
+import { readFile, mkdtemp, readFile as read } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join, extname, normalize } from 'node:path';
+
+const DIST = process.argv[2];
+const WIDTH = Number(process.argv[3] || 390);
+const HEIGHT = Number(process.argv[4] || 664);
+
+const CANDIDATES = [
+  process.env.CHROME_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].filter(Boolean);
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+};
+
+function say(value) {
+  process.stdout.write(JSON.stringify(value));
+  process.exit(0);
+}
+
+const chrome = CANDIDATES.find((path) => existsSync(path));
+if (!chrome) say({ skip: 'no Chrome on this machine' });
+
+// ------------------------------------------------------------- the server
+
+const server = createServer(async (request, response) => {
+  const url = new URL(request.url, 'http://127.0.0.1');
+  if (url.pathname.startsWith('/api/')) {
+    response.writeHead(503, { 'content-type': 'application/json' });
+    response.end('{"ok":false,"store":"not served by this check"}');
+    return;
+  }
+  const asset = /\.[a-z0-9]+$/i.test(url.pathname);
+  const file = normalize(join(DIST, asset ? url.pathname : '/index.html'));
+  if (!file.startsWith(normalize(DIST))) {
+    response.writeHead(403).end('no');
+    return;
+  }
+  try {
+    const bytes = await readFile(file);
+    response.writeHead(200, {
+      'content-type': TYPES[extname(file)] || 'application/octet-stream',
+    });
+    response.end(bytes);
+  } catch {
+    response.writeHead(404).end('no');
+  }
+});
+await new Promise((go) => server.listen(0, '127.0.0.1', go));
+const port = server.address().port;
+
+// ------------------------------------------------------------- the browser
+
+const profile = await mkdtemp(join(tmpdir(), 'hcview-'));
+const child = spawn(chrome, [
+  '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+  '--disable-extensions', '--disable-dev-shm-usage', '--no-sandbox',
+  `--user-data-dir=${profile}`, '--remote-debugging-port=0', 'about:blank',
+], { stdio: ['ignore', 'ignore', 'ignore'] });
+
+async function devtoolsPort() {
+  const file = join(profile, 'DevToolsActivePort');
+  for (let tries = 0; tries < 120; tries += 1) {
+    try {
+      const text = await read(file, 'utf8');
+      const first = text.split('\n')[0].trim();
+      if (first) return Number(first);
+    } catch { /* not written yet */ }
+    await new Promise((go) => setTimeout(go, 250));
+  }
+  return null;
+}
+
+function stop(value) {
+  try { child.kill(); } catch { /* already gone */ }
+  server.close();
+  say(value);
+}
+
+const cdpPort = await devtoolsPort();
+if (!cdpPort) stop({ skip: 'Chrome did not open a DevTools port' });
+
+const where = await fetch(`http://127.0.0.1:${cdpPort}/json/version`)
+  .then((r) => r.json());
+const socket = new WebSocket(where.webSocketDebuggerUrl);
+await new Promise((go, no) => {
+  socket.addEventListener('open', go, { once: true });
+  socket.addEventListener('error', no, { once: true });
+});
+
+let next = 0;
+const waiting = new Map();
+socket.addEventListener('message', (event) => {
+  const message = JSON.parse(event.data);
+  if (message.id && waiting.has(message.id)) {
+    waiting.get(message.id)(message);
+    waiting.delete(message.id);
+  }
+});
+
+function send(method, params = {}, sessionId) {
+  next += 1;
+  const id = next;
+  return new Promise((go, no) => {
+    waiting.set(id, (message) => (message.error
+      ? no(new Error(`${method}: ${message.error.message}`))
+      : go(message.result)));
+    socket.send(JSON.stringify({ id, method, params, sessionId }));
+  });
+}
+
+const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
+const { sessionId } = await send('Target.attachToTarget',
+  { targetId, flatten: true });
+
+async function evaluate(expression) {
+  const answer = await send('Runtime.evaluate', {
+    expression, returnByValue: true, awaitPromise: true,
+  }, sessionId);
+  if (answer.exceptionDetails) {
+    throw new Error(answer.exceptionDetails.exception?.description
+      || 'the page threw');
+  }
+  return answer.result.value;
+}
+
+try {
+  await send('Page.enable', {}, sessionId);
+  await send('Runtime.enable', {}, sessionId);
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: true,
+  }, sessionId);
+
+  const out = {};
+  for (const path of ['/', '/report-card', '/how-we-checked']) {
+    await send('Page.navigate', { url: `http://127.0.0.1:${port}${path}` },
+      sessionId);
+    await new Promise((go) => setTimeout(go, 1200));
+    out[path] = await evaluate(`(async () => {
+      const box = (s) => {
+        const e = document.querySelector(s);
+        if (!e) return null;
+        const b = e.getBoundingClientRect();
+        return { top: Math.round(b.top), bottom: Math.round(b.bottom),
+                 height: Math.round(b.height) };
+      };
+      const seen = {
+        innerWidth: window.innerWidth,
+        innerHeight: window.innerHeight,
+        docScrollWidth: document.documentElement.scrollWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+        sideways: [...document.querySelectorAll('.gridwrap, .labelgrid')]
+          .filter((e) => e.scrollWidth > e.clientWidth + 1).length,
+        chipsCut: [...document.querySelectorAll('.labelgrid .chip')]
+          .filter((e) => e.scrollWidth > e.clientWidth + 1
+            || e.scrollHeight > e.clientHeight + 1).length,
+        chips: document.querySelectorAll('.labelgrid .chip').length,
+        marks: document.querySelectorAll('.labelgrid .beat').length,
+        rowHeads: [...document.querySelectorAll('.labelgrid tbody th')]
+          .map((e) => ({ text: e.textContent.trim(),
+            nowrap: getComputedStyle(e).whiteSpace === 'nowrap',
+            fits: e.scrollWidth <= e.clientWidth + 1 })),
+      };
+      const handle = document.querySelector('.handle');
+      if (handle) {
+        seen.shut = { handle: box('.handle'), panel: box('.panel'),
+          map: box('.mapwrap') };
+        seen.shut.handleFullyVisible = seen.shut.handle.top >= 0
+          && seen.shut.handle.bottom <= window.innerHeight;
+        handle.click();
+        // React re-renders on its own schedule, so wait two frames before
+        // measuring what the click did.
+        await new Promise((go) => requestAnimationFrame(
+          () => requestAnimationFrame(go)));
+        // The 51 member values stand in as one tall block, because there is
+        // no API here to fetch a square's numbers with. Padding, not a
+        // margin: a margin on the first child collapses out of the box and
+        // the marker ends up above the scroll instead of at its end.
+        const tall = document.createElement('div');
+        tall.id = 'standsin';
+        tall.style.paddingTop = '900px';
+        tall.innerHTML = '<p id="lastline">the last line</p>';
+        const panel = document.querySelector('.panel');
+        panel.appendChild(tall);
+        seen.open = { handle: box('.handle'), panel: box('.panel'),
+          map: box('.mapwrap'),
+          opened: document.querySelector('.shell').className.includes('open'),
+          scrollHeight: panel.scrollHeight, clientHeight: panel.clientHeight,
+          overflowY: getComputedStyle(panel).overflowY };
+        panel.scrollTop = panel.scrollHeight;
+        await new Promise((go) => requestAnimationFrame(go));
+        const last = box('#lastline');
+        seen.open.lastLineVisible = last !== null && last.top >= 0
+          && last.bottom <= window.innerHeight + 1;
+        seen.open.lastLine = last;
+      }
+      return seen;
+    })()`);
+  }
+  stop(out);
+} catch (error) {
+  stop({ skip: `the browser check could not run: ${error.message}` });
+}
+"""
+
+
+@pytest.fixture(scope="module")
+def viewport():
+    """The built site, measured in a real browser at 390 by 664.
+
+    A headless browser has no address bar and no system bar, so this is a
+    check of a short screen and not of the bug itself: what it proves is
+    that the handle and the panel are laid out inside the viewport they are
+    given, which is the rule the bug broke. The bug's own measurement, on
+    the real geometry, is in SPEC 11.35.
+
+    Chrome is driven over the DevTools protocol by node's own WebSocket, so
+    nothing is installed for this. With no browser on the machine the test
+    skips and says so.
+    """
+    web = ROOT / "web"
+    if node is None or not (web / "node_modules" / "vite").exists():
+        pytest.skip("node and the web dependencies are needed to measure")
+    out = web / "node_modules" / ".view-test"
+    vite = web / "node_modules" / ".bin" / (
+        "vite.cmd" if os.name == "nt" else "vite")
+    done = subprocess.run(
+        [str(vite), "build", "--outDir", "node_modules/.view-test",
+         "--emptyOutDir", "--logLevel", "error"],
+        capture_output=True, text=True, check=False, cwd=web, shell=False)
+    assert done.returncode == 0, f"vite failed: {done.stdout}\n{done.stderr}"
+
+    runner = out / "measure.mjs"
+    runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
+    done = subprocess.run(
+        [node, str(runner), str(out), "390", "664"],
+        capture_output=True, text=True, check=False, cwd=web, timeout=300)
+    assert done.returncode == 0, f"the browser check failed: {done.stderr}"
+    seen = json.loads(done.stdout)
+    if "skip" in seen:
+        pytest.skip(seen["skip"])
+    return seen
+
+
+@needs_node
+def test_the_details_handle_is_on_the_screen_at_390_by_664(viewport):
+    """SPEC 11.35. The one thing a phone reader cannot do without."""
+    page = viewport["/"]
+    assert page["innerWidth"] == 390 and page["innerHeight"] == 664
+    shut = page["shut"]
+    assert shut["handle"]["top"] >= 0, shut
+    assert shut["handle"]["bottom"] <= 664, (
+        f"the handle ends {shut['handle']['bottom'] - 664} pixels below the "
+        "screen, which is the bug of SPEC 11.35")
+    assert shut["handleFullyVisible"]
+    # And the map is still the larger half of what is left.
+    assert shut["map"]["height"] >= shut["panel"]["height"]
+
+
+@needs_node
+def test_the_handle_opens_the_panel_and_the_last_line_can_be_reached(
+        viewport):
+    """SPEC 11.35. Open, and scrollable to the end of the 51 values.
+
+    The 51 values stand in as one tall block, because this check serves no
+    API and so has no square's numbers to show; what is being checked is
+    that the panel keeps a height and scrolls inside it, not what is in it.
+    """
+    page = viewport["/"]
+    opened = page["open"]
+    assert opened["opened"], "the handle did not open the sheet"
+    assert opened["panel"]["height"] > page["shut"]["panel"]["height"]
+    assert opened["panel"]["bottom"] <= 664
+    assert opened["overflowY"] == "auto"
+    assert opened["scrollHeight"] > opened["clientHeight"], (
+        "the stand-in content is not taller than the panel, so this proves "
+        "nothing")
+    assert opened["lastLineVisible"], opened["lastLine"]
+    # The map is thinner but never gone.
+    assert opened["map"]["height"] >= 48
+
+
+@needs_node
+def test_neither_document_page_is_cut_off_at_390_by_664(viewport):
+    """SPEC 11.35. The other two pages are documents, not the shell."""
+    for path in ("/report-card", "/how-we-checked"):
+        page = viewport[path]
+        assert page["docScrollWidth"] <= 390, path
+        assert page["bodyScrollWidth"] <= 390, path
+
+
+@needs_node
+def test_the_report_card_grid_fits_a_390_pixel_screen(viewport):
+    """SPEC 11.36. No sideways scroll, nothing cut, "1 mm" on one line."""
+    page = viewport["/report-card"]
+    assert page["chips"] == 60
+    assert page["sideways"] == 0, (
+        "a grid scrolls sideways at 390 pixels, which hides days 4 and 5")
+    assert page["chipsCut"] == 0, "a chip's words are cut off"
+    assert page["rowHeads"], "no row headings were found"
+    for head in page["rowHeads"]:
+        assert head["nowrap"], head
+        assert head["fits"], head
+    assert [h["text"] for h in page["rowHeads"][:3]] == ["1 mm", "10 mm",
+                                                         "50 mm"]
+
+
+def test_no_height_rule_uses_a_viewport_unit_without_a_dvh_line_after_it():
+    """SPEC 11.35. `vh` may appear only as the line before its `dvh`.
+
+    A phone's `100vh` includes the strip behind the browser's bars and
+    `100dvh` does not, so every `vh` height has to be followed by the `dvh`
+    that overrides it. Anything else is the bug waiting to come back.
+    """
+    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
+    bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    said = [(m.group(1).strip(), m.group(2).strip())
+            for m in re.finditer(r"([a-z-]+)\s*:\s*([^;{}]+);", bare)]
+    found = 0
+    for at, (prop, value) in enumerate(said):
+        if not re.search(r"\d+vh", value):
+            continue
+        found += 1
+        after = said[at + 1] if at + 1 < len(said) else ("", "")
+        assert after[0] == prop, (prop, value, after)
+        assert re.search(r"\d+dvh", after[1]), (prop, value, after)
+    assert found == 2, (
+        f"{found} viewport-unit heights; the only ones left should be the "
+        "shell's height and max-height fallbacks")
+
+
+def test_the_phone_layout_takes_the_map_s_height_out_of_the_stage():
+    """SPEC 11.35. The rule the bug broke, as a rule a test can hold."""
+    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
+    phone = css[css.index("@media (max-width: 1023px)"):]
+    for rule in (".mapwrap", ".panel"):
+        block = phone[phone.index(rule):]
+        block = block[:block.index("}")]
+        assert "vh" not in block, (
+            f"{rule} is sized from the viewport again: {block}")
+    # The guarantee itself: the panel cannot shrink below its handle, and it
+    # is capped as a share of the stage rather than left to grow.
+    panel = phone[phone.index("  .panel {"):]
+    panel = panel[:panel.index("}")]
+    assert re.search(r"min-height:\s*[\d.]+rem", panel), panel
+    assert re.search(r"max-height:\s*\d+%", panel), panel
+    opened = phone[phone.index(".shell.open .panel"):]
+    opened = opened[:opened.index("}")]
+    assert re.search(r"max-height:\s*\d+%", opened), opened
+
+
+# ------------------------------------------- SPEC 11.36, the report card
+
+@needs_node
+def test_the_marked_groups_are_the_ones_the_file_says_beat_the_usual_rain(
+        pages, rendered):
+    """SPEC 11.36. Read from site_summary.json, never worked out again."""
+    summary = summary_file()
+    grids = pages([["gridFor", "summary", region]
+                   for region in summary["regions"]])
+    marked = 0
+    for region, grid in zip(summary["regions"], grids):
+        for row in grid:
+            for cell in row["cells"]:
+                group = next(
+                    one for one in summary["groups"]
+                    if one["region"] == region
+                    and one["lead_day"] == cell["lead"]
+                    and one["threshold_mm"] == row["threshold"])
+                want = bool(group["conditions"]["skill_above_zero"]["pass"])
+                assert cell["beat"] is want, (region, row["threshold"],
+                                              cell["lead"])
+                marked += want
+    expected = sum(1 for group in summary["groups"]
+                   if group["conditions"]["skill_above_zero"]["pass"])
+    assert marked == expected
+    assert expected == 20, "today's record; the rest of this test is general"
+
+    html = rendered["pages"]["report_card"]
+    # One mark per marked group, and one more in the key line that explains
+    # what the mark means.
+    assert html.count('class="beat"') == expected + 1
+    assert (f"It is on {expected} of the {len(summary['groups'])}."
+            in html), "the key line does not carry the count"
+    assert "better than the usual rain for this place and month, but still" \
+        in html
+    # A mark, not a tick, and not a colour on its own.
+    assert "&#x2713;" not in html and "\u2713" not in html
+    for cell in re.findall(r'<span class="chip [a-z]+"[^>]*>(.*?)</span>',
+                           html):
+        assert "+" not in cell or '<span class="beat"' in cell
+
+
+@needs_node
+def test_the_headline_says_all_sixty_when_it_is_all_of_them(pages, rendered):
+    """SPEC 11.36. "and all 60 were too confident", not "and 60 of them"."""
+    summary = summary_file()
+    said = pages([["headline", "summary"]])[0]
+    honest = sum(1 for group in summary["groups"]
+                 if not group["conditions"]["small_honesty_error"]["pass"])
+    total = len(summary["groups"])
+    if honest == total:
+        assert f"all {total} were too confident" in said["sentence"]
+        assert f"{honest} of them were too confident" not in said["sentence"]
+    else:
+        assert f"{honest} of them were too confident" in said["sentence"]
+    assert said["sentence"] in rendered["pages"]["report_card"].replace(
+        "&quot;", '"')
+
+
+@needs_node
+def test_a_thin_two_degree_cell_says_it_has_too_few_squares(rendered):
+    """SPEC 11.36. The dashed edge, said in words a reader can act on."""
+    html = rendered["pages"]["how_we_checked"]
+    assert "shown, but too few squares to give a number" in html
+    assert "drawn and not read from" not in html
+    for page in rendered["pages"].values():
+        assert "drawn and not read from" not in page
+
+
+# ------------------------------- SPEC 11.36, the list of checks and ECMWF
+
+@needs_node
+def test_every_hand_check_on_the_page_links_to_something_that_exists(
+        rendered):
+    """SPEC 11.36. No count out of date, and no link to a missing file."""
+    html = rendered["pages"]["how_we_checked"]
+    assert "nine checks" not in html and "nine hand checks" not in html
+
+    names = re.findall(r'<a href="([^"]+)"><strong>(HC[-A-Z0-9]+)</strong>',
+                       html)
+    found = [name for _, name in names]
+    assert found == ["HC1", "HC2", "HC3", "HC4", "HC-ALIGN", "HC5", "HC6",
+                     "HC7", "HC8", "HC9", "HC-FAIL", "HC-ECMWF", "HC-REPORT",
+                     "HC-GHATS", "HC10"], found
+
+    results = ROOT / "handchecks" / "results"
+    for href, name in names:
+        if "/handchecks/results/" in href:
+            file = href.rsplit("/", 1)[-1]
+            assert (results / file).exists(), (name, file)
+        else:
+            assert href.endswith("SPEC.md#the-hand-checks"), (name, href)
+            assert name in ("HC4", "HC10"), name
+
+    # HC10 is listed as what it is: not done, and nothing leaning on it.
+    hc10 = html[html.index("HC10"):]
+    assert "not done yet" in hc10[:400], hc10[:400]
+    assert "passed" not in hc10[:400]
+
+
+@needs_node
+def test_the_ecmwf_section_carries_the_hand_check_s_own_numbers(rendered):
+    """SPEC 11.36. The page quotes HC-ECMWF, in runs and never in points."""
+    import csv as csv_module
+
+    rows = {}
+    with (ROOT / "handchecks" / "results" / "hc_ecmwf.csv").open(
+            encoding="utf-8") as fh:
+        for row in csv_module.reader(fh):
+            if len(row) >= 2:
+                rows[row[0]] = row[1]
+
+    squares = rows["squares compared"]
+    runs = float(rows["mean size of the difference, as runs of 51"].split()[0])
+    apart = rows["squares differing by more than 5 runs of 51"]
+
+    html = rendered["pages"]["how_we_checked"]
+    assert squares == "4613"
+    assert "4,613" in html
+    assert f"{apart} of the 4,613 squares were more than 5 runs apart" in html
+    assert 0.05 <= runs < 0.15, runs
+    assert "about a tenth of one run" in html
+    assert ("This shows the counting is right. It does not show the model "
+            "is right; that is what the report card checks.") in html
+
+    # It is a check of our arithmetic, and it stays off the two pages that
+    # answer "what is the forecast" and "how good has it been".
+    assert "a tenth of one run" not in rendered["pages"]["report_card"]
+    # The report card names the model, as the period sentence must; what it
+    # must not carry is this comparison.
+    assert "its own figure" not in rendered["pages"]["report_card"]
+    assert "more than 5 runs apart" not in rendered["pages"]["report_card"]

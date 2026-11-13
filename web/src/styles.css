@@ -80,8 +80,17 @@ button {
   /* A definite height, not min-height: the map is the hero and fills the
      screen, and the panel scrolls inside itself. With min-height the stage
      grows to fit the panel's content and pushes the map below the fold,
-     which is what the first build did. */
+     which is what the first build did.
+
+     The vh line is a fallback and the dvh line is the real rule, in that
+     order, so a browser that has never heard of dvh keeps a working page
+     and every browser that has uses the viewport that is actually visible.
+     On a phone with a toolbar at the bottom of the screen, 100vh is the
+     screen and 100dvh is the part of it the reader can see; the difference
+     is the bars, and it is the whole of SPEC 11.35. */
+  height: 100vh;
   height: 100dvh;
+  max-height: 100vh;
   max-height: 100dvh;
 }
 
@@ -827,7 +836,15 @@ footer p { max-width: 70ch; }
 
   .stage { flex-direction: column; }
 
-  .mapwrap { flex: 0 0 52vh; min-height: 52vh; order: 1; }
+  /* SPEC 11.35. The map's share comes out of the stage, which is what is
+     left after the header and the controls, and never out of the viewport.
+     `0 0 52vh` with a matching min-height was a share of the whole screen
+     asked for by a box that only had 56% of the screen to spend, so the
+     panel was squeezed to twenty pixels and its handle -- the only way to
+     open the details on a phone -- was pushed off the bottom edge
+     altogether. The map can now shrink; the panel cannot shrink below its
+     handle. */
+  .mapwrap { flex: 1 1 auto; min-height: 6rem; order: 1; }
 
   .controls { gap: 0.4rem 1rem; padding: 0.45rem 0.6rem; }
 
@@ -848,12 +865,18 @@ footer p { max-width: 70ch; }
 
   .panel {
     order: 3;
-    flex: 1 1 auto;
+    /* Not `1 1 auto`: the panel takes the height its content needs, up to
+       its share of the stage, and the map takes the rest. `min-height` is
+       the guarantee the handle is on the screen -- it is a little more than
+       the handle's own height -- and `min-height: 0` would undo it. */
+    flex: 0 1 auto;
     width: 100%;
-    max-height: 45vh;
+    min-height: 3.4rem;
+    max-height: 45%;
     border-left: 0;
     border-top: 1px solid var(--rule);
     padding-top: 0;
+    overscroll-behavior: contain;
   }
 
   .handle {
@@ -880,8 +903,11 @@ footer p { max-width: 70ch; }
     border-radius: 2px;
   }
 
-  .shell.open .mapwrap { flex-basis: 26vh; min-height: 26vh; }
-  .shell.open .panel { max-height: none; }
+  /* Open, the panel takes most of the stage and the map keeps its floor.
+     `max-height: none` let the panel grow past the bottom of the screen
+     with the 51 member values beyond it and no way to scroll to them; a
+     share of the stage keeps `overflow-y: auto` doing its job. */
+  .shell.open .panel { max-height: 78%; }
 
   /* The legend is in the bar at every width, so there is nothing to hide
      when the sheet opens and nothing to lift clear of the attribution. It
@@ -941,8 +967,9 @@ footer p { max-width: 70ch; }
   .legend-rows .swatch { height: 0.6rem; }
   .legend-rows li { font-size: 0.58rem; min-width: 0; }
 
-  .mapwrap { flex: 0 0 55vh; min-height: 55vh; }
-  .shell.open .mapwrap { flex-basis: 28vh; min-height: 28vh; }
+  /* A smaller floor on the smallest screens, so that the stage can still
+     be split when the browser's bars take a fifth of it. */
+  .mapwrap { min-height: 5rem; }
 }
 
 /* --------------------------------- the three pages, SPEC 11.34 */
@@ -1103,11 +1130,48 @@ footer p { max-width: 70ch; }
   border-radius: 4px;
 }
 
+/* The mark beside a label: not a tick, and not a colour on its own. */
+.beat {
+  margin-left: 0.2rem;
+  font-weight: 700;
+}
+
+.nowrap { white-space: nowrap; }
+
 @media (max-width: 560px) {
   .doc { padding: 0.6rem 0.7rem 1.5rem; }
   .page h1 { font-size: 1.25rem; }
   .plot { flex-basis: 100%; max-width: none; }
   .labelgrid, .plain, .bands { font-size: 0.8rem; }
+
+  /* SPEC 11.36. Sixty labels on a 390 pixel screen. The whole grid has to
+     fit the width, because a table that scrolls sideways hides days 4 and
+     5 with nothing to say they are there. Equal columns, a tighter chip and
+     a smaller word; the row heading keeps "1 mm" on one line. */
+  .labelgrid {
+    table-layout: fixed;
+    width: 100%;
+    font-size: 0.7rem;
+  }
+
+  .labelgrid th, .labelgrid td { padding: 0.2rem 0.12rem; }
+
+  .labelgrid tbody th { width: 3.1rem; }
+
+  /* The words wrap rather than being cut. A chip that reads "Rough gui..."
+     is worse than one that takes two lines, and the row heading is the only
+     thing here that must stay on one line. */
+  .labelgrid .chip {
+    display: block;
+    padding: 0.05rem 0.2rem;
+    border-radius: 0.5rem;
+    font-size: 0.66rem;
+    line-height: 1.3;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .labelgrid .beat { margin-left: 0.1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

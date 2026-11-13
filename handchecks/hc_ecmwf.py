@@ -337,6 +337,12 @@ def main() -> int:
                     f"{float(np.corrcoef(ours[both], theirs[both])[0, 1]):.5f}"])
         w.writerow(["squares differing by more than 10 points",
                     int((np.abs(gap) > 10).sum())])
+        # The site says this in runs rather than in points, because a count
+        # of 51 is what it publishes and a percentage is what it does not.
+        w.writerow(["mean size of the difference, as runs of 51",
+                    f"{float(np.abs(gap).mean()) * MEMBERS / 100:.4f} runs"])
+        w.writerow([f"squares differing by more than 5 runs of {MEMBERS}",
+                    int((np.abs(gap) > 500.0 / MEMBERS).sum())])
         w.writerow(["squares where both say nothing",
                     int((india & (counts == 0) & (theirs == 0)).sum())])
         w.writerow(["squares where we say none of 51 and they say more "

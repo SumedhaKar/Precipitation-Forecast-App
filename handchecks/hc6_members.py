@@ -151,8 +151,13 @@ def main() -> int:
         fh.write("# HC6: every member's tp at steps 24 and 48, read by "
                  "ecCodes find_nearest\n")
         fh.write(f"# run,{run_id}\n")
-        fh.write("# ECMWF open data publishes no AIFS ENS probability "
-                 "product: enfo has cf and pf only, no ep file\n")
+        # Corrected 13 November 2026. ECMWF open data does publish an
+        # AIFS ENS probability of 10 mm; it is in the two `ep` files
+        # of the run, not in `pf`, and HC-ECMWF compares our counts
+        # against it. What this check does is the members themselves.
+        fh.write("# the member values are in cf and pf; ECMWF's own "
+                 "probability of 10 mm is in the run's ep files, and "
+                 "HC-ECMWF compares it against our counts\n")
         fh.write("# so this is the members branch of HC6\n")
         fh.write("# the ecCodes command line tools are not in the Windows "
                  "pip wheel, so codes_grib_find_nearest is used instead; "

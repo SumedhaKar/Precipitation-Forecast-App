@@ -30,6 +30,8 @@ mean size of the difference,0.210 points
 root mean square difference,1.084 points
 correlation,0.99306
 squares differing by more than 10 points,6
+"mean size of the difference, as runs of 51",0.1069 runs
+squares differing by more than 5 runs of 51,8
 squares where both say nothing,4263
 squares where we say none of 51 and they say more than nothing,90
 "of those, next to a square where members do reach 10 mm",80
