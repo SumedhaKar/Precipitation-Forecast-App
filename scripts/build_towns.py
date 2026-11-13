@@ -268,6 +268,34 @@ def inside(ready) -> list[dict]:
     return found
 
 
+def assign_units(found: list[dict]) -> dict[str, int]:
+    """Put every town in its state or union territory. SPEC 11.38.
+
+    Natural Earth's own `ADM1NAME` on the populated-places layer is not
+    reliable -- it calls Bhavnagar "Dadra and Nagar Haveli" -- so the unit
+    is decided the way the map decides it: the town's own point against the
+    unit's own polygon, from the admin-1 layer. A town on a boundary that
+    no polygon contains is left without one and reported, rather than
+    guessed at.
+
+    This is what lets a reader type "Kerala" and be given the cities inside
+    Kerala, and it is why the search can refuse to put one count on a whole
+    state: the state is a list of cities and never a square.
+    """
+    points = [(town, Point(town["lon"], town["lat"])) for town in found]
+    tally: dict[str, int] = {}
+    for record, poly in admin1():
+        name = str(record["name"]).strip()
+        ready = prep(poly)
+        for town, point in points:
+            if "unit" in town:
+                continue
+            if ready.contains(point):
+                town["unit"] = name
+                tally[name] = tally.get(name, 0) + 1
+    return tally
+
+
 def build(found: list[dict]) -> tuple[dict, list[str]]:
     """The towns.json body, and the by-country tally for the checks."""
     rows = mask_rows()
@@ -288,6 +316,10 @@ def build(found: list[dict]) -> tuple[dict, list[str]]:
         entry = {"name": town["name"]}
         if town["name"] in repeated:
             entry["state"] = town["state"]
+        # SPEC 11.38: the unit the point is actually in, from the admin-1
+        # polygons, which is what the search groups cities by.
+        if town.get("unit"):
+            entry["unit"] = town["unit"]
         entry.update(resolve(rows, town["lat"], town["lon"]))
         towns.append(entry)
 
@@ -463,11 +495,23 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
         mine = [town for town, point in points if poly.contains(point)]
         city = main_city(mine)
         lat, lon = round(at.y, 3), round(at.x, 3)
+        west, south, east, north = poly.bounds
         entry = {
             "name": name,
             "code": code,
             "lat": lat,
             "lon": lon,
+            # SPEC 11.38. The unit's own bounding box, west, south, east,
+            # north, which is what the map is fitted to when a reader
+            # searches for a state. Rounded **outwards** to a hundredth of
+            # a degree -- about a kilometre -- so the box always holds the
+            # whole unit: rounded to nearest it could cut a district off
+            # the map of the state it belongs to, and a kilometre of extra
+            # sea costs nothing.
+            "box": [math.floor(west * 100) / 100,
+                    math.floor(south * 100) / 100,
+                    math.ceil(east * 100) / 100,
+                    math.ceil(north * 100) / 100],
             "fit": fit_table(poly, lon, lat),
         }
         if entry["fit"][0] <= 0:
@@ -498,7 +542,9 @@ def build_units(found: list[dict]) -> tuple[dict, dict]:
             "Natural Earth marks one inside the unit, otherwise the largest "
             "town inside it by population -- and its `lat` and `lon` are the "
             "0.25 degree square the page shows, never the town's own "
-            "position. Built by scripts/build_towns.py."
+            "position. `box` is the unit's own bounding box as west, south, "
+            "east, north, which the search fits the map to (SPEC 11.38). "
+            "Built by scripts/build_towns.py."
         ),
         "fit": {
             "aspects": list(FIT_ASPECTS),
@@ -541,6 +587,7 @@ def main() -> None:
 
     download()
     found = inside(prep(outline()))
+    units_tally_by_name = assign_units(found)
     body, countries = build(found)
     raw = written(body)
     towns = body["towns"]
@@ -570,6 +617,11 @@ def main() -> None:
     print(f"  no room for a name of any shape: {units_tally['no_room']}")
     print("  room for a 6-to-1 name, degrees of latitude: "
           + ", ".join(f"{u['name']} {u['fit'][2]}" for u in units[:3]))
+    without = sorted(t["name"] for t in found if not t.get("unit"))
+    print(f"cities placed in a state or union territory: "
+          f"{sum(units_tally_by_name.values())} of {len(found)}")
+    if without:
+        print(f"  no unit contains: {without}")
     print(f"by country inside the outline: {countries_tally}")
     print(f"own square in the mask: {len(towns) - len(moved) - len(missing)}, "
           f"nearest land square one step out: {len(moved)}, "

@@ -22,6 +22,7 @@ import HowWeChecked, {
 import TopNav from './TopNav';
 import Panel, { Welcome, summaryLine } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
+import { UNITS, noMatch, tooBig, townLabel, townsIn } from './places';
 import Legend from './Legend';
 import { Footer, Freshness, RunLine, StaleBanner } from './App';
 import { OUTSIDE, THE_BOX } from './messages';
@@ -159,8 +160,15 @@ export function forecastWords(answers) {
     out.push(renderToStaticMarkup(<Legend threshold={threshold} />));
   });
   out.push(renderToStaticMarkup(
-    <Search onTown={nothing} onPoint={nothing} busy={false} shown=""
-      askFocus={0} />));
+    <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}
+      shown="" askFocus={0} />));
+  // SPEC 11.38. The state block, for every one of the 36, and the line a
+  // query that matched nothing is answered with.
+  UNITS.forEach((unit) => {
+    out.push(tooBig(unit.name));
+    townsIn(unit.name).forEach((town) => out.push(townLabel(town)));
+  });
+  out.push(noMatch('Ooty'), noMatch('Bombay Central'));
   out.push(renderToStaticMarkup(
     <MyLocation onLocation={nothing} snapTo={nothing} from={null} />));
   out.push(renderToStaticMarkup(<Footer />));

@@ -58,3 +58,17 @@ export function findTowns(text, most) {
 export function nearTowns(text, most) {
   return list.nearTowns(TOWNS, text, most);
 }
+
+/** SPEC 11.38. The state or union territory a query names, or null. */
+export function findUnit(text) {
+  return units.findUnit(UNITS, text);
+}
+
+/** The cities this site forecasts inside one unit, in name order. */
+export function townsIn(unitName) {
+  return units.townsIn(TOWNS, unitName);
+}
+
+export const namesOf = list.namesOf;
+export const tooBig = units.tooBig;
+export const noMatch = list.noMatch;

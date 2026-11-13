@@ -272,6 +272,10 @@ export default function App({ nav, onGo }) {
   // SPEC 11.37. Counting up asks the search box to take the keyboard; the
   // box watches the number rather than a boolean, so asking twice works.
   const [askSearch, setAskSearch] = useState(0);
+  // SPEC 11.38. The state or union territory the search box last named,
+  // which the map is fitted to. It is never a chosen place and never a
+  // count: a state is a list of cities here, not a square.
+  const [unitBox, setUnitBox] = useState(null);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
   // The number of the most recent request for a square's numbers (11.30).
@@ -482,6 +486,10 @@ export default function App({ nav, onGo }) {
   const snapTo = useCallback(
     (lat, lon) => (inBox(lat, lon) ? snap(lat, lon) : null), []);
 
+  const toUnit = useCallback((unit) => {
+    setUnitBox(unit && unit.box ? unit.box : null);
+  }, []);
+
   // SPEC 11.38. The welcome card's two buttons. "Find my city" opens the
   // panel and gives the search box the keyboard; "How to read this map"
   // opens the panel and puts How to read this map on the screen, which on a
@@ -597,6 +605,7 @@ export default function App({ nav, onGo }) {
                   squareName={squareName}
                   onPick={pick}
                   onProblem={setNoMap}
+                  unitBox={unitBox}
                   handcheck={handcheck}
                 />
               </Suspense>
@@ -651,6 +660,7 @@ export default function App({ nav, onGo }) {
             <Search
               onTown={town}
               onPoint={point}
+              onUnit={toUnit}
               busy={busy}
               shown={shown}
               askFocus={askSearch}

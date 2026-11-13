@@ -1380,12 +1380,20 @@ def test_a_misspelled_town_is_offered_the_nearest_names_and_never_given_one(
     assert offered["go"] == []
     assert offered[""] == []
 
-    # Never more than three, and never an answer: the ones that are offered
-    # a near miss are exactly the ones the search itself could not match, so
-    # the page is always asking rather than resolving.
+    # SPEC 11.38. Shimla and Dehradun are not misspellings any more: they
+    # are the current names of places Natural Earth spells Simla and Dehra
+    # Dun, and the search holds both. The page offers "did you mean" only
+    # where the search itself found nothing, so these two never reach it.
+    matched = {word: [t["name"] for t in answer]
+               for word, answer in zip(asked, found)}
+    assert matched["Shimla"] == ["Simla"], matched["Shimla"]
+    assert matched["Dehradun"] == ["Dehra Dun"], matched["Dehradun"]
+
+    # Never more than three, and never an answer: where the search itself
+    # found nothing, the near miss is a question and not a resolution.
     for word, answer, matches in zip(asked, near, found):
         assert len(answer) <= 3, word
-        if answer:
+        if answer and word not in ("Shimla", "Dehradun"):
             assert matches == [], word
 
 
@@ -1644,6 +1652,211 @@ def test_the_nicknames_are_ours_and_are_written_down():
     # The page says they are ours, where it says them.
     panel = PANEL.read_text("utf-8")
     assert "not an official category" in panel.lower()
+
+
+# ------------------------- SPEC 11.38: the search box, states and old names
+
+UNITLIST = ROOT / "web" / "src" / "unitlist.js"
+
+
+@needs_node
+def test_every_state_and_union_territory_is_recognised(exports):
+    """SPEC 11.38. All 36, in any case, with `&` and "and" one word."""
+    units = load_units()
+    assert len(units) == 36, len(units)
+
+    calls = []
+    wanted = []
+    for unit in units:
+        name = unit["name"]
+        for written in (name, name.lower(), name.upper(),
+                        name.replace(" and ", " & "), f"  {name}  "):
+            calls.append([units, written])
+            wanted.append(name)
+    got = exports(UNITLIST, "findUnit", calls)
+    for call, want, found in zip(calls, wanted, got):
+        assert found is not None, call[1]
+        assert found["name"] == want, (call[1], found["name"], want)
+
+    # Older names of units are keys too.
+    for written, want in (("Orissa", "Odisha"),
+                          ("Uttaranchal", "Uttarakhand"),
+                          ("Pondicherry", "Puducherry"),
+                          ("tamilnadu", "Tamil Nadu")):
+        found = exports(UNITLIST, "findUnit", [[units, written]])[0]
+        assert found and found["name"] == want, (written, found)
+
+
+@needs_node
+def test_a_short_form_counts_only_as_the_whole_query(exports):
+    """SPEC 11.38. "up" is Uttar Pradesh; "udaipur" is a city.
+
+    Two letters inside a longer word are not an abbreviation. If they
+    were, a reader looking for Udaipur would be shown a state.
+    """
+    units = load_units()
+    towns = load_towns()
+    for code, name in (("WB", "West Bengal"), ("UP", "Uttar Pradesh"),
+                       ("MP", "Madhya Pradesh"), ("TN", "Tamil Nadu"),
+                       ("up", "Uttar Pradesh"), ("  tn  ", "Tamil Nadu")):
+        found = exports(UNITLIST, "findUnit", [[units, code]])[0]
+        assert found and found["name"] == name, (code, found)
+
+    # Every one of the 36 codes, as the whole query.
+    calls = [[units, unit["code"]] for unit in units]
+    got = exports(UNITLIST, "findUnit", calls)
+    for unit, found in zip(units, got):
+        assert found and found["name"] == unit["name"], unit["code"]
+
+    # And a word that merely contains a code is not that state.
+    for word in ("udaipur", "upper", "tnagar", "mphasis"):
+        assert exports(UNITLIST, "findUnit", [[units, word]])[0] is None, word
+    # Udaipur is still found as a city.
+    found = exports(TOWNLIST, "findTowns", [[towns, "udaipur"]])[0]
+    assert [town["name"] for town in found] == ["Udaipur"], found
+
+
+@needs_node
+def test_a_name_that_is_both_a_city_and_a_territory_is_the_city(exports):
+    """SPEC 11.38. Delhi, Chandigarh, Puducherry -- and Pondicherry.
+
+    The page's rule: a city one of whose names is exactly the query wins,
+    and the state block is not drawn. This checks the two halves the rule
+    reads -- the city list and the names each city answers to.
+    """
+    towns = load_towns()
+    for query, city in (("Delhi", "Delhi"), ("delhi", "Delhi"),
+                        ("Chandigarh", "Chandigarh"),
+                        ("Puducherry", "Puducherry"),
+                        ("Pondicherry", "Puducherry")):
+        found = exports(TOWNLIST, "findTowns", [[towns, query]])[0]
+        names = [town["name"] for town in found]
+        assert city in names, (query, names)
+        every = exports(TOWNLIST, "namesOf", [[town] for town in found])
+        assert any(query.lower() in [n.lower() for n in names_of]
+                   for names_of in every), (query, every)
+        # And the one that matched exactly is the city we meant.
+        exact = [names[i] for i, names_of in enumerate(every)
+                 if query.lower() in [n.lower() for n in names_of]]
+        assert exact == [city], (query, exact)
+
+
+@needs_node
+def test_every_old_city_name_finds_its_city(exports):
+    """SPEC 11.38. The list's spelling is not always the reader's."""
+    towns = load_towns()
+    known = {town["name"] for town in towns}
+    table = exports(TOWNLIST, "namesOf",
+                    [[{"name": name}] for name in sorted(known)])
+    aliases = {}
+    for names in table:
+        for alias in names[1:]:
+            aliases[alias] = names[0]
+    assert len(aliases) >= 40, len(aliases)
+
+    # The ones named in the brief, by name.
+    for alias, city in (("Bombay", "Mumbai"), ("Calcutta", "Kolkata"),
+                        ("Madras", "Chennai"), ("Bangalore", "Bengaluru"),
+                        ("Gurugram", "Gurgaon"), ("Poona", "Pune"),
+                        ("Trivandrum", "Thiruvananthapuram"),
+                        ("Cochin", "Kochi"), ("Baroda", "Vadodara"),
+                        ("Benares", "Varanasi")):
+        assert aliases.get(alias) == city, (alias, aliases.get(alias))
+
+    # Every alias names a city that is actually in the list, and finds it
+    # in any case. The city is offered under the list's own name.
+    for alias, city in aliases.items():
+        assert city in known, (alias, city)
+    calls = []
+    for alias in sorted(aliases):
+        calls.append([towns, alias])
+        calls.append([towns, alias.lower()])
+    for call, found in zip(calls, exports(TOWNLIST, "findTowns", calls)):
+        names = [town["name"] for town in found]
+        want = aliases[[a for a in aliases
+                        if a.lower() == call[1].lower()][0]]
+        assert want in names, (call[1], names)
+
+
+@needs_node
+def test_a_match_in_the_middle_of_a_name_works_and_comes_second(exports):
+    """SPEC 11.38. "agar" finds four, with the ones that start first."""
+    towns = load_towns()
+    found = exports(TOWNLIST, "findTowns", [[towns, "agar"]])[0]
+    names = [town["name"] for town in found]
+    assert "Agartala" in names, names
+    assert "Ahmednagar" in names and "Bhavnagar" in names, names
+    starts = [n for n in names if n.lower().startswith("agar")]
+    holds = [n for n in names if not n.lower().startswith("agar")]
+    assert names == starts + holds, names
+
+
+@needs_node
+def test_nothing_matched_offers_four_ways_on(exports):
+    """SPEC 11.38. Not a refusal, and not about the reader's spelling."""
+    said = exports(TOWNLIST, "noMatch", [["Ooty"], ["  zzz  "]])
+    assert said[0] == ("We don't have Ooty yet. Try a nearby city or your "
+                       "state, tap the map, or type a latitude and "
+                       "longitude such as 22.5, 88.4.")
+    assert "zzz" in said[1] and "  zzz  " not in said[1]
+    for text in said:
+        low = text.lower()
+        for word in FORBIDDEN:
+            assert word not in low, (word, text)
+        for way in ("nearby city", "your state", "tap the map",
+                    "latitude and longitude"):
+            assert way in low, (way, text)
+
+
+@needs_node
+def test_a_state_is_a_list_of_cities_and_never_a_count(exports):
+    """SPEC 11.38. Rain over Rajasthan on one day is not one number."""
+    units = load_units()
+    towns = load_towns()
+    said = exports(UNITLIST, "tooBig", [[unit["name"]] for unit in units])
+    for unit, text in zip(units, said):
+        assert text.startswith(f"{unit['name']} is too big for one forecast")
+        assert "of 51" not in text and "%" not in text
+        low = text.lower()
+        for word in FORBIDDEN:
+            assert word not in low, (word, text)
+
+    # Every unit has at least one city inside it, and every city it lists
+    # says it is in that unit.
+    inside = exports(UNITLIST, "townsIn",
+                     [[towns, unit["name"]] for unit in units])
+    for unit, mine in zip(units, inside):
+        assert mine, unit["name"]
+        for town in mine:
+            assert town["unit"] == unit["name"], (unit["name"], town)
+    listed = sum(len(mine) for mine in inside)
+    assert listed == sum(1 for town in towns if town.get("unit")), listed
+
+
+def test_every_unit_box_holds_every_city_in_it():
+    """SPEC 11.38. The box the map is fitted to, against the cities."""
+    units = load_units()
+    towns = load_towns()
+    for unit in units:
+        box = unit["box"]
+        assert len(box) == 4, unit["name"]
+        west, south, east, north = box
+        assert west < east and south < north, (unit["name"], box)
+        for town in [t for t in towns if t.get("unit") == unit["name"]]:
+            # towns.json holds the square the page shows and not the city's
+            # own point, and that square can be an eighth of a degree away
+            # from it by snapping and a further quarter by the sea rule of
+            # SPEC 11.7 -- Diu's square is 21.00 N and its unit's box ends
+            # at 20.74. Half a degree covers both and is still tight
+            # enough to catch a city filed under the wrong state.
+            slack = 0.5
+            assert west - slack <= town["lon"] <= east + slack, (
+                unit["name"], town["name"], box)
+            assert south - slack <= town["lat"] <= north + slack, (
+                unit["name"], town["name"], box)
+        # The unit's own label point is inside its own box.
+        assert west <= unit["lon"] <= east, unit["name"]
+        assert south <= unit["lat"] <= north, unit["name"]
 
 
 # ------------------------------- SPEC 11.38: how old this forecast is
@@ -4977,9 +5190,18 @@ def forbidden_in(text: str, allowed: dict) -> str | None:
         elif word == "warn":
             # "Not an official warning" is required of this site, and is the
             # one warning word it may say.
-            if "warn" in low.replace("official warning", ""):
+            if re.search(r"\bwarn", low.replace("official warning", "")):
                 return word
-        elif word in low:
+        elif word == "%":
+            if word in low:
+                return word
+        elif re.search(r"\b" + word, low):
+            # SPEC 11.38. The boundary is at the **start** of the word only,
+            # so "drying" and "warning" are still caught while Rajahmundry
+            # and Dharwad are not: the search box now renders all 215 city
+            # names and some of them end in these letters. A substring match
+            # would make a city's name a forbidden word, which is a rule
+            # about English applied to a proper noun.
             return word
     return None
 
@@ -5132,6 +5354,20 @@ def test_the_forecast_sweep_would_catch_a_forbidden_word():
         spoiled = clean.replace("a few of", f"{word} of")
         assert forbidden_in(spoiled, FORECAST_ALLOWED) == word, word
 
+    # SPEC 11.38. The boundary is at the start of the word, so a word
+    # built on a forbidden one is still caught. A form that changes the
+    # stem -- "heavier", "drier" -- is not, and was not caught by the
+    # substring rule either, so nothing is lost by the boundary.
+    for word, built in (("dry", "drying"), ("wet", "wetter"),
+                        ("chance", "chances"), ("warn", "warning")):
+        spoiled = clean.replace("a few of", f"{built} of")
+        assert forbidden_in(spoiled, FORECAST_ALLOWED) == word, built
+    # ...and a city whose name merely ends in one is not. The search box
+    # renders all 215 names, and Rajahmundry is not a forbidden word.
+    for name in ("Rajahmundry", "Dharwad", "Hathras", "Sholapur"):
+        assert forbidden_in(f"{name} 21.00 N 81.75 E",
+                            FORECAST_ALLOWED) is None, name
+
     # The allowance is for the sentence that refuses the reading, not for
     # the word wherever it turns up.
     loose = clean + " The probability is 4 in 10."
@@ -5169,5 +5405,8 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "Today", "Tomorrow",
                  "10 mm of rain is water 1 cm deep if none of it ran away.",
                  "Each day runs from 5:30 am to 5:30 am the next morning "
-                 "(IST)."):
+                 "(IST).",
+                 # SPEC 11.38: the search box's own two new answers.
+                 "Kerala is too big for one forecast",
+                 "We don't have Ooty yet."):
         assert must in every, must

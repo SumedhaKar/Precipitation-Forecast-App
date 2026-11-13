@@ -11,46 +11,55 @@
  "towns": [
   {
    "name": "Abohar",
+   "unit": "Punjab",
    "lat": 30.25,
    "lon": 74.25
   },
   {
    "name": "Agartala",
+   "unit": "Tripura",
    "lat": 23.75,
    "lon": 91.25
   },
   {
    "name": "Agra",
+   "unit": "Uttar Pradesh",
    "lat": 27.25,
    "lon": 78.0
   },
   {
    "name": "Ahmedabad",
+   "unit": "Gujarat",
    "lat": 23.0,
    "lon": 72.5
   },
   {
    "name": "Ahmednagar",
+   "unit": "Maharashtra",
    "lat": 19.0,
    "lon": 74.75
   },
   {
    "name": "Aizawl",
+   "unit": "Mizoram",
    "lat": 23.75,
    "lon": 92.75
   },
   {
    "name": "Ajmer",
+   "unit": "Rajasthan",
    "lat": 26.5,
    "lon": 74.75
   },
   {
    "name": "Akola",
+   "unit": "Maharashtra",
    "lat": 20.75,
    "lon": 77.0
   },
   {
    "name": "Alappuzha",
+   "unit": "Kerala",
    "lat": 9.5,
    "lon": 76.5,
    "moved_from": {
@@ -60,113 +69,135 @@
   },
   {
    "name": "Aligarh",
+   "unit": "Uttar Pradesh",
    "lat": 28.0,
    "lon": 78.0
   },
   {
    "name": "Alipur Duar",
+   "unit": "West Bengal",
    "lat": 26.5,
    "lon": 89.5
   },
   {
    "name": "Allahabad",
+   "unit": "Uttar Pradesh",
    "lat": 25.5,
    "lon": 81.75
   },
   {
    "name": "Alwar",
+   "unit": "Rajasthan",
    "lat": 27.5,
    "lon": 76.5
   },
   {
    "name": "Amaravati",
+   "unit": "Andhra Pradesh",
    "lat": 16.5,
    "lon": 80.5
   },
   {
    "name": "Ambala",
+   "unit": "Haryana",
    "lat": 30.5,
    "lon": 76.75
   },
   {
    "name": "Amravati",
+   "unit": "Maharashtra",
    "lat": 21.0,
    "lon": 77.75
   },
   {
    "name": "Amritsar",
+   "unit": "Punjab",
    "lat": 31.75,
    "lon": 74.75
   },
   {
    "name": "Asansol",
+   "unit": "West Bengal",
    "lat": 23.75,
    "lon": 87.0
   },
   {
    "name": "Aurangabad",
    "state": "Bihar",
+   "unit": "Bihar",
    "lat": 24.75,
    "lon": 84.5
   },
   {
    "name": "Aurangabad",
    "state": "Maharashtra",
+   "unit": "Maharashtra",
    "lat": 19.75,
    "lon": 75.25
   },
   {
    "name": "Bahraich",
+   "unit": "Uttar Pradesh",
    "lat": 27.5,
    "lon": 81.5
   },
   {
    "name": "Ballari",
+   "unit": "Karnataka",
    "lat": 15.25,
    "lon": 77.0
   },
   {
    "name": "Baramula",
+   "unit": "Jammu and Kashmir",
    "lat": 34.25,
    "lon": 74.25
   },
   {
    "name": "Barddhaman",
+   "unit": "West Bengal",
    "lat": 23.25,
    "lon": 87.75
   },
   {
    "name": "Bareilly",
+   "unit": "Uttar Pradesh",
    "lat": 28.25,
    "lon": 79.5
   },
   {
    "name": "Belagavi",
+   "unit": "Karnataka",
    "lat": 15.75,
    "lon": 74.5
   },
   {
    "name": "Bengaluru",
+   "unit": "Karnataka",
    "lat": 13.0,
    "lon": 77.5
   },
   {
    "name": "Bhagalpur",
+   "unit": "Bihar",
    "lat": 25.25,
    "lon": 87.0
   },
   {
    "name": "Bharatpur",
+   "unit": "Rajasthan",
    "lat": 27.25,
    "lon": 77.5
   },
   {
    "name": "Bhatpara",
+   "unit": "West Bengal",
    "lat": 22.75,
    "lon": 88.5
   },
   {
    "name": "Bhavnagar",
+   "unit": "Gujarat",
    "lat": 21.75,
    "lon": 72.0,
    "moved_from": {
@@ -176,116 +207,139 @@
   },
   {
    "name": "Bhilai",
+   "unit": "Chhattisgarh",
    "lat": 21.25,
    "lon": 81.25
   },
   {
    "name": "Bhilwara",
+   "unit": "Rajasthan",
    "lat": 25.25,
    "lon": 74.75
   },
   {
    "name": "Bhiwandi",
+   "unit": "Maharashtra",
    "lat": 19.25,
    "lon": 73.25
   },
   {
    "name": "Bhiwani",
+   "unit": "Haryana",
    "lat": 28.75,
    "lon": 76.25
   },
   {
    "name": "Bhopal",
+   "unit": "Madhya Pradesh",
    "lat": 23.25,
    "lon": 77.5
   },
   {
    "name": "Bhubaneswar",
+   "unit": "Odisha",
    "lat": 20.25,
    "lon": 85.75
   },
   {
    "name": "Bhuj",
+   "unit": "Gujarat",
    "lat": 23.25,
    "lon": 69.75
   },
   {
    "name": "Bhusawal",
+   "unit": "Maharashtra",
    "lat": 21.0,
    "lon": 75.75
   },
   {
    "name": "Bidar",
+   "unit": "Karnataka",
    "lat": 18.0,
    "lon": 77.5
   },
   {
    "name": "Bikaner",
+   "unit": "Rajasthan",
    "lat": 28.0,
    "lon": 73.25
   },
   {
    "name": "Bilaspur",
+   "unit": "Chhattisgarh",
    "lat": 22.0,
    "lon": 82.25
   },
   {
    "name": "Brahmapur",
+   "unit": "Odisha",
    "lat": 19.25,
    "lon": 84.75
   },
   {
    "name": "Budaun",
+   "unit": "Uttar Pradesh",
    "lat": 28.0,
    "lon": 79.0
   },
   {
    "name": "Bulandshahr",
+   "unit": "Uttar Pradesh",
    "lat": 28.5,
    "lon": 77.75
   },
   {
    "name": "Burhanpur",
+   "unit": "Madhya Pradesh",
    "lat": 21.25,
    "lon": 76.25
   },
   {
    "name": "Chandigarh",
+   "unit": "Chandigarh",
    "lat": 30.75,
    "lon": 76.75
   },
   {
    "name": "Chandrapur",
+   "unit": "Maharashtra",
    "lat": 20.0,
    "lon": 79.25
   },
   {
    "name": "Chennai",
+   "unit": "Tamil Nadu",
    "lat": 13.0,
    "lon": 80.25
   },
   {
    "name": "Chirala",
+   "unit": "Andhra Pradesh",
    "lat": 15.75,
    "lon": 80.25
   },
   {
    "name": "Coimbatore",
+   "unit": "Tamil Nadu",
    "lat": 11.0,
    "lon": 77.0
   },
   {
    "name": "Cuddalore",
+   "unit": "Tamil Nadu",
    "lat": 11.75,
    "lon": 79.75
   },
   {
    "name": "Cuttack",
+   "unit": "Odisha",
    "lat": 20.5,
    "lon": 86.0
   },
   {
    "name": "Daman",
+   "unit": "Dadra and Nagar Haveli and Daman and Diu",
    "lat": 20.5,
    "lon": 73.0,
    "moved_from": {
@@ -295,46 +349,55 @@
   },
   {
    "name": "Davangere",
+   "unit": "Karnataka",
    "lat": 14.5,
    "lon": 76.0
   },
   {
    "name": "Dehra Dun",
+   "unit": "Uttarakhand",
    "lat": 30.25,
    "lon": 78.0
   },
   {
    "name": "Delhi",
+   "unit": "Delhi",
    "lat": 28.75,
    "lon": 77.25
   },
   {
    "name": "Dhanbad",
+   "unit": "Jharkhand",
    "lat": 23.75,
    "lon": 86.5
   },
   {
    "name": "Dhule",
+   "unit": "Maharashtra",
    "lat": 21.0,
    "lon": 74.75
   },
   {
    "name": "Dibrugarh",
+   "unit": "Assam",
    "lat": 27.5,
    "lon": 95.0
   },
   {
    "name": "Dindigul",
+   "unit": "Tamil Nadu",
    "lat": 10.25,
    "lon": 78.0
   },
   {
    "name": "Dispur",
+   "unit": "Assam",
    "lat": 26.25,
    "lon": 91.75
   },
   {
    "name": "Diu",
+   "unit": "Dadra and Nagar Haveli and Daman and Diu",
    "lat": 21.0,
    "lon": 71.0,
    "moved_from": {
@@ -344,46 +407,55 @@
   },
   {
    "name": "Etawah",
+   "unit": "Uttar Pradesh",
    "lat": 26.75,
    "lon": 79.0
   },
   {
    "name": "Faizabad",
+   "unit": "Uttar Pradesh",
    "lat": 26.75,
    "lon": 82.25
   },
   {
    "name": "Faridabad",
+   "unit": "Haryana",
    "lat": 28.5,
    "lon": 77.25
   },
   {
    "name": "Fatehpur",
+   "unit": "Uttar Pradesh",
    "lat": 26.0,
    "lon": 80.75
   },
   {
    "name": "Firozabad",
+   "unit": "Uttar Pradesh",
    "lat": 27.25,
    "lon": 78.5
   },
   {
    "name": "Gandhinagar",
+   "unit": "Gujarat",
    "lat": 23.25,
    "lon": 72.75
   },
   {
    "name": "Gangtok",
+   "unit": "Sikkim",
    "lat": 27.25,
    "lon": 88.5
   },
   {
    "name": "Gaya",
+   "unit": "Bihar",
    "lat": 24.75,
    "lon": 85.0
   },
   {
    "name": "Ghaziabad",
+   "unit": "Uttar Pradesh",
    "lat": 28.75,
    "lon": 77.5
   },
@@ -394,187 +466,224 @@
   },
   {
    "name": "Gorakhpur",
+   "unit": "Uttar Pradesh",
    "lat": 26.75,
    "lon": 83.5
   },
   {
    "name": "Guntur",
+   "unit": "Andhra Pradesh",
    "lat": 16.25,
    "lon": 80.5
   },
   {
    "name": "Gurgaon",
+   "unit": "Haryana",
    "lat": 28.5,
    "lon": 77.0
   },
   {
    "name": "Guwahati",
+   "unit": "Assam",
    "lat": 26.25,
    "lon": 91.75
   },
   {
    "name": "Gwalior",
+   "unit": "Madhya Pradesh",
    "lat": 26.25,
    "lon": 78.25
   },
   {
    "name": "Haldia",
+   "unit": "West Bengal",
    "lat": 22.0,
    "lon": 88.0
   },
   {
    "name": "Haora",
+   "unit": "West Bengal",
    "lat": 22.5,
    "lon": 88.25
   },
   {
    "name": "Hapur",
+   "unit": "Uttar Pradesh",
    "lat": 28.75,
    "lon": 77.75
   },
   {
    "name": "Hathras",
+   "unit": "Uttar Pradesh",
    "lat": 27.5,
    "lon": 78.0
   },
   {
    "name": "Hindupur",
+   "unit": "Andhra Pradesh",
    "lat": 13.75,
    "lon": 77.5
   },
   {
    "name": "Hisar",
+   "unit": "Haryana",
    "lat": 29.25,
    "lon": 75.75
   },
   {
    "name": "Hosapete",
+   "unit": "Karnataka",
    "lat": 15.25,
    "lon": 76.5
   },
   {
    "name": "Hoshiarpur",
+   "unit": "Punjab",
    "lat": 31.5,
    "lon": 76.0
   },
   {
    "name": "Hubballi",
+   "unit": "Karnataka",
    "lat": 15.25,
    "lon": 75.0
   },
   {
    "name": "Hyderabad",
+   "unit": "Telangana",
    "lat": 17.5,
    "lon": 78.5
   },
   {
    "name": "Imphal",
+   "unit": "Manipur",
    "lat": 24.75,
    "lon": 94.0
   },
   {
    "name": "Indore",
+   "unit": "Madhya Pradesh",
    "lat": 22.75,
    "lon": 75.75
   },
   {
    "name": "Itanagar",
+   "unit": "Arunachal Pradesh",
    "lat": 27.0,
    "lon": 93.5
   },
   {
    "name": "Jabalpur",
+   "unit": "Madhya Pradesh",
    "lat": 23.25,
    "lon": 80.0
   },
   {
    "name": "Jaipur",
+   "unit": "Rajasthan",
    "lat": 27.0,
    "lon": 75.75
   },
   {
    "name": "Jammu",
+   "unit": "Jammu and Kashmir",
    "lat": 32.75,
    "lon": 74.75
   },
   {
    "name": "Jamshedpur",
+   "unit": "Jharkhand",
    "lat": 22.75,
    "lon": 86.25
   },
   {
    "name": "Jhansi",
+   "unit": "Uttar Pradesh",
    "lat": 25.5,
    "lon": 78.5
   },
   {
    "name": "Jodhpur",
+   "unit": "Rajasthan",
    "lat": 26.25,
    "lon": 73.0
   },
   {
    "name": "Jorhat",
+   "unit": "Assam",
    "lat": 26.75,
    "lon": 94.25
   },
   {
    "name": "Jullundur",
+   "unit": "Punjab",
    "lat": 31.25,
    "lon": 75.5
   },
   {
    "name": "Kakinada",
+   "unit": "Andhra Pradesh",
    "lat": 17.0,
    "lon": 82.25
   },
   {
    "name": "Kalaburagi",
+   "unit": "Karnataka",
    "lat": 17.25,
    "lon": 76.75
   },
   {
    "name": "Kalyan",
+   "unit": "Maharashtra",
    "lat": 19.25,
    "lon": 73.25
   },
   {
    "name": "Kanchipuram",
+   "unit": "Tamil Nadu",
    "lat": 12.75,
    "lon": 79.75
   },
   {
    "name": "Kanpur",
+   "unit": "Uttar Pradesh",
    "lat": 26.5,
    "lon": 80.25
   },
   {
    "name": "Karimnagar",
+   "unit": "Telangana",
    "lat": 18.5,
    "lon": 79.0
   },
   {
    "name": "Karnal",
+   "unit": "Haryana",
    "lat": 29.75,
    "lon": 77.0
   },
   {
    "name": "Karur",
+   "unit": "Tamil Nadu",
    "lat": 11.0,
    "lon": 78.0
   },
   {
    "name": "Kavaratti",
+   "unit": "Lakshadweep",
    "lat": 10.5,
    "lon": 72.75,
    "not_forecast": "Lakshadweep"
   },
   {
    "name": "Khammam",
+   "unit": "Telangana",
    "lat": 17.25,
    "lon": 80.25
   },
   {
    "name": "Kochi",
+   "unit": "Kerala",
    "lat": 10.25,
    "lon": 76.25,
    "moved_from": {
@@ -584,26 +693,31 @@
   },
   {
    "name": "Kohima",
+   "unit": "Nagaland",
    "lat": 25.75,
    "lon": 94.0
   },
   {
    "name": "Kolar",
+   "unit": "Karnataka",
    "lat": 13.25,
    "lon": 78.25
   },
   {
    "name": "Kolhapur",
+   "unit": "Maharashtra",
    "lat": 16.75,
    "lon": 74.25
   },
   {
    "name": "Kolkata",
+   "unit": "West Bengal",
    "lat": 22.5,
    "lon": 88.25
   },
   {
    "name": "Kollam",
+   "unit": "Kerala",
    "lat": 9.25,
    "lon": 76.5,
    "moved_from": {
@@ -613,11 +727,13 @@
   },
   {
    "name": "Kota",
+   "unit": "Rajasthan",
    "lat": 25.25,
    "lon": 75.75
   },
   {
    "name": "Kozhikode",
+   "unit": "Kerala",
    "lat": 11.5,
    "lon": 75.75,
    "moved_from": {
@@ -627,41 +743,49 @@
   },
   {
    "name": "Krishnanagar",
+   "unit": "West Bengal",
    "lat": 23.5,
    "lon": 88.5
   },
   {
    "name": "Kumbakonam",
+   "unit": "Tamil Nadu",
    "lat": 11.0,
    "lon": 79.5
   },
   {
    "name": "Kurnool",
+   "unit": "Andhra Pradesh",
    "lat": 15.75,
    "lon": 78.0
   },
   {
    "name": "Latur",
+   "unit": "Maharashtra",
    "lat": 18.5,
    "lon": 76.5
   },
   {
    "name": "Leh",
+   "unit": "Ladakh",
    "lat": 34.25,
    "lon": 77.5
   },
   {
    "name": "Lucknow",
+   "unit": "Uttar Pradesh",
    "lat": 26.75,
    "lon": 81.0
   },
   {
    "name": "Ludhiana",
+   "unit": "Punjab",
    "lat": 31.0,
    "lon": 75.75
   },
   {
    "name": "Machilipatnam",
+   "unit": "Andhra Pradesh",
    "lat": 16.5,
    "lon": 81.25,
    "moved_from": {
@@ -671,21 +795,25 @@
   },
   {
    "name": "Madurai",
+   "unit": "Tamil Nadu",
    "lat": 10.0,
    "lon": 78.0
   },
   {
    "name": "Malegaon",
+   "unit": "Maharashtra",
    "lat": 20.5,
    "lon": 74.5
   },
   {
    "name": "Mandya",
+   "unit": "Karnataka",
    "lat": 12.5,
    "lon": 77.0
   },
   {
    "name": "Mangaluru",
+   "unit": "Karnataka",
    "lat": 13.25,
    "lon": 74.75,
    "moved_from": {
@@ -695,31 +823,37 @@
   },
   {
    "name": "Mathura",
+   "unit": "Uttar Pradesh",
    "lat": 27.5,
    "lon": 77.75
   },
   {
    "name": "Medinipur",
+   "unit": "West Bengal",
    "lat": 22.5,
    "lon": 87.25
   },
   {
    "name": "Meerut",
+   "unit": "Uttar Pradesh",
    "lat": 29.0,
    "lon": 77.75
   },
   {
    "name": "Mirzapur",
+   "unit": "Uttar Pradesh",
    "lat": 25.25,
    "lon": 82.5
   },
   {
    "name": "Moradabad",
+   "unit": "Uttar Pradesh",
    "lat": 28.75,
    "lon": 78.75
   },
   {
    "name": "Mumbai",
+   "unit": "Maharashtra",
    "lat": 19.25,
    "lon": 73.0,
    "moved_from": {
@@ -729,76 +863,91 @@
   },
   {
    "name": "Muzaffarnagar",
+   "unit": "Uttar Pradesh",
    "lat": 29.5,
    "lon": 77.75
   },
   {
    "name": "Muzaffarpur",
+   "unit": "Bihar",
    "lat": 26.0,
    "lon": 85.5
   },
   {
    "name": "Mysuru",
+   "unit": "Karnataka",
    "lat": 12.25,
    "lon": 76.75
   },
   {
    "name": "Nagercoil",
+   "unit": "Tamil Nadu",
    "lat": 8.25,
    "lon": 77.5
   },
   {
    "name": "Nagpur",
+   "unit": "Maharashtra",
    "lat": 21.25,
    "lon": 79.0
   },
   {
    "name": "Nanded",
+   "unit": "Maharashtra",
    "lat": 19.25,
    "lon": 77.25
   },
   {
    "name": "Nandyal",
+   "unit": "Andhra Pradesh",
    "lat": 15.5,
    "lon": 78.5
   },
   {
    "name": "Nasik",
+   "unit": "Maharashtra",
    "lat": 20.0,
    "lon": 73.75
   },
   {
    "name": "Navsari",
+   "unit": "Gujarat",
    "lat": 20.75,
    "lon": 73.0
   },
   {
    "name": "Nellore",
+   "unit": "Andhra Pradesh",
    "lat": 14.5,
    "lon": 80.0
   },
   {
    "name": "New Delhi",
+   "unit": "Delhi",
    "lat": 28.5,
    "lon": 77.25
   },
   {
    "name": "Nizamabad",
+   "unit": "Telangana",
    "lat": 18.75,
    "lon": 78.0
   },
   {
    "name": "Ongole",
+   "unit": "Andhra Pradesh",
    "lat": 15.5,
    "lon": 80.0
   },
   {
    "name": "Pali",
+   "unit": "Rajasthan",
    "lat": 25.75,
    "lon": 73.25
   },
   {
    "name": "Panaji",
+   "unit": "Goa",
    "lat": 15.75,
    "lon": 73.75,
    "moved_from": {
@@ -808,62 +957,74 @@
   },
   {
    "name": "Panipat",
+   "unit": "Haryana",
    "lat": 29.5,
    "lon": 77.0
   },
   {
    "name": "Parbhani",
+   "unit": "Maharashtra",
    "lat": 19.25,
    "lon": 76.75
   },
   {
    "name": "Pathankot",
+   "unit": "Himachal Pradesh",
    "lat": 32.25,
    "lon": 75.75
   },
   {
    "name": "Patiala",
+   "unit": "Punjab",
    "lat": 30.25,
    "lon": 76.5
   },
   {
    "name": "Patna",
+   "unit": "Bihar",
    "lat": 25.75,
    "lon": 85.25
   },
   {
    "name": "Pilibhit",
+   "unit": "Uttar Pradesh",
    "lat": 28.75,
    "lon": 79.75
   },
   {
    "name": "Porbandar",
+   "unit": "Gujarat",
    "lat": 21.75,
    "lon": 69.75
   },
   {
    "name": "Port Blair",
+   "unit": "Andaman and Nicobar",
    "lat": 11.75,
    "lon": 92.75,
    "not_forecast": "Andaman & Nicobar"
   },
   {
    "name": "Proddatur",
+   "unit": "Andhra Pradesh",
    "lat": 14.75,
    "lon": 78.5
   },
   {
    "name": "Puducherry",
+   "unit": "Puducherry",
    "lat": 12.0,
    "lon": 79.75
   },
   {
    "name": "Pune",
+   "unit": "Maharashtra",
    "lat": 18.5,
    "lon": 73.75
   },
   {
    "name": "Puri",
+   "unit": "Odisha",
    "lat": 20.0,
    "lon": 86.0,
    "moved_from": {
@@ -873,211 +1034,253 @@
   },
   {
    "name": "Purnia",
+   "unit": "Bihar",
    "lat": 25.75,
    "lon": 87.5
   },
   {
    "name": "Raichur",
+   "unit": "Karnataka",
    "lat": 16.25,
    "lon": 77.25
   },
   {
    "name": "Raipur",
+   "unit": "Chhattisgarh",
    "lat": 21.25,
    "lon": 81.75
   },
   {
    "name": "Rajahmundry",
+   "unit": "Andhra Pradesh",
    "lat": 17.0,
    "lon": 81.75
   },
   {
    "name": "Rajapalaiyam",
+   "unit": "Tamil Nadu",
    "lat": 9.5,
    "lon": 77.5
   },
   {
    "name": "Rajkot",
+   "unit": "Gujarat",
    "lat": 22.25,
    "lon": 70.75
   },
   {
    "name": "Rampur",
+   "unit": "Uttar Pradesh",
    "lat": 28.75,
    "lon": 79.0
   },
   {
    "name": "Ranchi",
+   "unit": "Jharkhand",
    "lat": 23.25,
    "lon": 85.25
   },
   {
    "name": "Ratlam",
+   "unit": "Madhya Pradesh",
    "lat": 23.25,
    "lon": 75.0
   },
   {
    "name": "Raurkela",
+   "unit": "Odisha",
    "lat": 22.25,
    "lon": 84.75
   },
   {
    "name": "Rohtak",
+   "unit": "Haryana",
    "lat": 29.0,
    "lon": 76.5
   },
   {
    "name": "Sagar",
+   "unit": "Madhya Pradesh",
    "lat": 23.75,
    "lon": 78.75
   },
   {
    "name": "Saharanpur",
+   "unit": "Uttar Pradesh",
    "lat": 30.0,
    "lon": 77.5
   },
   {
    "name": "Salem",
+   "unit": "Tamil Nadu",
    "lat": 11.75,
    "lon": 78.25
   },
   {
    "name": "Sambalpur",
+   "unit": "Odisha",
    "lat": 21.5,
    "lon": 84.0
   },
   {
    "name": "Sangli",
+   "unit": "Maharashtra",
    "lat": 16.75,
    "lon": 74.5
   },
   {
    "name": "Shahjahanpur",
+   "unit": "Uttar Pradesh",
    "lat": 28.0,
    "lon": 80.0
   },
   {
    "name": "Shillong",
+   "unit": "Meghalaya",
    "lat": 25.5,
    "lon": 92.0
   },
   {
    "name": "Shivamogga",
+   "unit": "Karnataka",
    "lat": 14.0,
    "lon": 75.5
   },
   {
    "name": "Sholapur",
+   "unit": "Maharashtra",
    "lat": 17.75,
    "lon": 76.0
   },
   {
    "name": "Sikar",
+   "unit": "Rajasthan",
    "lat": 27.5,
    "lon": 75.25
   },
   {
    "name": "Silchar",
+   "unit": "Assam",
    "lat": 24.75,
    "lon": 92.75
   },
   {
    "name": "Siliguri",
+   "unit": "West Bengal",
    "lat": 26.75,
    "lon": 88.5
   },
   {
    "name": "Silvassa",
+   "unit": "Dadra and Nagar Haveli and Daman and Diu",
    "lat": 20.25,
    "lon": 73.0
   },
   {
    "name": "Simla",
+   "unit": "Himachal Pradesh",
    "lat": 31.0,
    "lon": 77.25
   },
   {
    "name": "Sirsa",
+   "unit": "Haryana",
    "lat": 29.5,
    "lon": 75.0
   },
   {
    "name": "Sitapur",
+   "unit": "Uttar Pradesh",
    "lat": 27.5,
    "lon": 80.75
   },
   {
    "name": "Sonipat",
+   "unit": "Haryana",
    "lat": 29.0,
    "lon": 77.0
   },
   {
    "name": "Sopore",
+   "unit": "Jammu and Kashmir",
    "lat": 34.25,
    "lon": 74.5
   },
   {
    "name": "Srinagar",
+   "unit": "Jammu and Kashmir",
    "lat": 34.0,
    "lon": 74.75
   },
   {
    "name": "Surat",
+   "unit": "Gujarat",
    "lat": 21.25,
    "lon": 72.75
   },
   {
    "name": "Tezpur",
+   "unit": "Assam",
    "lat": 26.75,
    "lon": 92.75
   },
   {
    "name": "Thanjavur",
+   "unit": "Tamil Nadu",
    "lat": 10.75,
    "lon": 79.25
   },
   {
    "name": "Thiruvananthapuram",
+   "unit": "Kerala",
    "lat": 8.5,
    "lon": 77.0
   },
   {
    "name": "Tiruchirappalli",
+   "unit": "Tamil Nadu",
    "lat": 10.75,
    "lon": 78.75
   },
   {
    "name": "Tirunelveli",
+   "unit": "Tamil Nadu",
    "lat": 8.75,
    "lon": 77.75
   },
   {
    "name": "Tirupati",
+   "unit": "Andhra Pradesh",
    "lat": 13.75,
    "lon": 79.5
   },
   {
    "name": "Tiruppur",
+   "unit": "Tamil Nadu",
    "lat": 11.0,
    "lon": 77.25
   },
   {
    "name": "Tiruvannamalai",
+   "unit": "Tamil Nadu",
    "lat": 12.25,
    "lon": 79.0
   },
   {
    "name": "Tonk",
+   "unit": "Rajasthan",
    "lat": 26.25,
    "lon": 75.75
   },
   {
    "name": "Tumakuru",
+   "unit": "Karnataka",
    "lat": 13.25,
    "lon": 77.0
   },
   {
    "name": "Tuticorin",
+   "unit": "Tamil Nadu",
    "lat": 9.0,
    "lon": 78.25,
    "moved_from": {
@@ -1087,56 +1290,67 @@
   },
   {
    "name": "Udaipur",
+   "unit": "Rajasthan",
    "lat": 24.5,
    "lon": 73.75
   },
   {
    "name": "Ujjain",
+   "unit": "Madhya Pradesh",
    "lat": 23.25,
    "lon": 75.75
   },
   {
    "name": "Vadodara",
+   "unit": "Gujarat",
    "lat": 22.25,
    "lon": 73.25
   },
   {
    "name": "Valparai",
+   "unit": "Tamil Nadu",
    "lat": 10.25,
    "lon": 77.0
   },
   {
    "name": "Varanasi",
+   "unit": "Uttar Pradesh",
    "lat": 25.25,
    "lon": 83.0
   },
   {
    "name": "Vellore",
+   "unit": "Tamil Nadu",
    "lat": 13.0,
    "lon": 79.25
   },
   {
    "name": "Vijayapura",
+   "unit": "Karnataka",
    "lat": 16.75,
    "lon": 75.75
   },
   {
    "name": "Vijayawada",
+   "unit": "Andhra Pradesh",
    "lat": 16.5,
    "lon": 80.75
   },
   {
    "name": "Vishakhapatnam",
+   "unit": "Andhra Pradesh",
    "lat": 17.75,
    "lon": 83.25
   },
   {
    "name": "Vizianagaram",
+   "unit": "Andhra Pradesh",
    "lat": 18.0,
    "lon": 83.5
   },
   {
    "name": "Warangal",
+   "unit": "Telangana",
    "lat": 18.0,
    "lon": 79.5
   }

@@ -5725,7 +5725,78 @@ to, which is that algorithm doing its job rather than a layout to repair.
 MapLibre's own zoom buttons are 29 pixels and are not ours to lay out;
 its attribution is set to 12 where the stylesheet can reach it.
 
+#### The search box
+
+It had one way in and one way out: type the first letters of one of 215
+Natural Earth city names, or go away. A reader who types the name of their
+state, or the name their city had when they learned it, was told "No town
+in the list starts with ...", which is a page blaming a reader for not
+knowing what is in a file.
+
+**States and union territories.** All 36 are recognised, in any case, with
+`&` and "and" the same word and punctuation ignored, so "Jammu & Kashmir"
+and "jammu and kashmir" are one query. The **short forms** — WB, UP, MP,
+TN and the rest — count **only as the whole query**, because two letters
+inside a longer word are not an abbreviation: "up" on its own is Uttar
+Pradesh and "udaipur" is a city. Older names of units are keys too:
+Orissa, Uttaranchal, Pondicherry.
+
+A state is never answered with a count. Rain over Rajasthan on one day is
+not one number, and an average nobody asked for is not an answer. What a
+state gives is its outline on the map and the cities inside it:
+
+> **Kerala is too big for one forecast: rain can differ a lot across it.
+> Tap the map, or pick a city:**
+
+Which cities are inside it is decided at build time, by the city's own
+point against that unit's own polygon from the admin-1 layer —
+`scripts/build_towns.py` writes `unit` onto every city and `box`, the
+unit's bounding box rounded **outwards** to a hundredth of a degree, onto
+every unit. Natural Earth's own `ADM1NAME` on the populated-places layer
+is not used: it calls Bhavnagar "Dadra and Nagar Haveli". 214 of the 215
+cities land in a unit; the one that does not is Gilgit, which is inside
+the India point-of-view outline and inside no admin-1 polygon, and it is
+reported by the build rather than guessed at.
+
+Where a name is both a city and a territory — Delhi, Chandigarh,
+Puducherry — **the city wins**, and it wins through the older names too, so
+"Pondicherry" is the city.
+
+**Older names of cities.** The list's spelling is Natural Earth's, and it
+is not always the one a reader learned: it says Mumbai, Bengaluru, Mysuru,
+Hubballi and Vijayapura, and it also says Simla, Dehra Dun, Jullundur,
+Nasik, Sholapur and Gurgaon. A reader should not have to know which of the
+two this file happens to hold, so both are search keys: Bombay, Calcutta,
+Madras, Bangalore, Gurugram, Poona, Trivandrum, Cochin, Baroda, Benares
+and forty more. The name **shown** is always the list's own, because the
+name over a count has to be the name the count belongs to.
+
+**Anywhere in the name**, with the ones that start with what was typed
+first — so "agar" finds Agartala, Ahmednagar, Bhavnagar and Gandhinagar,
+and a reader who knows the middle of a name is not stuck. "Did you mean"
+stays for a misspelling.
+
+**"City", not "town"**, in the label, the hint and every message. And
+nothing matched is said as four ways on rather than as a refusal:
+
+> We don't have Ooty yet. Try a nearby city or your state, tap the map, or
+> type a latitude and longitude such as 22.5, 88.4.
+
 #### Tests
+
+| | |
+|---|---|
+| the states | all 36 names, in any case, and every short form as the whole query, each finding its own unit |
+| the short forms | "up" is Uttar Pradesh and "udaipur" is Udaipur |
+| the city wins | Delhi, Chandigarh and Puducherry are cities, and so is Pondicherry |
+| no count for a state | a state's answer holds no number out of 51 and no square |
+| the cities inside | every city the state block lists has that unit in `towns.json`, and every unit has at least one |
+| the older names | each one finds its city, and the city is shown under its own name |
+| the middle of a name | "agar" finds four, with the ones that start with it first |
+| nothing matched | the four ways on, and the query in it |
+| the box | every unit's `box` holds every city in that unit |
+
+#### Tests for the rest of this section
 
 | | |
 |---|---|

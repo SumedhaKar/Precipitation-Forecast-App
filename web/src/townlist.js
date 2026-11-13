@@ -158,15 +158,95 @@ export function nearTowns(towns, text, most = 3) {
   return near.slice(0, most).map((found) => found.town);
 }
 
+/**
+ * The names a city is also known by. SPEC 11.38.
+ *
+ * Natural Earth's spelling is the one on the page, and it is not always
+ * the one a reader learned: the list says Mumbai, Bengaluru, Mysuru,
+ * Hubballi and Vijayapura, and it also says Simla, Dehra Dun, Jullundur,
+ * Nasik, Sholapur and Gurgaon, which are the older spellings of places
+ * whose official names have since changed the other way. A reader should
+ * not have to know which of the two this file happens to hold.
+ *
+ * These are search keys and nothing else. The name shown is always the
+ * list's own, because the name over a count has to be the name the count
+ * belongs to.
+ */
+export const ALSO_KNOWN_AS = {
+  Mumbai: ['Bombay'],
+  Kolkata: ['Calcutta'],
+  Chennai: ['Madras'],
+  Bengaluru: ['Bangalore'],
+  Gurgaon: ['Gurugram'],
+  Pune: ['Poona'],
+  Thiruvananthapuram: ['Trivandrum'],
+  Kochi: ['Cochin', 'Ernakulam'],
+  Vadodara: ['Baroda'],
+  Varanasi: ['Benares', 'Banaras'],
+  Mysuru: ['Mysore'],
+  Mangaluru: ['Mangalore'],
+  Belagavi: ['Belgaum'],
+  Hubballi: ['Hubli'],
+  Ballari: ['Bellary'],
+  Kalaburagi: ['Gulbarga'],
+  Shivamogga: ['Shimoga'],
+  Tumakuru: ['Tumkur'],
+  Hosapete: ['Hospet'],
+  Vijayapura: ['Bijapur'],
+  Simla: ['Shimla'],
+  'Dehra Dun': ['Dehradun'],
+  Jullundur: ['Jalandhar'],
+  Nasik: ['Nashik'],
+  Sholapur: ['Solapur'],
+  Puducherry: ['Pondicherry'],
+  Panaji: ['Panjim'],
+  Vishakhapatnam: ['Visakhapatnam', 'Vizag', 'Waltair'],
+  Tiruchirappalli: ['Trichy', 'Trichinopoly'],
+  Thanjavur: ['Tanjore'],
+  Tirunelveli: ['Tinnevelly'],
+  Kanchipuram: ['Conjeevaram'],
+  Tuticorin: ['Thoothukudi'],
+  Kozhikode: ['Calicut'],
+  Kollam: ['Quilon'],
+  Alappuzha: ['Alleppey'],
+  Allahabad: ['Prayagraj'],
+  Kanpur: ['Cawnpore'],
+  Jabalpur: ['Jubbulpore'],
+  Guwahati: ['Gauhati'],
+  Haora: ['Howrah'],
+  Barddhaman: ['Burdwan', 'Bardhaman'],
+  Medinipur: ['Midnapore'],
+  Raurkela: ['Rourkela'],
+  Brahmapur: ['Berhampur'],
+  Baramula: ['Baramulla'],
+  Ahmednagar: ['Ahmadnagar'],
+  Bhubaneswar: ['Bhubaneshwar'],
+};
+
+/** Every name a city answers to: its own first, then the older ones. */
+export function namesOf(town) {
+  if (!town || !town.name) return [];
+  return [town.name, ...(ALSO_KNOWN_AS[town.name] || [])];
+}
+
 export function findTowns(towns, text, most = 8) {
   const wanted = String(text || '').trim().toLowerCase();
   if (!wanted) return [];
   const starts = [];
   const holds = [];
   for (const town of towns) {
-    const name = town.name.toLowerCase();
-    if (name.startsWith(wanted)) starts.push(town);
-    else if (name.includes(wanted)) holds.push(town);
+    const names = namesOf(town).map((name) => name.toLowerCase());
+    if (names.some((name) => name.startsWith(wanted))) starts.push(town);
+    else if (names.some((name) => name.includes(wanted))) holds.push(town);
   }
   return [...starts, ...holds].slice(0, most);
+}
+
+// SPEC 11.38. What is said when nothing matched. It names four ways on,
+// and it never apologises for the reader's spelling: the list is 215
+// cities and a reader who wants somewhere else is not wrong.
+export function noMatch(asked) {
+  return `We don't have ${String(asked || '').trim()} yet. Try a nearby `
+    + 'city or your state, tap the map, or type a latitude and longitude '
+    + 'such as 22.5, 88.4.';
 }

@@ -5,7 +5,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { parseLatLon, squareText } from './snap';
-import { findTowns, nearTowns, townLabel } from './places';
+import {
+  findTowns, findUnit, namesOf, nearTowns, noMatch, tooBig, townLabel,
+  townsIn,
+} from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
 import { dayButton, dayName, istToday } from './days';
 
@@ -111,7 +114,7 @@ export function ThresholdChoice({ threshold, onThreshold }) {
  * and the answer never disagree. `shown` is that text and the box falls back
  * to it whenever the reader is not in the middle of typing.
  */
-export function Search({ onTown, onPoint, busy, shown, askFocus }) {
+export function Search({ onTown, onPoint, onUnit, busy, shown, askFocus }) {
   const [text, setText] = useState(null); // null means "not typing"
   const [said, setSaid] = useState(null);
   const [near, setNear] = useState([]);
@@ -128,6 +131,27 @@ export function Search({ onTown, onPoint, busy, shown, askFocus }) {
   const value = typing ? text : (shown || '');
   const matches = typing ? findTowns(text) : [];
   const typed = typing ? parseLatLon(text) : null;
+
+  /* SPEC 11.38. A state or union territory, and the city wins where a name
+     is both -- Delhi, Chandigarh, Puducherry and Goa are all four. A state
+     is never answered with a count: rain over Rajasthan on one day is not
+     one number, and an average nobody asked for is not an answer. */
+  const named = typing && !typed
+    ? String(text).trim().toLowerCase() : null;
+  // Alias-aware: "Pondicherry" is the city Puducherry's older name as well
+  // as the union territory's, and the city wins there too.
+  const asCity = named
+    && matches.some((town) => namesOf(town)
+      .some((name) => name.toLowerCase() === named));
+  const unit = named && !asCity ? findUnit(text) : null;
+  const inside = unit ? townsIn(unit.name) : [];
+
+  // The map goes to the state as soon as its name is recognised. It is the
+  // only thing this box does to the map, and it draws no square and no
+  // count: what the reader is given is the outline and a list of cities.
+  useEffect(() => {
+    if (unit && onUnit) onUnit(unit);
+  }, [unit && unit.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function done() {
     setText(null);
@@ -159,16 +183,17 @@ export function Search({ onTown, onPoint, busy, shown, askFocus }) {
       setNear([]);
       return;
     }
+    // A state is not a miss: it has its own block under the box.
+    if (findUnit(asked)) return;
     // SPEC 11.29. A misspelling is answered with the nearest few names as
     // buttons, and never by choosing one: showing one place's numbers under
     // another place's name is the single worst thing this page could do.
-    // Natural Earth's spellings are its own, too — Simla, Dehra Dun — so a
-    // reader who types the name they know needs the offer, not a refusal.
+    // Natural Earth's spellings are its own, too — Simla, Dehra Dun — and
+    // SPEC 11.38 added the older names as search keys, so a reader who
+    // types the name they know is usually answered before this line.
     const close = nearTowns(asked);
     setNear(close);
-    setSaid(`No town in the list starts with "${asked}". The list is the 215 `
-      + 'Natural Earth towns in India; a latitude and longitude works too, '
-      + 'as 28.5, 77.25.');
+    setSaid(noMatch(asked));
   }
 
   return (
@@ -191,6 +216,26 @@ export function Search({ onTown, onPoint, busy, shown, askFocus }) {
         />
         <button type="submit" disabled={busy}>Show</button>
       </div>
+      {/* SPEC 11.38. A whole state, which is never one forecast. */}
+      {unit ? (
+        <div className="unitfound">
+          <p>{tooBig(unit.name)}</p>
+          <ul className="matches">
+            {inside.map((town) => (
+              <li key={`${town.name}/${town.lat}/${town.lon}`}>
+                <button type="button" onClick={() => choose(town)}>
+                  {townLabel(town)}
+                  <span className="small">
+                    {town.not_forecast
+                      ? 'not forecast'
+                      : squareText(town.lat, town.lon)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {matches.length && !typed ? (
         <ul className="matches">
           {matches.map((town) => (

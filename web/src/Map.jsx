@@ -614,6 +614,7 @@ function makeLabels(container, mapFor) {
 
 export default function ForecastMap({
   counts, grid, threshold, day, square, squareName, onPick, onProblem,
+  unitBox,
   handcheck,
 }) {
   const holder = useRef(null);
@@ -624,6 +625,11 @@ export default function ForecastMap({
   // The chosen square, for the resize watcher, which is made once and so
   // cannot see a prop (SPEC 11.32).
   const chosen = useRef(null);
+  // SPEC 11.38. The state or union territory the map is being held on, so
+  // that a resize -- the panel opening or closing, which on a phone changes
+  // the map's height by a factor of four -- fits it again rather than
+  // leaving a view that was fitted to a 64 pixel strip.
+  const unitHeld = useRef(null);
   chosen.current = square;
 
   // Create the map once. MapLibre owns the canvas for the life of the page;
@@ -940,7 +946,7 @@ export default function ForecastMap({
     // not necessarily final when the map is created: the first build fitted
     // India to a container that then grew, and cut the south of the country
     // off. Watching the element and refitting is cheap and cannot be wrong.
-    const moved = () => { touched.current = true; };
+    const moved = () => { touched.current = true; unitHeld.current = null; };
     created.on('dragstart', moved);
     created.on('zoomstart', (event) => { if (event.originalEvent) moved(); });
 
@@ -948,10 +954,20 @@ export default function ForecastMap({
       created.resize();
       if (labels.current) labels.current.resized();
       if (!ready.current) return;
-      // Refit only while the reader has not moved the map themselves:
-      // yanking somebody back to the whole country because a panel opened
-      // would be worse than the cut-off country this fixes.
-      if (!touched.current) refit();
+      // SPEC 11.38. A state is being held, so it is fitted again at the
+      // map's new size. On a phone the panel opening takes the map from
+      // 227 pixels to 64 and closing it gives them back, and a view fitted
+      // to the 64 is not a view of that state.
+      if (unitHeld.current) {
+        const held = unitHeld.current;
+        created.fitBounds([[held[0], held[1]], [held[2], held[3]]],
+          { padding: 12, duration: 0, animate: false });
+      } else if (!touched.current) {
+        // Refit only while the reader has not moved the map themselves:
+        // yanking somebody back to the whole country because a panel opened
+        // would be worse than the cut-off country this fixes.
+        refit();
+      }
       // SPEC 11.32. Whether or not it was refitted, the square the reader
       // chose has to still be on the map afterwards. This is the phone: the
       // sheet opens, the map is half as tall, and the refit cannot help
@@ -1061,6 +1077,37 @@ export default function ForecastMap({
     else created.once('load', put);
   }, [counts, grid]);
 
+  /**
+   * Fit the map to a state or union territory. SPEC 11.38.
+   *
+   * A reader who types "Kerala" is told that a state is too big for one
+   * forecast and is given the cities inside it; this is the other half of
+   * that answer -- the map goes to Kerala, so the reader can see the shape
+   * they are being asked to pick a point in and can tap it.
+   *
+   * It paints nothing. No square is chosen, no count is shown for a state,
+   * and the colours under the outline are the same colours they were.
+   *
+   * `unitBox` is the unit's own bounding box from units.json, rounded
+   * outwards, so the whole of the unit is in view. The reader has now moved
+   * the map themselves as far as the resize watcher is concerned, which is
+   * why `touched` is set: a panel opening must not yank them back to the
+   * whole country afterwards.
+   */
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !unitBox || unitBox.length !== 4) return;
+    const go = () => {
+      touched.current = true;
+      unitHeld.current = unitBox;
+      created.fitBounds(
+        [[unitBox[0], unitBox[1]], [unitBox[2], unitBox[3]]],
+        { padding: 12, duration: 500 });
+    };
+    if (ready.current) go();
+    else created.once('load', go);
+  }, [unitBox ? unitBox.join(',') : null]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Changing day or threshold: one paint property, nothing else.
   useEffect(() => {
     const created = map.current;
@@ -1073,6 +1120,12 @@ export default function ForecastMap({
     if (ready.current) paint();
     else created.once('load', paint);
   }, [threshold, day]);
+
+  // SPEC 11.38. Choosing a square ends the hold on a state: from here the
+  // view is governed by the square the reader picked, as it always was.
+  useEffect(() => {
+    if (square) unitHeld.current = null;
+  }, [square && `${square.lat},${square.lon}`]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The chosen square: the outline, the ring, and the name beside it.
   useEffect(() => {
