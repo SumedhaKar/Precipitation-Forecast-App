@@ -5179,8 +5179,17 @@ the nine hand checks.
 
 #### Tests
 
-Thirteen, over the pages' own modules, which have no imports so `node` drives
-them against the real files:
+Thirteen. Two kinds, because two things can go wrong: a page can read the
+file wrongly, and a page can be written wrongly.
+
+`web/src/pages.js` is driven by `node` against the two real files, as
+`record.js` is. And **both pages are rendered to HTML by React's own server
+renderer** -- `vite build --ssr` over `web/src/ssr.jsx`, which is a test entry
+nothing on the site imports -- for **every choice a reader can make**: 159
+renders covering all 60 region-day-threshold choices of both pickable
+sections, all 20 of the sensitivity table and all 15 of the maps. So the
+forbidden words and the no-percentage rule are checked on the words that
+reach a screen, not on a description of them.
 
 | | |
 |---|---|
@@ -5196,7 +5205,29 @@ them against the real files:
 | the forbidden words | hold over every string either page can produce |
 | the menu | is three real links to the three paths, with `aria-current` on the one being read |
 | `vercel.json` | rewrites everything but `/api/` to `/index.html` |
-| `<noscript>` | links to the result files and to `SPEC.md` |
+| `<noscript>` | links to all five result files and to `SPEC.md` |
+
+Eleven sabotages, eleven caught: a score in the details file that is not the
+verification's, a short label the page invented, the whiskers upside down,
+"came true" for "the satellite saw it", the frequency ratio turned over, a
+menu that forgets which page is open, a rewrite that swallows `/api` too, a
+`<noscript>` with the files taken out, a percentage printed beside a band, a
+decomposition that adds the resolution instead of subtracting it, and a map
+that quietly leaves out the cells with too few squares.
+
+#### Two things found while building, and kept
+
+**The decomposition does not quite add up on the page, and says so.** The
+identity holds exactly in float64 and the run stops if it does not (5.11 rule
+23), but what is published is rounded to six decimals, and in **102 of the
+300** scored groups the three rounded parts differ from the rounded Brier
+score by one in the last digit. The page shows the sum and says why it can
+differ, rather than hiding the rounding.
+
+**One 2-degree cell has no skill at all.** 36 N 76 E, in the Karakoram, never
+reached 10 mm on any day of the six months, so its base rate is 0 and there is
+no skill to compute. It is drawn white and reads "no number" rather than being
+left out of the map.
 
 ---
 

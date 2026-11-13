@@ -110,7 +110,7 @@ export function RunLine({ run }) {
   );
 }
 
-function Footer() {
+export function Footer() {
   return (
     <footer>
       <p className="warning">
@@ -204,7 +204,7 @@ class MapFrame extends Component {
   }
 }
 
-export default function App() {
+export default function App({ nav }) {
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState(null);
   const [counts, setCounts] = useState(null);
@@ -444,6 +444,8 @@ export default function App() {
           </h1>
           <RunLine run={run} />
         </div>
+        {/* SPEC 11.34: the three pages, in the header of all three. */}
+        {nav}
         {/* SPEC 11.28: this was in the footer only, below the fold on every
             screen. The footer still carries it; this is the copy a reader
             cannot miss. */}
