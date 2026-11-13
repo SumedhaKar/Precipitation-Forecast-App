@@ -34,6 +34,7 @@ import stateLines from './geo/states.geo.json';
 import landAround from './geo/land.geo.json';
 import { CITY_LABELS, FIT_ASPECTS, STATE_LABELS } from './places';
 import { fitsInside, roomFor } from './fits';
+import { EASE_MS, nudge, visibleBox } from './inview';
 import { LAND, NEIGHBOURS, SEA, countKey, fillExpression } from './palette';
 import { LAT_MAX, LAT_MIN, LON_MAX, LON_MIN, STEP, squareText } from './snap';
 
@@ -132,6 +133,31 @@ export const NOT_DATA_LAYERS = [
   'squares-grid', 'picked-casing', 'picked-line',
   'picked-ring-halo', 'picked-ring',
 ];
+
+/**
+ * Pan the map, at the zoom it is at, until the chosen square is in view.
+ *
+ * SPEC 11.32. Called when a square is chosen and again whenever the map
+ * changes size, because on a phone choosing a square opens the bottom sheet
+ * and the map that was 464 pixels tall becomes 236: a square that was near
+ * the bottom of it is then below the bottom of it.
+ */
+function bringIntoView(created, square) {
+  if (!created || !square) return;
+  const at = created.project([square.lon, square.lat]);
+  const canvas = created.getCanvas().getBoundingClientRect();
+  const offset = nudge({ x: at.x, y: at.y }, visibleBox(
+    { left: canvas.left, top: canvas.top,
+      width: canvas.width, height: canvas.height },
+    { width: window.innerWidth, height: window.innerHeight },
+  ));
+  if (!offset) return;
+  // A reader who has asked for less movement gets none: the map is where it
+  // has to be, it simply arrives there without the journey.
+  const still = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  created.panBy(offset, { duration: still ? 0 : EASE_MS });
+}
 
 /** Can this browser draw the map at all? SPEC 11.29. */
 export function canDraw() {
@@ -595,6 +621,10 @@ export default function ForecastMap({
   const labels = useRef(null);
   const ready = useRef(false);
   const touched = useRef(false);
+  // The chosen square, for the resize watcher, which is made once and so
+  // cannot see a prop (SPEC 11.32).
+  const chosen = useRef(null);
+  chosen.current = square;
 
   // Create the map once. MapLibre owns the canvas for the life of the page;
   // React never re-creates it.
@@ -883,11 +913,19 @@ export default function ForecastMap({
     const watcher = new ResizeObserver(() => {
       created.resize();
       if (labels.current) labels.current.resized();
+      if (!ready.current) return;
       // Refit only while the reader has not moved the map themselves:
       // yanking somebody back to the whole country because a panel opened
       // would be worse than the cut-off country this fixes.
-      if (touched.current || !ready.current) return;
-      refit();
+      if (!touched.current) refit();
+      // SPEC 11.32. Whether or not it was refitted, the square the reader
+      // chose has to still be on the map afterwards. This is the phone: the
+      // sheet opens, the map is half as tall, and the refit cannot help
+      // because India does not fit in 236 pixels at the minimum zoom. It
+      // runs even when the reader has moved the map themselves, because it
+      // only ever pans, and it does nothing at all while the square is
+      // comfortably in view.
+      bringIntoView(created, chosen.current);
     });
     watcher.observe(holder.current);
 
@@ -1016,6 +1054,28 @@ export default function ForecastMap({
     if (ready.current) put();
     else created.once('load', put);
   }, [square, squareName]);
+
+  // Bring the chosen square into view. SPEC 11.32.
+  //
+  // Choosing a place and not being shown it is the oldest fault a map can
+  // have, and it happened here three ways: a town searched for while the map
+  // was somewhere else, a square at the very edge with its ring half drawn,
+  // and -- on a phone -- a square that was in the middle of the map until
+  // the bottom sheet opened and made the map half as tall. The map pans by
+  // as little as will do, at the zoom it is already at.
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !square || !ready.current) return undefined;
+    let alive = true;
+    // Two frames first. Choosing a square opens the sheet, which resizes
+    // the map, and measuring before that is laid out measures a map that is
+    // about to change out from under the answer.
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!alive || map.current !== created) return;
+      bringIntoView(created, square);
+    }));
+    return () => { alive = false; cancelAnimationFrame(frame); };
+  }, [square]);
 
   return <div className="map" ref={holder} />;
 }

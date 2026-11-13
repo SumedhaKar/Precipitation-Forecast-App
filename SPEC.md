@@ -4737,6 +4737,69 @@ three geometry files in `web/src/geo/` are byte for byte what they were.
 
 ---
 
+### 11.32 The square you chose is the square you see
+
+Choosing a place and not being shown it is the oldest fault a map can have,
+and the page had it three ways. A town searched for while the map was
+somewhere else stayed off the edge of it. A square at the very edge had its
+ring half drawn. And on a phone, choosing anything opens the bottom sheet,
+which takes the map from 464 pixels tall to 236 -- so a square in the lower
+half of the map was, a moment later, below the bottom of it.
+
+**After a square is chosen the map pans, by as little as will do, until the
+square is comfortably inside the part of the map a reader can actually see.
+The zoom never changes.**
+
+| | |
+|---|---|
+| comfortable | at least `EDGE` = 40 pixels inside every edge of the visible box |
+| where it lands | `REST` = 80 pixels inside the edge it was outside, or the middle of that axis if there is not room for both margins |
+| why REST is twice EDGE | a square one pixel outside the box would otherwise slide the map by one pixel, which is an animation with no point. Every move is worth making, and a square already comfortable still never moves |
+| how it moves | `panBy`, 600 ms. Not `flyTo` or `fitBounds`: the zoom is the reader's, or the fit's, and a map that changes scale every time a town is searched for is a worse map than one that pans |
+| reduced motion | `prefers-reduced-motion: reduce` makes it 0 ms. The map is where it has to be; it simply arrives without the journey |
+| when | whenever the chosen square changes -- search, did you mean, a click on the map, use my location -- and again whenever the map changes size |
+
+**The visible box is not the canvas.** The canvas is not always all on the
+screen: the page can be scrolled, and on a phone the sheet takes the lower
+part of the window. `visibleBox` clips the canvas rectangle to the window and
+puts it back in canvas coordinates, and everything is measured against that.
+So a square under the sheet is out of view however firmly the canvas says it
+is there.
+
+**It has to survive the refit.** Choosing a square opens the sheet, which
+resizes the map, and the resize watcher refits India (11.16). On a phone that
+refit cannot help: India does not fit in 390 by 236 pixels at the minimum
+zoom of 3, so the south of the country is simply off the map. So the watcher
+brings the chosen square back after it refits -- and it does that even when
+the reader has moved the map themselves, which the refit deliberately does
+not, because this only ever pans and does nothing at all while the square is
+already comfortable.
+
+Measured on the local production build:
+
+| | before | after |
+|---|---|---|
+| phone, 8.50 N 77.00 E searched | y = 439.3 of a 464 pixel map | the sheet opens, the map is 236 tall, y = **156.1**, which is 236 - 80 |
+| desktop, 28.75 N 77.25 E searched at the whole-India view | in view | **the map does not move at all**, zoom 3.2763 either way |
+| desktop, 8.50 N 77.00 E searched from a northern view at zoom 4.6553 | south edge 17.77 N, the square off the bottom | south edge 6.29 N, the square in view, **zoom 4.6553 unchanged** |
+
+A town the grid cannot carry -- Kavaratti, Port Blair (11.28) -- marks no
+square, so there is nothing to bring into view and the map does not move. The
+panel says why there are no numbers, which is the answer to that question.
+
+#### Tests
+
+Four, over `web/src/inview.js`, which has no imports so `node` can drive it:
+a square in the middle of the desktop map and squares exactly 40 pixels in
+are left alone; squares off the left, off the bottom right, and inside the
+margin are moved, and the answer puts them inside the margin rather than on
+it; a square under the sheet is out of view in the clipped box and in view in
+the whole one; a map too short for two margins centres the square instead of
+giving up; and the map pans with `panBy` at 600 ms, jumps under reduced
+motion, and changes the zoom nowhere.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:

@@ -1987,3 +1987,117 @@ def test_the_page_says_what_the_hand_check_has_to_assert():
             (31, 40, "31-40", "#1d91c0"), (41, 50, "41-50", "#225ea8"),
             (51, 51, "51", "#0c2c84")]:
         assert f'"{label}", "{colour}"' in check, label
+
+# ------------------ SPEC 11.32: the square you chose is the square you see
+
+INVIEW = ROOT / "web" / "src" / "inview.js"
+
+
+@needs_node
+def test_a_square_in_view_is_left_alone_and_one_off_screen_is_brought_back(
+        exports):
+    """SPEC 11.32. The map moves when it has to and never when it does not.
+
+    The box is the desktop map of 11.31: 1,060 by 572, all of it on the
+    screen. A square in the middle of it is already in view, so the answer
+    is to stay put; a square off the edge of it, or within the 40 pixel
+    margin, is brought back in -- and the answer says how far to pan, so the
+    test can check the square really ends up inside the margin and not on it.
+    """
+    box = {"left": 0, "top": 0, "right": 1060, "bottom": 572}
+    said = exports(INVIEW, "nudge", [
+        [{"x": 530, "y": 286}, box],       # the middle of the map
+        [{"x": 41, "y": 41}, box],         # a pixel inside the margin
+        [{"x": 1019, "y": 531}, box],      # a pixel inside the far margin
+        [{"x": -200, "y": 286}, box],      # off the left edge entirely
+        [{"x": 1400, "y": 900}, box],      # off the bottom right corner
+        [{"x": 20, "y": 286}, box],        # inside the margin, still on it
+    ])
+    assert said[0] is None, "a square in the middle must not move the map"
+    assert said[1] is None and said[2] is None, "40 pixels in is in view"
+    assert said[3] is not None and said[4] is not None
+
+    # Where the square ends up: inside the margin, by the resting distance.
+    for at, answer in [({"x": -200, "y": 286}, said[3]),
+                       ({"x": 1400, "y": 900}, said[4]),
+                       ({"x": 20, "y": 286}, said[5])]:
+        x = at["x"] - answer[0]
+        y = at["y"] - answer[1]
+        assert 40 <= x <= 1060 - 40, (at, answer, x)
+        assert 40 <= y <= 572 - 40, (at, answer, y)
+    # Off the left edge, the pan is sideways only: nothing moves that need
+    # not move.
+    assert said[3][1] == 0
+
+
+@needs_node
+def test_the_part_of_the_map_under_the_bottom_sheet_is_not_in_view(exports):
+    """SPEC 11.32. A phone's map is only as tall as the window leaves it.
+
+    The sheet takes the bottom of the window, so the bottom of the canvas
+    can be past the end of it. What a reader can see is the canvas clipped
+    to the window, and a square below that line is not in view however
+    firmly the canvas says it is there.
+    """
+    # A 390 by 844 phone, the map starting 270 pixels down (SPEC 11.31) and
+    # 464 tall, with the sheet open so the window ends part way down it.
+    canvas = {"left": 0, "top": 270, "width": 390, "height": 464}
+    whole = exports(INVIEW, "visibleBox",
+                    [[canvas, {"width": 390, "height": 844}]])[0]
+    assert whole == {"left": 0, "top": 0, "right": 390, "bottom": 464}
+
+    cut = exports(INVIEW, "visibleBox",
+                  [[canvas, {"width": 390, "height": 560}]])[0]
+    assert cut["bottom"] == 290, cut
+
+    # A square 350 pixels down the canvas is on the canvas and under the
+    # sheet. In the whole box it is in view; in the cut box it is not.
+    said = exports(INVIEW, "nudge", [
+        [{"x": 195, "y": 350}, whole],
+        [{"x": 195, "y": 350}, cut],
+    ])
+    assert said[0] is None
+    assert said[1] is not None and said[1][0] == 0 and said[1][1] > 0
+    assert 350 - said[1][1] <= cut["bottom"] - 40
+
+
+@needs_node
+def test_a_map_too_small_for_a_margin_still_centres_the_square(exports):
+    """SPEC 11.32. The answer is never "nowhere to put it".
+
+    With the sheet open the map can be shorter than two margins. Rather than
+    give up, or pick an edge, the square goes in the middle of what there is.
+    """
+    thin = {"left": 0, "top": 0, "right": 390, "bottom": 60}
+    said = exports(INVIEW, "nudge", [[{"x": 195, "y": 55}, thin]])[0]
+    assert said is not None
+    assert 55 - said[1] == 30
+
+
+def test_the_map_pans_when_a_square_is_chosen_and_not_otherwise():
+    """SPEC 11.32. The ease, the zoom, and the reader who asked for less.
+
+    `panBy` and not `flyTo` or `fitBounds`: the zoom is the reader's, or the
+    fit's, and a map that changes scale every time a town is searched for is
+    a worse map than one that pans. 600 ms, and no journey at all for a
+    reader who has asked for reduced motion.
+    """
+    text = (ROOT / "web" / "src" / "Map.jsx").read_text("utf-8")
+    code = "\n".join(line for line in text.split("\n")
+                     if not line.strip().startswith("//"))
+    assert "created.panBy(offset, { duration: still ? 0 : EASE_MS });" in code
+    assert "prefers-reduced-motion: reduce" in code
+    # It is the chosen square that is brought into view, and it runs when
+    # that square changes and on nothing else.
+    assert "created.project([square.lon, square.lat])" in code
+    assert "}, [square]);" in code
+    # Nothing here changes the zoom.
+    piece = code.split("useEffect(() => {\n    const created = map.current;"
+                       "\n    if (!created || !square")[1].split("}, [square]")[0]
+    for zoomy in ("setZoom", "zoomTo", "fitBounds", "flyTo", "jumpTo",
+                  "easeTo"):
+        assert zoomy not in piece, zoomy
+
+    inview = INVIEW.read_text("utf-8")
+    assert "export const EDGE = 40;" in inview
+    assert "export const EASE_MS = 600;" in inview
