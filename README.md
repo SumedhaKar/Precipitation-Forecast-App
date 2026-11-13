@@ -237,6 +237,35 @@ GRIB. Saved output for 13 May and 25 October 2026 is in `handchecks/results/`.
 HC1 needs the raw GRIB for that date, which exists only for dates run with
 `--keep-raw`. HC2 and HC3 work from the saved file alone.
 
+The rest, in `handchecks/`, each write their own file into
+`handchecks/results/`. SPEC's "The hand checks" section says what each one
+redoes.
+
+| | what it redoes | run it with |
+|---|---|---|
+| HC-ALIGN | the two grids against each other | `hc_align.py` |
+| HC5 | one cell of the area-weighted remap | `hc5_cell.py` |
+| HC6 | the 51 member values in one square | `hc6_members.py` |
+| HC7 | the published bytes against the built run | `hc7_published.py` |
+| HC8 | one square on the live map | `hc8_map_square.py` |
+| HC9 | one reliability band, from the archive | `hc9_bucket.py` |
+| HC-FAIL | the publisher, made to fail on purpose | `hc_fail.py` |
+| HC-ECMWF | ECMWF's own probability of 10 mm against our count | `hc_ecmwf.py` |
+| HC-REPORT | the report card's Brier scores, redone | `hc_report.py` |
+| HC-GHATS | one monsoon day of remapped IMERG, drawn | `hc_ghats.py` |
+
+Three of them take a `--sabotage` flag, which breaks the thing on purpose to
+show the check notices.
+
+HC-ECMWF downloads about 350 KB from ECMWF and needs the run it compares to
+be one the server still offers, which is the last four days. HC-FAIL's third
+part serves the site against a copy of a published run so the 36-hour banner
+can be seen:
+
+```powershell
+node "$r\handchecks\hc_fail_site.mjs" 20261112T00Z 5102
+```
+
 ---
 
 ## Credits and licences

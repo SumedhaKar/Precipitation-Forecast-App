@@ -225,6 +225,37 @@ def test_a_reference_that_was_never_wrong_gives_no_skill_at_all():
     assert verify.bss_of(0.3, 0.0) is None
 
 
+def test_the_usual_rain_every_day_is_a_forecast_with_no_skill_at_all():
+    """SPEC 5.3. Forecast the reference itself and the skill is exactly 0.
+
+    A second toy, three dates in one month, because 1/3 is a rate 51 members
+    can say exactly and 1/2 is not. Every square sees the event on one of its
+    three days, so every reference rate is 1/3; 17 of 51 is 1/3 as well, so
+    every case is forecast at its own reference and the two Brier scores are
+    the same number. This is the floor the report card measures against:
+    saying the usual rain for the place and the month, every day, scores no
+    skill, and a green label has to beat it.
+    """
+    dates = ("20260601", "20260602", "20260603")
+    result = toy_run(
+        dates=dates,
+        available={"20260602", "20260603", "20260604"},
+        forecasts={date: (17, 17, 17) for date in dates},
+        obs={"20260602": [20.0, 0.0, 0.0],
+             "20260603": [0.0, 20.0, 0.0],
+             "20260604": [0.0, 0.0, 20.0]})
+    for region, cases in (("Region A", 6), ("Region B", 3)):
+        row = group_of(result, region)
+        assert row["cases"] == cases
+        assert row["base_rate"] == pytest.approx(1 / 3, abs=1e-12)
+        assert row["bs"] == pytest.approx(row["reference_bs"], abs=1e-12)
+        assert row["bss"] == pytest.approx(0.0, abs=1e-12)
+        # And the score itself is the one on paper: two misses at 1/3 and
+        # one hit at 2/3, over three days.
+        want = (2 * (1 / 3) ** 2 + (2 / 3) ** 2) / 3
+        assert row["bs"] == pytest.approx(want, abs=1e-12)
+
+
 def test_a_case_is_inside_its_own_reference_group():
     """SPEC 5.11 rule 9. In-sample, with no leave-one-out."""
     setup = toy_setup(dates=("20260601",), available={"20260602"})

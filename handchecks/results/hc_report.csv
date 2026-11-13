@@ -1,0 +1,50 @@
+hc-report,"the report card's Brier scores, redone by hand, SPEC 5.2"
+region,Central India
+region_rule,"the region of the published group with the most cases, then the most events"
+squares,1510
+run_dates,177
+members,51
+lead_days_without_an_imerg_day,0
+square_days_the_satellite_could_not_measure,0
+published_file,results/verification.json
+largest_difference_in_the_brier_score,4.97e-07
+rounding,"the published values are written to six decimals, so a difference under 5e-7 is the rounding and nothing else"
+
+lead_day,threshold_mm,cases,published_cases,events,published_events,base_rate,published_base_rate,brier_score,published_brier_score,difference
+1,1,267270,267270,114532,114532,0.428525,0.428525,0.135516564,0.135517,4.36e-07
+1,10,267270,267270,41641,41641,0.155801,0.155801,0.079050497,0.07905,4.97e-07
+1,50,267270,267270,3604,3604,0.013484,0.013484,0.010440283,0.01044,2.83e-07
+2,1,267270,267270,114274,114274,0.427560,0.42756,0.136829833,0.13683,1.67e-07
+2,10,267270,267270,41606,41606,0.155670,0.15567,0.084600080,0.0846,8.02e-08
+2,50,267270,267270,3603,3603,0.013481,0.013481,0.010987140,0.010987,1.40e-07
+3,1,267270,267270,114039,114039,0.426681,0.426681,0.139361698,0.139362,3.02e-07
+3,10,267270,267270,41575,41575,0.155554,0.155554,0.088082541,0.088083,4.59e-07
+3,50,267270,267270,3603,3603,0.013481,0.013481,0.011274546,0.011275,4.54e-07
+4,1,267270,267270,113676,113676,0.425323,0.425323,0.141065152,0.141065,1.52e-07
+4,10,267270,267270,41490,41490,0.155236,0.155236,0.090076828,0.090077,1.72e-07
+4,50,267270,267270,3600,3600,0.013470,0.01347,0.011493414,0.011493,4.14e-07
+5,1,267270,267270,113572,113572,0.424934,0.424934,0.145852855,0.145853,1.45e-07
+5,10,267270,267270,41483,41483,0.155210,0.15521,0.094337523,0.094338,4.77e-07
+5,50,267270,267270,3600,3600,0.013470,0.01347,0.012072024,0.012072,2.38e-08
+
+"ten cases, chosen by the count alone, from Central India day 1 at 1 mm"
+run_date,lead_day,imerg_day,lat,lon,members_at_or_over_1mm,forecast_k_over_51,observed_mm,observed_event,squared_error
+20260513,1,20260514,25.00,75.25,0,0.000000,0.00,0,0.000000
+20260513,1,20260514,26.75,78.50,6,0.117647,0.00,0,0.013841
+20260513,1,20260514,26.50,78.50,11,0.215686,0.00,0,0.046521
+20260513,1,20260514,18.00,82.25,17,0.333333,2.85,1,0.444444
+20260513,1,20260514,15.50,74.00,23,0.450980,17.31,1,0.301423
+20260514,1,20260515,18.50,83.00,28,0.549020,0.39,0,0.301423
+20260515,1,20260516,21.75,86.50,34,0.666667,1.64,1,0.111111
+20260513,1,20260514,15.00,74.25,40,0.784314,52.99,1,0.046521
+20260515,1,20260516,18.75,82.50,45,0.882353,5.26,1,0.013841
+20260521,1,20260522,18.25,73.50,51,1.000000,16.95,1,0.000000
+the mean of all,267270,squared errors of this group is the Brier score above,0.135517
+
+unit test,what it says,outcome,pytest
+test_a_case_is_scored_against_the_day_its_forecast_was_for,a region that forecast both days perfectly scores a Brier score of 0 and a skill of exactly 1,passed,"1 passed, 36 deselected in 0.84s"
+test_the_usual_rain_every_day_is_a_forecast_with_no_skill_at_all,"forecasting the reference itself, the usual rain for that place and month, scores a skill of exactly 0",passed,"1 passed, 36 deselected in 0.47s"
+
+sabotage of pipeline/verify.py,outcome,which test noticed
+the forecast shared out over one member too few,CAUGHT,a_case_is_scored_against_the_day_its_forecast_was_for; the_usual_rain_every_day_is_a_forecast_with_no_skill_at_all
+the reference rate rounded to two decimals,CAUGHT,the_usual_rain_every_day_is_a_forecast_with_no_skill_at_all

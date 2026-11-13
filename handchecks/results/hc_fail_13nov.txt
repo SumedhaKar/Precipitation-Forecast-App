@@ -1,0 +1,67 @@
+HC-FAIL, the real case: 13 November 2026, when GitHub skipped the schedule.
+
+The rest of HC-FAIL breaks things on purpose. This is the one that happened.
+
+What the workflow asks for
+--------------------------
+`.github/workflows/forecast.yml` has two cron lines:
+
+    17,47 6-11 * * *      twelve attempts, 06:17 to 11:47 UTC
+    23 12-22 * * *        eleven more, 12:23 to 22:23 UTC
+
+Twenty-three attempts a day. Every one after the first finds the run already
+built and does nothing, which is why there can be so many.
+
+What actually ran
+-----------------
+`gh run list --workflow forecast.yml`, read on 13 November 2026 at 12:31
+UTC:
+
+    2026-11-13T07:02:32Z  workflow_dispatch  success   43382867764
+    2026-11-12T17:44:34Z  schedule           success   43272620895
+    2026-11-12T10:55:47Z  workflow_dispatch  success   43204664470
+    2026-11-12T10:20:30Z  workflow_dispatch  success   43199493835
+    2026-11-12T09:13:05Z  workflow_dispatch  success   43189501341
+    2026-11-12T09:08:25Z  workflow_dispatch  success   43188801507
+
+On 12 November one of the twenty-three fired, at 17:44 UTC, twenty-one
+minutes after the 17:23 it was asked for. Its log reads
+
+    already published: 20261112T00Z
+    decision: 20261112T00Z has already been built
+
+which is right: the 13 November run did not exist yet.
+
+**On 13 November not one scheduled attempt fired.** By 12:31 UTC thirteen of
+them were due -- 06:17, 06:47, 07:17, 07:47, 08:17, 08:47, 09:17, 09:47,
+10:17, 10:47, 11:17, 11:47 and 12:23 -- and the run list has none of them.
+The only forecast run of the day is the manual dispatch at 07:02 UTC.
+
+What the site did in the meantime
+---------------------------------
+It kept the 12 November run, which is what SPEC 1.5 asks for. Nothing was
+half-published, nothing was blank and no page said anything it could not
+stand behind; it simply showed an older forecast, with the run and its time
+in the run line as always.
+
+The manual dispatch at 07:02 UTC built and published 20261113T00Z:
+
+    12:33:31 IST  20261113T00Z: built. day 1 highest count at 10 mm over
+                  India = 37 of 51
+    12:35:21 IST  20261113T00Z: published 60 files, 3.45 MB, 0 old blob(s)
+                  deleted
+
+That was 31.5 hours after the 12 November run time, inside the 36 hours of
+SPEC 11.8, so no banner was ever shown to a visitor. Had the dispatch not
+been made, the banner in `hc_fail_stale.jpg` is what the site would have
+shown from 12:00 UTC today onwards -- which is exactly how that screenshot
+was taken, from the same run, once it really had passed 36 hours.
+
+What this says
+--------------
+GitHub does not promise to run a scheduled workflow at the time asked for,
+or at all, and on this repository it has now missed 22 of 23 attempts on one
+day and 23 of 23 on the next. The schedule is not something the published
+track record can lean on. The site's own defence is the one measured here:
+an old run stays, says how old it is past 36 hours, and is never replaced by
+a broken one.

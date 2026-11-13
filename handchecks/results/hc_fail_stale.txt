@@ -1,0 +1,58 @@
+HC-FAIL, part 3: a run older than 36 hours shows the banner. SPEC 11.8.
+
+Nothing here moves a clock. The run used is the real 20261112T00Z, whose
+run time is 12 November 2026 00:00 UTC, and it genuinely passed 36 hours old
+at 12:00 UTC on 13 November 2026, which is 17:30 IST. The screenshot was
+taken at 18:01 IST, half an hour after that.
+
+How it was served
+-----------------
+  cd <project>
+  node handchecks/hc_fail_site.mjs 20261112T00Z 5102
+  open http://127.0.0.1:5102/
+
+`web/dist` is the production build, rebuilt from the committed source at
+17:58 IST on 13 November 2026. `/api/health` and `/api/place` are the real
+api/*.mjs files, imported and run. The store is a copy of what was actually
+published: `data/publish/20261112T00Z/`, served over HTTP, with
+STORE_BASE_URL pointing at it. So the age, the staleness and the banner are
+worked out by the real code from the real timestamp in the real manifest.
+
+No network and no token: every byte is local.
+
+What /api/health answered
+-------------------------
+  ok                 true
+  store              reachable
+  run_id             20261112T00Z
+  run_time_utc       2026-11-12T00:00:00+00:00
+  run_time_ist       2026-11-12T05:30:00+05:30
+  age_hours          36.5
+  stale              true
+  stale_after_hours  36
+  checked_at_ist     2026-11-13 18:01:07 IST
+  source.base_url    http://127.0.0.1:5102/store
+
+What the page showed
+--------------------
+  hc_fail_stale.jpg, the whole window at 1512 by 803.
+
+  "This forecast is 36.5 hours old. A newer model run has not been
+   published. Nothing here has been updated since 12 Nov 2026, 5:30 am IST."
+
+The banner is above the controls and below the title, in its own band, and
+the page is otherwise working: the run line names the run, the fifteen
+counts files loaded from the copied store, and the map is painted, with the
+Karakoram dark on day 1 at 1 mm as that run has it.
+
+The page does not take the staleness on trust from the API. SPEC 11.8 has
+the page work the age out again from `run_time_utc`, so a page served from a
+browser cache cannot show a fresh-looking banner over an old forecast; both
+the API and the page agree here.
+
+One thing this check found, in the check itself and not in the site: a
+first attempt served `web/dist` with no media type for `.mjs`, Chrome
+refused to start MapLibre's worker module, and the map stayed empty while
+every other part of the page was right. The server beside this file now
+sends `text/javascript` for `.mjs`. Vercel always did; nothing on the
+deployed site was affected.
