@@ -16,6 +16,7 @@ import { squareText } from './snap';
 import { nameOfSquare } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
+import { PICK_A_PLACE, barLine } from './record';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -37,6 +38,29 @@ function summarise(values) {
     highest: sorted[sorted.length - 1],
     same: sorted[0] === sorted[sorted.length - 1],
   };
+}
+
+/* SPEC 11.37. The one line the closed bar carries on a phone, in the words
+   the panel itself uses: the place, the count, the amount. Pure, and
+   exported, so a test can drive it against a real answer.
+
+   `square` is what the reader last asked for. While a newer square is still
+   loading the bar says the prompt rather than the old square's number,
+   because a number under the wrong place name is the worst thing this page
+   could do (SPEC 11.30). */
+export function summaryLine(place, square, day, threshold) {
+  if (!place || !place.square || !place.days) return PICK_A_PLACE;
+  if (square && !sameSquare(place.square.asked, square)) return PICK_A_PLACE;
+  const chosen = place.days.find((entry) => entry.lead_day === day)
+    || place.days[0];
+  const k = THRESHOLDS.indexOf(threshold);
+  const entry = chosen && chosen.counts_by_threshold
+    && chosen.counts_by_threshold[k];
+  if (!entry) return PICK_A_PLACE;
+  const where = place.square;
+  const name = nameOfSquare(where.lat, where.lon)
+    || squareText(where.lat, where.lon);
+  return barLine(name, entry.count, place.members, threshold);
 }
 
 export function PlaceLine({ place, from }) {
@@ -369,6 +393,13 @@ export function HowToRead() {
           track record exists.
         </li>
       </ul>
+      {/* SPEC 11.37. On a phone the legend has no room for this line, so it
+          is here instead, where the rest of the reading of the map is. The
+          legend still carries it at desktop width. */}
+      <p className="whitehere">
+        <span className="swatch" aria-hidden="true" />
+        White: inside India but not forecast at this grid size
+      </p>
       <p className="prompt">Click a square or search a town.</p>
     </div>
   );

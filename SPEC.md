@@ -5360,6 +5360,99 @@ with the point that it is not a count of runs said plainly beside it. This
 is on How we checked only, never on the forecast page and never on the
 report card.
 
+### 11.37 The phone: a bar at the bottom, and type that can be read
+
+Read on a Samsung A32, which is the point: 11.35 made the handle reachable
+and the panel behind it was still two thirds of the screen, because shut it
+carried the search box, Use my location and the whole of How to read this
+map. The map, which is the page, had about a third. And the type in the open
+panel, measured, was 13.4 pixels for the line that carries the answer.
+
+#### Shut: one line and one button
+
+| | |
+|---|---|
+| the bar | the whole of the panel: a grab strip, a line, and a button reading **Search**. Nothing else is in it, and nothing is under it |
+| the line | before a place is chosen, "Tap the map to pick a place"; after one, that place's own result for the chosen day and amount, in the panel's words: **"Bhopal: 0 of 51 runs reach 10 mm"** |
+| the button | always there, always whole, never under 44 pixels tall, at 320 pixels wide and with the longest name the town list has. The **line** is what gives way: it wraps to two lines and is cut with an ellipsis after that |
+| the map | everything between the controls and the bar |
+| everything else | the search box, Use my location, the counts, the dots, How to read this map: open only |
+
+The line's words come from `barLine` in `record.js`, which is pure and has
+no imports, so a test drives it directly; `summaryLine` in `Panel.jsx` finds
+the place and the count and hands them over. While a newer square is still
+loading the bar says the prompt rather than the last square's number: a
+number under the wrong name is the worst thing this page could do (11.30).
+
+#### One control, one job
+
+| tapping | does |
+|---|---|
+| the line | opens the panel, and asks for no keyboard |
+| **Search** | opens the panel and gives the search box the keyboard, ready to type |
+| the map, a search result, Use my location | opens the panel on that place's result, so an answer is never hidden behind a shut bar |
+| the handle, now reading "Hide the details" | shuts it again, and the map has the screen back |
+
+The keyboard is asked for by counting up, not by a flag: `askFocus` is a
+number the search box watches, so asking twice in a row works.
+
+#### Open
+
+The panel keeps the share of the stage 11.35 gave it -- 78%, which is right
+on the A32 -- and scrolls inside itself to the last of the 51 values. The
+map keeps its floor and is resized by the same `ResizeObserver` after every
+open and every close.
+
+#### Type, measured and not guessed
+
+In the open panel, on a phone:
+
+| | |
+|---|---|
+| the chosen row's count | 18.4 px, larger than everything around it |
+| the three threshold rows | 15.2 px |
+| the trust chip and its line | 15.2 px |
+| the past-frequency sentence | 15.2 px |
+| "These are counts out of 51 model runs..." | 15.2 px |
+| the place line | 16.8 px |
+| nothing anywhere in the panel | under 13 px |
+| every button, link control and summary | at least 44 px tall |
+
+Desktop sizes are untouched: every rule is inside a phone media block, and a
+test reads the stylesheet to say so.
+
+#### What moved, and what did not
+
+"White: inside India but not forecast at this grid size" moves out of the
+legend and into How to read this map on phones only, where there is room for
+it; in the bar it cost the map a whole line. It is never in both places.
+
+Nothing else is removed or shrunk: the run time, the published time, the
+"Not an official warning" note, the day and amount controls and the colour
+key are all where they were, and the parts of the footer that live in the
+panel are bigger than they were, not smaller.
+
+#### Measured, at 390 pixels wide, against the published store
+
+| | shut | open |
+|---|---|---|
+| 390 x 664 | map 283, bar 61 | map 80, panel 264 |
+| 390 x 844 | map 463, bar 61 | map 115, panel 409 |
+
+#### Tests
+
+In the browser, at 390 x 664, 390 x 844 and 320 x 568, against a small run
+written and published by the test itself and served over HTTP, with the
+real `api/health` and `api/place` reading it: the bar whole and the map's
+floor at each size; the prompt on one line; the longest line the town list
+allows put in the bar and the button measured beside it; the line, the
+button and the handle each doing their one thing; a real tap on the map,
+aimed with the map's own bounds, opening the panel on a square with counts,
+a chip and a sentence; every font size and every tap target in the panel
+that follows; and the map's own canvas back to its full height after the
+panel closes. Plus, without a browser: the line's words, and the stylesheet
+read to show the desktop keeps its panel.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

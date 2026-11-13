@@ -324,6 +324,11 @@ header {
 
 .legend-foot { margin: 0; font-size: 0.7rem; color: var(--quiet); }
 
+/* SPEC 11.37: the legend carries this line at desktop width and the
+   panel carries it on a phone, where the legend has no room; never
+   both. */
+.whitehere { display: none; }
+
 /* SPEC 11.30. The white squares inside the outline: inside India, and not
    forecast, because the model's own land fraction for them is under a half.
    One line, with the colour beside it, at every width. */
@@ -398,7 +403,7 @@ header {
   padding: 0.8rem 0.9rem 1.2rem;
 }
 
-.handle { display: none; }
+.handle, .sheetbar { display: none; }
 
 .finder { margin-bottom: 0.8rem; }
 
@@ -879,29 +884,132 @@ footer p { max-width: 70ch; }
     overscroll-behavior: contain;
   }
 
-  .handle {
-    display: block;
+  /* SPEC 11.37. Closed, the panel is this bar and nothing else: a line
+     that opens it and a button that opens it with the keyboard. The grab
+     strip sits above both, drawn by the bar rather than by either control,
+     so neither of them owns it. */
+  .sheetbar {
+    display: flex;
+    align-items: stretch;
+    gap: 0.4rem;
     position: sticky;
     top: 0;
     z-index: 3;
-    width: 100%;
-    padding: 0.5rem;
+    padding: 0.55rem 0.6rem 0.45rem;
     background: var(--card);
-    border: 0;
     border-bottom: 1px solid var(--rule);
-    font-size: 0.85rem;
-    color: var(--quiet);
   }
 
-  .handle::before {
+  .sheetbar::before {
     content: "";
-    display: block;
+    position: absolute;
+    left: 50%;
+    top: 0.22rem;
+    transform: translateX(-50%);
     width: 2.2rem;
     height: 3px;
-    margin: 0 auto 0.35rem;
     background: var(--rule);
     border-radius: 2px;
   }
+
+  .handle {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    /* The line gives way, never the button: it takes what width is left,
+       wraps to a second line, and is cut with an ellipsis after that. */
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.35rem 0.1rem 0.35rem 0.2rem;
+    background: none;
+    border: 0;
+    text-align: left;
+    font-size: 0.95rem;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+
+  .sheetsearch {
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 0.35rem 0.85rem;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    color: #0b4f8a;
+    white-space: nowrap;
+  }
+
+  /* Closed, everything below the bar is out of the way and the map has the
+     rest of the screen: the search box, Use my location, the counts, the
+     dots and How to read this map are all things to read once the panel is
+     open, and none of them is worth two thirds of a phone. */
+  .shell:not(.open) .sheetbody { display: none; }
+
+  /* Closed, the panel is the bar: no padding of its own under it, or
+     the map loses a line of screen to nothing at all. */
+  .shell:not(.open) .panel {
+    flex: 0 0 auto;
+    max-height: none;
+    padding: 0;
+  }
+
+  /* SPEC 11.37. The white line moves into How to read this map, where
+     there is room for it; in the bar it cost the map a whole line. */
+  .legend-white { display: none; }
+
+  /* SPEC 11.37, read on a Samsung A32. Nothing in the panel under 13px,
+     the lines that carry the answer at 15 or more, and the chosen row --
+     the one the map is coloured by -- larger again. */
+  .panel .countrow { font-size: 0.95rem; min-height: 44px; }
+  .panel .rowwhat { font-size: 0.95rem; }
+  .panel .rowcount { font-size: 1rem; }
+  .panel .countrow.on .rowcount { font-size: 1.15rem; }
+  .panel .rowband { font-size: 0.86rem; }
+  .panel .chip, .panel .chip.tiny { font-size: 0.95rem; }
+  .panel .pastline { font-size: 0.95rem; }
+  .panel .trustline { font-size: 0.95rem; }
+  .panel .counts > .small { font-size: 0.95rem; }
+  .panel .howto li { font-size: 0.95rem; }
+  .panel .whitehere {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: var(--quiet);
+  }
+  .panel .whylabel { font-size: 0.9rem; }
+  .panel .whylabel summary { min-height: 44px; display: flex;
+    align-items: center; font-size: 0.95rem; }
+  .panel .small, .panel .note, .panel .prompt { font-size: 0.86rem; }
+  .panel .cellday { font-size: 0.82rem; }
+  .panel .who { font-size: 0.82rem; }
+  .panel .arith { font-size: 0.82rem; }
+  .panel .daysec .cell { min-height: 44px; }
+  .panel .finder button, .panel .matches button,
+  .panel .didyoumean button { min-height: 44px; }
+  .panel .search input { min-height: 44px; font-size: 1rem; }
+
+  /* The floor itself: the rest of the panel's small type, none of it
+     under 13px on a phone. Nothing here is removed or dropped -- the
+     warning, the credits and the dot key all stay and are bigger. */
+  .panel h3 { font-size: 0.9rem; }
+  .panel .search label { font-size: 0.86rem; }
+  .panel .dotkey li { font-size: 0.86rem; }
+  .panel .warning, .panel .credit, .panel footer summary,
+  .panel .creditfull { font-size: 0.86rem; }
+  .panel .conds, .panel .trustnotes { font-size: 0.86rem; }
+  .panel #credits p, .panel #credits a,
+  .panel #credits summary { font-size: 0.86rem; }
+  .panel .reveal, .panel #credits summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .panel .moved, .panel .squareused { font-size: 0.86rem; }
 
   /* Open, the panel takes most of the stage and the map keeps its floor.
      `max-height: none` let the panel grow past the bottom of the screen

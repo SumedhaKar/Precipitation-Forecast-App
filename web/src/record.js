@@ -120,6 +120,16 @@ export const TOO_FEW = 'Too few past cases with this many runs agreeing to '
  * in 10" reads as always. Both ends are rounded, so both are said as the
  * roundings they are.
  */
+/* SPEC 11.37. The one line the phone's closed bar carries. Pure, like
+   everything else here: the caller works out which place and which count,
+   and this says it in the panel's own words. */
+export const PICK_A_PLACE = 'Tap the map to pick a place';
+
+export function barLine(where, count, members, threshold) {
+  if (!where || !Number.isInteger(count) || !members) return PICK_A_PLACE;
+  return `${where}: ${count} of ${members} runs reach ${threshold} mm`;
+}
+
 export function howOften(bucket) {
   const times = bucket.times_in_10;
   if (times <= 0) return 'fewer than 1 time in 10';

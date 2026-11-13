@@ -19,6 +19,7 @@ store, square by square and day by day, and the whole millimetres against
 """
 from __future__ import annotations
 
+import datetime as dt
 import gzip
 import http.server
 import json
@@ -33,6 +34,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from pipeline import config as cfg
 from pipeline import publish
 from pipeline.publish import FakeStore
 
@@ -1927,11 +1929,14 @@ def test_a_colour_swatch_is_not_a_control():
     assert (".dotkey .swatch { width: 0.8rem; height: 0.8rem; "
             "border-radius: 50%; }") in css
 
-    for name in ("Legend.jsx", "Panel.jsx"):
+    # Two in the legend, and three in the panel since the white line moved
+    # into How to read this map (SPEC 11.37). Every one of them, wherever
+    # they are, is a hidden span with nothing pressable near it.
+    for name, many in (("Legend.jsx", 2), ("Panel.jsx", 3)):
         text = (ROOT / "web" / "src" / name).read_text("utf-8")
         parts = text.split('className="swatch"')
-        assert len(parts) == 3, name          # two swatches, three pieces
-        assert text.count('aria-hidden="true"') == 2, name
+        assert len(parts) == many + 1, name
+        assert text.count('aria-hidden="true"') == many, name
         for before, after in zip(parts[:-1], parts[1:]):
             # A span, hidden from the reading order, with nothing that can be
             # pressed or tabbed to anywhere near it.
@@ -3152,14 +3157,15 @@ def test_with_no_script_the_page_links_to_the_files_themselves():
 # --------------------------------------------- SPEC 11.35, the phone's bars
 
 VIEWPORT_HARNESS = r"""
-// SPEC 11.35 and 11.36. The built site measured in a real browser at a
+// SPEC 11.35 to 11.37. The built site measured in a real browser at a
 // phone's size, driven over the DevTools protocol with nothing installed:
 // node's own WebSocket and http server, and whatever Chrome the machine has.
 //
 // It serves `web/dist` itself, because the page loads its modules with
-// `type="module"` and a file:// page may not. There is no API: `/api/*`
-// answers 503, which is what a reader with no network sees, and the shell,
-// the panel and the handle are laid out all the same.
+// `type="module"` and a file:// page may not, and it answers /api/health and
+// /api/place by importing the real api/*.mjs files. With STORE_BASE_URL set
+// those read the small published run the test built; without it they fail,
+// and the page is measured as a reader with no network sees it.
 //
 // Prints one JSON object. `{"skip": "..."}` means no browser was found.
 
@@ -3168,11 +3174,12 @@ import { readFile, mkdtemp, readFile as read } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join, extname, normalize } from 'node:path';
+import { join, extname, normalize, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const DIST = process.argv[2];
-const WIDTH = Number(process.argv[3] || 390);
-const HEIGHT = Number(process.argv[4] || 664);
+const PLAN = JSON.parse(process.argv[3] || '{}');
+const API = PLAN.api ? resolve(PLAN.api) : null;
 
 const CANDIDATES = [
   process.env.CHROME_PATH,
@@ -3203,13 +3210,35 @@ function say(value) {
 const chrome = CANDIDATES.find((path) => existsSync(path));
 if (!chrome) say({ skip: 'no Chrome on this machine' });
 
-// ------------------------------------------------------------- the server
+const fns = {};
+if (API) {
+  fns.health = await import(pathToFileURL(join(API, 'health.mjs')));
+  fns.place = await import(pathToFileURL(join(API, 'place.mjs')));
+}
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url, 'http://127.0.0.1');
   if (url.pathname.startsWith('/api/')) {
-    response.writeHead(503, { 'content-type': 'application/json' });
-    response.end('{"ok":false,"store":"not served by this check"}');
+    const fn = url.pathname.endsWith('health') ? fns.health : fns.place;
+    if (!fn) {
+      response.writeHead(503, { 'content-type': 'application/json' });
+      response.end('{"ok":false,"store":"not served by this check"}');
+      return;
+    }
+    try {
+      const answer = await fn.default.fetch(
+        new Request(`https://local.test${request.url}`));
+      const body = await answer.text();
+      response.writeHead(answer.status, {
+        'content-type': answer.headers.get('content-type')
+          || 'application/json',
+        'cache-control': 'no-store',
+      });
+      response.end(body);
+    } catch (error) {
+      response.writeHead(500, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ ok: false, error: String(error) }));
+    }
     return;
   }
   const asset = /\.[a-z0-9]+$/i.test(url.pathname);
@@ -3231,12 +3260,11 @@ const server = createServer(async (request, response) => {
 await new Promise((go) => server.listen(0, '127.0.0.1', go));
 const port = server.address().port;
 
-// ------------------------------------------------------------- the browser
-
 const profile = await mkdtemp(join(tmpdir(), 'hcview-'));
 const child = spawn(chrome, [
-  '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
-  '--disable-extensions', '--disable-dev-shm-usage', '--no-sandbox',
+  '--headless=new', '--disable-gpu', '--no-first-run',
+  '--no-default-browser-check', '--disable-extensions',
+  '--disable-dev-shm-usage', '--no-sandbox', '--use-gl=swiftshader',
   `--user-data-dir=${profile}`, '--remote-debugging-port=0', 'about:blank',
 ], { stdio: ['ignore', 'ignore', 'ignore'] });
 
@@ -3306,92 +3334,264 @@ async function evaluate(expression) {
   return answer.result.value;
 }
 
+async function tap(x, y) {
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await send('Input.dispatchMouseEvent', {
+      type, x, y, button: 'left', clickCount: 1,
+    }, sessionId);
+  }
+  await new Promise((go) => setTimeout(go, 900));
+}
+
+async function size(width, height) {
+  await send('Emulation.setDeviceMetricsOverride', {
+    width, height, deviceScaleFactor: 1, mobile: true,
+  }, sessionId);
+  await new Promise((go) => setTimeout(go, 400));
+}
+
+async function open(path) {
+  await send('Page.navigate', { url: `http://127.0.0.1:${port}${path}` },
+    sessionId);
+  await new Promise((go) => setTimeout(go, PLAN.settle || 1800));
+}
+
+// What every page is asked for: the shape of it, with no interaction.
+const LOOK = `(async () => {
+  const box = (s) => {
+    const e = document.querySelector(s);
+    if (!e) return null;
+    const b = e.getBoundingClientRect();
+    return { top: Math.round(b.top), bottom: Math.round(b.bottom),
+             height: Math.round(b.height * 10) / 10,
+             right: Math.round(b.right), width: Math.round(b.width) };
+  };
+  const lines = (s) => {
+    const e = document.querySelector(s);
+    if (!e) return null;
+    const range = document.createRange();
+    range.selectNodeContents(e);
+    return range.getClientRects().length;
+  };
+  const seen = {
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    docScrollWidth: document.documentElement.scrollWidth,
+    bodyScrollWidth: document.body.scrollWidth,
+    sideways: [...document.querySelectorAll('.gridwrap, .labelgrid')]
+      .filter((e) => e.scrollWidth > e.clientWidth + 1).length,
+    chipsCut: [...document.querySelectorAll('.labelgrid .chip')]
+      .filter((e) => e.scrollWidth > e.clientWidth + 1
+        || e.scrollHeight > e.clientHeight + 1).length,
+    chips: document.querySelectorAll('.labelgrid .chip').length,
+    marks: document.querySelectorAll('.labelgrid .beat').length,
+    rowHeads: [...document.querySelectorAll('.labelgrid tbody th')]
+      .map((e) => ({ text: e.textContent.trim(),
+        nowrap: getComputedStyle(e).whiteSpace === 'nowrap',
+        fits: e.scrollWidth <= e.clientWidth + 1 })),
+    open: document.querySelector('.shell')
+      ? document.querySelector('.shell').className.includes('open') : null,
+    header: box('header'),
+    controls: box('.controls'),
+    legend: box('.legend'),
+    mapError: (document.querySelector('.loading')
+      || {}).textContent || null,
+    map: box('.mapwrap'),
+    panel: box('.panel'),
+    bar: box('.sheetbar'),
+    handle: box('.handle'),
+    handleText: document.querySelector('.handle')
+      ? document.querySelector('.handle').textContent : null,
+    handleLines: lines('.handle'),
+    search: box('.sheetsearch'),
+    whiteHere: !!document.querySelector('.whitehere'),
+    legendWhite: document.querySelector('.legend-white')
+      ? getComputedStyle(document.querySelector('.legend-white'))
+        .display : null,
+    focus: document.activeElement ? (document.activeElement.id
+      || document.activeElement.className || document.activeElement.tagName)
+      : null,
+  };
+  const wide = document.createElement('style');
+  wide.textContent = '*{letter-spacing:0.5px !important}';
+  document.head.appendChild(wide);
+  await new Promise((go) => requestAnimationFrame(go));
+  seen.wideFontScrollWidth = document.documentElement.scrollWidth;
+  seen.wideFontGridOverflow = [...document.querySelectorAll('.gridwrap')]
+    .filter((e) => e.scrollWidth > e.clientWidth + 1).length;
+  wide.remove();
+  return seen;
+})()`;
+
+// What the open panel is asked for: type sizes and tap targets.
+const INSIDE = `(() => {
+  const px = (s) => {
+    const e = document.querySelector(s);
+    return e ? Math.round(parseFloat(getComputedStyle(e).fontSize) * 10) / 10
+      : null;
+  };
+  const panel = document.querySelector('.panel');
+  const small = [];
+  const short = [];
+  panel.querySelectorAll('*').forEach((e) => {
+    const r = e.getBoundingClientRect();
+    if (r.height === 0) return;
+    const text = [...e.childNodes].some(
+      (n) => n.nodeType === 3 && n.textContent.trim());
+    const fs = parseFloat(getComputedStyle(e).fontSize);
+    if (text && fs < 13) {
+      small.push([e.className || e.tagName, Math.round(fs * 10) / 10,
+        e.textContent.trim().slice(0, 30)]);
+    }
+    if (['BUTTON', 'SUMMARY', 'INPUT'].includes(e.tagName) && r.height < 43.5) {
+      short.push([e.className || e.tagName, Math.round(r.height * 10) / 10,
+        e.textContent.trim().slice(0, 24)]);
+    }
+  });
+  return {
+    sizes: {
+      placeLine: px('.placeline h2'),
+      chosenRow: px('.countrow.on'),
+      chosenCount: px('.countrow.on .rowcount'),
+      rowWhat: px('.countrow .rowwhat'),
+      rowChip: px('.countrow .chip'),
+      trustChip: px('.trustline .chip'),
+      trustLine: px('.trustline'),
+      pastLine: px('.pastline'),
+      notProbability: px('.counts > .small'),
+    },
+    has: {
+      counts: !!document.querySelector('.countrow'),
+      trust: !!document.querySelector('.trustline .chip'),
+      past: !!document.querySelector('.pastline'),
+      whiteHere: !!document.querySelector('.whitehere'),
+      legendWhite: document.querySelector('.legend-white')
+        ? getComputedStyle(document.querySelector('.legend-white')).display
+        : null,
+    },
+    panelText: panel.textContent.replace(/\s+/g, ' ').slice(0, 220),
+    panelScroll: [panel.scrollHeight, panel.clientHeight],
+    belowThirteen: small,
+    tapTargetsUnder44: short,
+  };
+})()`;
+
 try {
   await send('Page.enable', {}, sessionId);
   await send('Runtime.enable', {}, sessionId);
-  await send('Emulation.setDeviceMetricsOverride', {
-    width: WIDTH, height: HEIGHT, deviceScaleFactor: 1, mobile: true,
-  }, sessionId);
 
-  const out = {};
-  for (const path of ['/', '/report-card', '/how-we-checked']) {
-    await send('Page.navigate', { url: `http://127.0.0.1:${port}${path}` },
-      sessionId);
-    await new Promise((go) => setTimeout(go, 1200));
-    out[path] = await evaluate(`(async () => {
-      const box = (s) => {
-        const e = document.querySelector(s);
-        if (!e) return null;
-        const b = e.getBoundingClientRect();
-        return { top: Math.round(b.top), bottom: Math.round(b.bottom),
-                 height: Math.round(b.height) };
-      };
-      const seen = {
-        innerWidth: window.innerWidth,
-        innerHeight: window.innerHeight,
-        docScrollWidth: document.documentElement.scrollWidth,
-        bodyScrollWidth: document.body.scrollWidth,
-        sideways: [...document.querySelectorAll('.gridwrap, .labelgrid')]
-          .filter((e) => e.scrollWidth > e.clientWidth + 1).length,
-        chipsCut: [...document.querySelectorAll('.labelgrid .chip')]
-          .filter((e) => e.scrollWidth > e.clientWidth + 1
-            || e.scrollHeight > e.clientHeight + 1).length,
-        chips: document.querySelectorAll('.labelgrid .chip').length,
-        marks: document.querySelectorAll('.labelgrid .beat').length,
-        rowHeads: [...document.querySelectorAll('.labelgrid tbody th')]
-          .map((e) => ({ text: e.textContent.trim(),
-            nowrap: getComputedStyle(e).whiteSpace === 'nowrap',
-            fits: e.scrollWidth <= e.clientWidth + 1 })),
-      };
-      const handle = document.querySelector('.handle');
-      if (handle) {
-        seen.shut = { handle: box('.handle'), panel: box('.panel'),
-          map: box('.mapwrap') };
-        seen.shut.handleFullyVisible = seen.shut.handle.top >= 0
-          && seen.shut.handle.bottom <= window.innerHeight;
-        handle.click();
-        // React re-renders on its own schedule, so wait two frames before
-        // measuring what the click did.
-        await new Promise((go) => requestAnimationFrame(
-          () => requestAnimationFrame(go)));
-        // The 51 member values stand in as one tall block, because there is
-        // no API here to fetch a square's numbers with. Padding, not a
-        // margin: a margin on the first child collapses out of the box and
-        // the marker ends up above the scroll instead of at its end.
-        const tall = document.createElement('div');
-        tall.id = 'standsin';
-        tall.style.paddingTop = '900px';
-        tall.innerHTML = '<p id="lastline">the last line</p>';
-        const panel = document.querySelector('.panel');
-        panel.appendChild(tall);
-        seen.open = { handle: box('.handle'), panel: box('.panel'),
-          map: box('.mapwrap'),
-          opened: document.querySelector('.shell').className.includes('open'),
-          scrollHeight: panel.scrollHeight, clientHeight: panel.clientHeight,
-          overflowY: getComputedStyle(panel).overflowY };
-        panel.scrollTop = panel.scrollHeight;
-        await new Promise((go) => requestAnimationFrame(go));
-        const last = box('#lastline');
-        seen.open.lastLineVisible = last !== null && last.top >= 0
-          && last.bottom <= window.innerHeight + 1;
-        seen.open.lastLine = last;
+  const out = { pages: {}, phone: {} };
+
+  // The two document pages, at a phone's width.
+  await size(390, 664);
+  for (const path of ['/report-card', '/how-we-checked']) {
+    await open(path);
+    out.pages[path] = await evaluate(LOOK);
+  }
+
+  // The forecast page, at each size the tests ask about.
+  for (const [width, height] of (PLAN.sizes || [[390, 664]])) {
+    const key = `${width}x${height}`;
+    const here = {};
+    await size(width, height);
+    await open('/');
+    here.shut = await evaluate(LOOK);
+
+    // The line opens the panel, and asks for no keyboard.
+    await evaluate("document.querySelector('.handle').click()");
+    await new Promise((go) => setTimeout(go, 700));
+    here.afterLine = await evaluate(LOOK);
+    await evaluate("document.querySelector('.handle').click()");
+    await new Promise((go) => setTimeout(go, 700));
+    here.afterHandleCloses = await evaluate(LOOK);
+
+    // "Search" opens it and asks for the keyboard.
+    await evaluate("document.querySelector('.sheetsearch').click()");
+    await new Promise((go) => setTimeout(go, 700));
+    here.afterSearch = await evaluate(LOOK);
+    await evaluate("document.querySelector('.handle').click()");
+    await new Promise((go) => setTimeout(go, 700));
+
+    // The longest line this page can say, put in the bar to see whether the
+    // button survives it. The words are the page's own; only the place name
+    // and the count are the worst case the town list allows.
+    if (PLAN.longest) {
+      await evaluate(
+        `document.querySelector('.handle').textContent = ${
+          JSON.stringify(PLAN.longest)}`);
+      await new Promise((go) => setTimeout(go, 400));
+      here.withLongestLine = await evaluate(LOOK);
+      await evaluate("document.querySelector('.handle').textContent = "
+        + "'Tap the map to pick a place'");
+    }
+
+    // A tap on the map itself.
+    const map = here.shut.map;
+    if (map && map.height > 40) {
+      // Where a square is on the screen, worked out from the map's own
+      // bounds: the view is all of India and the run a test publishes
+      // covers a two degree box inside it, so the middle of the map is
+      // open sea. The spots below are only a fallback.
+      const want = PLAN.target;
+      if (want) {
+        const view = await evaluate(
+          "document.querySelector('.map').mapView()");
+        const seen = await evaluate(
+          "(() => { const b = document.querySelector('.map')"
+          + ".getBoundingClientRect(); return { left: b.left, top: b.top,"
+          + " width: b.width, height: b.height }; })()");
+        const [west, south, east, north] = view.bounds;
+        const m = (lat) => Math.log(Math.tan(Math.PI / 4
+          + (lat * Math.PI) / 360));
+        const x = seen.left
+          + ((want[1] - west) / (east - west)) * seen.width;
+        const y = seen.top
+          + ((m(north) - m(want[0])) / (m(north) - m(south))) * seen.height;
+        here.tappedFor = { want, at: [Math.round(x), Math.round(y)] };
+        if (x > seen.left && x < seen.left + seen.width
+            && y > seen.top && y < seen.top + seen.height) {
+          await tap(Math.round(x), Math.round(y));
+        }
       }
-      // The columns of a table come out as wide as the text in them, and
-      // how wide that is depends on the font the machine happens to have.
-      // Measured again with every letter half a pixel wider, which stands
-      // in for a machine with other fonts -- the test runner is one -- and
-      // which no font substitution can quietly undo.
-      const wide = document.createElement('style');
-      wide.textContent = '*{letter-spacing:0.5px !important}';
-      document.head.appendChild(wide);
-      await new Promise((go) => requestAnimationFrame(go));
-      seen.wideFontScrollWidth = document.documentElement.scrollWidth;
-      seen.wideFontGridOverflow = [
-        ...document.querySelectorAll('.gridwrap')]
-        .filter((e) => e.scrollWidth > e.clientWidth + 1).length;
-      wide.remove();
-      return seen;
-    })()`);
+      if (!await evaluate("!!document.querySelector('.countrow')")) {
+        // A tap at the middle of the map may land on sea, and on the small
+        // run a test publishes it usually does. The spots are tried in order
+        // until one answers with counts; which one answered is reported, so
+        // a test can say that none did rather than quietly passing.
+        const spots = [[0, 0], [0, -0.2], [0, 0.2], [-0.2, 0], [0.2, 0],
+          [-0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2]];
+        for (const [dx, dy] of spots) {
+          await tap(Math.round(width * (0.5 + dx)),
+            Math.round(map.top + map.height * (0.5 + dy)));
+          here.tappedAt = [dx, dy];
+          const got = await evaluate(
+            "!!document.querySelector('.countrow')");
+          if (got) break;
+          // Shut it again before the next try, so each tap is the first one.
+          if (await evaluate(
+            "document.querySelector('.shell').className.includes('open')")) {
+            await evaluate("document.querySelector('.handle').click()");
+            await new Promise((go) => setTimeout(go, 500));
+          }
+        }
+      }
+      here.afterMapTap = await evaluate(LOOK);
+      here.inside = await evaluate(INSIDE);
+      // And the map gets its size back when the panel closes.
+      await evaluate("document.querySelector('.handle').click()");
+      await new Promise((go) => setTimeout(go, 2000));
+      here.afterClosingAgain = await evaluate(`(() => {
+        const wrap = document.querySelector('.mapwrap');
+        const canvas = document.querySelector('.maplibregl-canvas');
+        return {
+          wrap: Math.round(wrap.getBoundingClientRect().height),
+          canvas: canvas
+            ? Math.round(canvas.getBoundingClientRect().height) : null,
+          open: document.querySelector('.shell').className.includes('open'),
+        };
+      })()`);
+    }
+    out.phone[key] = here;
   }
   stop(out);
 } catch (error) {
@@ -3401,14 +3601,20 @@ try {
 
 
 @pytest.fixture(scope="module")
-def viewport():
-    """The built site, measured in a real browser at 390 by 664.
+def viewport(tmp_path_factory):
+    """The built site, measured in a real browser at a phone's size.
 
     A headless browser has no address bar and no system bar, so this is a
-    check of a short screen and not of the bug itself: what it proves is
-    that the handle and the panel are laid out inside the viewport they are
-    given, which is the rule the bug broke. The bug's own measurement, on
-    the real geometry, is in SPEC 11.35.
+    check of a short screen and not of the bug of SPEC 11.35 itself: what it
+    proves is that the bar, the panel and the map are laid out inside the
+    viewport they are given, which is the rule that bug broke. The bug's own
+    measurement, on the real geometry, is in SPEC 11.35.
+
+    The API is real: a small run is written and published through the real
+    publisher into a directory, served over HTTP, and `api/health` and
+    `api/place` are imported and run against it. So the panel measured here
+    holds real counts, a real chip and a real sentence, and not a drawing of
+    them.
 
     Chrome is driven over the DevTools protocol by node's own WebSocket, so
     nothing is installed for this. With no browser on the machine the test
@@ -3417,38 +3623,108 @@ def viewport():
     web = ROOT / "web"
     if node is None or not (web / "node_modules" / "vite").exists():
         pytest.skip("node and the web dependencies are needed to measure")
-    out = web / "node_modules" / ".view-test"
-    vite = web / "node_modules" / ".bin" / (
-        "vite.cmd" if os.name == "nt" else "vite")
-    done = subprocess.run(
-        [str(vite), "build", "--outDir", "node_modules/.view-test",
-         "--emptyOutDir", "--logLevel", "error"],
-        capture_output=True, text=True, check=False, cwd=web, shell=False)
-    assert done.returncode == 0, f"vite failed: {done.stdout}\n{done.stderr}"
 
-    runner = out / "measure.mjs"
-    runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
-    done = subprocess.run(
-        [node, str(runner), str(out), "390", "664"],
-        capture_output=True, text=True, check=False, cwd=web, timeout=300)
-    assert done.returncode == 0, f"the browser check failed: {done.stderr}"
-    seen = json.loads(done.stdout)
-    if "skip" in seen:
-        pytest.skip(seen["skip"])
-    return seen
+    tmp = tmp_path_factory.mktemp("viewport")
+    with pytest.MonkeyPatch.context() as mp:
+        india = small_grid(mp)
+        live = tmp / "live"
+        live.mkdir()
+        mp.setattr(publish, "LIVE", live)
+        mp.setattr(publish, "run_dir", lambda run_id: live / run_id)
+        write_run(live, RUN, india)
+        # One India square of that run, for the tap on the map to aim at.
+        rows, cols = np.nonzero(india)
+        middle = len(rows) // 2
+        target = [float(cfg.INDIA_LATS[rows[middle]]),
+                  float(cfg.INDIA_LONS[cols[middle]])]
+        # The run is given a run time two hours ago. Everything else about
+        # it is the fixture's own, but a run time from last week would put
+        # the stale banner of 11.8 across the page, and this is a
+        # measurement of the page a reader sees on an ordinary day.
+        where = live / RUN / "manifest.json"
+        manifest = json.loads(where.read_text(encoding="utf-8"))
+        fresh = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2)
+        manifest["run_time_utc"] = fresh.isoformat()
+        manifest["run_time_ist"] = fresh.astimezone(
+            dt.timezone(dt.timedelta(hours=5, minutes=30))).isoformat()
+        where.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        served = tmp / "store"
+        answer = publish.publish(FakeStore(), RUN, work_dir=served,
+                                 mark=False)
+        assert answer["published"] is True
+
+    # The page fetches the counts files from the store itself, which is a
+    # different origin from the page: the real store sends the header that
+    # allows it (SPEC 11.13) and this one has to as well, or the browser
+    # blocks them and the map never draws.
+    class Open(Quiet):
+        def end_headers(self):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            super().end_headers()
+
+    handler = type("Rooted", (Open,),
+                   {"__init__": lambda self, *a, **kw: Open.__init__(
+                       self, *a, directory=str(served), **kw)})
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    try:
+        out = web / "node_modules" / ".view-test"
+        vite = web / "node_modules" / ".bin" / (
+            "vite.cmd" if os.name == "nt" else "vite")
+        done = subprocess.run(
+            [str(vite), "build", "--outDir", "node_modules/.view-test",
+             "--emptyOutDir", "--logLevel", "error"],
+            capture_output=True, text=True, check=False, cwd=web, shell=False)
+        assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
+
+        runner = out / "measure.mjs"
+        runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
+        plan = {
+            "api": str(ROOT / "api"),
+            "sizes": [[390, 664], [390, 844], [320, 568]],
+            "longest": longest_bar_line(),
+            "target": target,
+        }
+        done = subprocess.run(
+            [node, str(runner), str(out), json.dumps(plan)],
+            capture_output=True, text=True, check=False, cwd=web,
+            timeout=600, env={**os.environ, "STORE_BASE_URL": base})
+        assert done.returncode == 0, f"the browser check failed: {done.stderr}"
+        seen = json.loads(done.stdout)
+        if "skip" in seen:
+            pytest.skip(seen["skip"])
+        return seen
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def longest_bar_line() -> str:
+    """The longest line the closed bar can ever carry. SPEC 11.37.
+
+    The page's own words, with the longest name in the town list and the
+    widest numbers the forecast can give: 51 of 51, at 50 mm.
+    """
+    towns = json.loads((ROOT / "web" / "src" / "towns.json")
+                       .read_text(encoding="utf-8"))
+    rows = towns if isinstance(towns, list) else towns["towns"]
+    names = [row["name"] if isinstance(row, dict) else row[0] for row in rows]
+    return f"{max(names, key=len)}: 51 of 51 runs reach 50 mm"
 
 
 @needs_node
 def test_the_details_handle_is_on_the_screen_at_390_by_664(viewport):
     """SPEC 11.35. The one thing a phone reader cannot do without."""
-    page = viewport["/"]
+    page = viewport["phone"]["390x664"]["shut"]
     assert page["innerWidth"] == 390 and page["innerHeight"] == 664
-    shut = page["shut"]
+    shut = page
     assert shut["handle"]["top"] >= 0, shut
     assert shut["handle"]["bottom"] <= 664, (
         f"the handle ends {shut['handle']['bottom'] - 664} pixels below the "
         "screen, which is the bug of SPEC 11.35")
-    assert shut["handleFullyVisible"]
     # And the map is still the larger half of what is left.
     assert shut["map"]["height"] >= shut["panel"]["height"]
 
@@ -3456,31 +3732,28 @@ def test_the_details_handle_is_on_the_screen_at_390_by_664(viewport):
 @needs_node
 def test_the_handle_opens_the_panel_and_the_last_line_can_be_reached(
         viewport):
-    """SPEC 11.35. Open, and scrollable to the end of the 51 values.
-
-    The 51 values stand in as one tall block, because this check serves no
-    API and so has no square's numbers to show; what is being checked is
-    that the panel keeps a height and scrolls inside it, not what is in it.
-    """
-    page = viewport["/"]
-    opened = page["open"]
-    assert opened["opened"], "the handle did not open the sheet"
-    assert opened["panel"]["height"] > page["shut"]["panel"]["height"]
-    assert opened["panel"]["bottom"] <= 664
-    assert opened["overflowY"] == "auto"
-    assert opened["scrollHeight"] > opened["clientHeight"], (
-        "the stand-in content is not taller than the panel, so this proves "
-        "nothing")
-    assert opened["lastLineVisible"], opened["lastLine"]
+    """SPEC 11.35. Open, and scrollable to the end of the 51 values."""
+    here = viewport["phone"]["390x664"]
+    opened = here["afterLine"]
+    assert opened["open"] is True, "the line did not open the sheet"
+    assert opened["panel"]["height"] > here["shut"]["panel"]["height"]
+    assert opened["panel"]["bottom"] <= 664 + 1
     # The map is thinner but never gone.
     assert opened["map"]["height"] >= 48
+
+    # With a square chosen, the panel holds more than it can show and
+    # scrolls inside itself rather than running off the screen.
+    inside = here["inside"]
+    content, box = inside["panelScroll"]
+    assert content > box, (content, box)
+    assert box <= 664
 
 
 @needs_node
 def test_neither_document_page_is_cut_off_at_390_by_664(viewport):
     """SPEC 11.35. The other two pages are documents, not the shell."""
     for path in ("/report-card", "/how-we-checked"):
-        page = viewport[path]
+        page = viewport["pages"][path]
         assert page["docScrollWidth"] <= 390, path
         assert page["bodyScrollWidth"] <= 390, path
         # And with a font wider than this machine's, which is what another
@@ -3492,7 +3765,7 @@ def test_neither_document_page_is_cut_off_at_390_by_664(viewport):
 @needs_node
 def test_the_report_card_grid_fits_a_390_pixel_screen(viewport):
     """SPEC 11.36. No sideways scroll, nothing cut, "1 mm" on one line."""
-    page = viewport["/report-card"]
+    page = viewport["pages"]["/report-card"]
     assert page["chips"] == 60
     assert page["sideways"] == 0, (
         "a grid scrolls sideways at 390 pixels, which hides days 4 and 5")
@@ -3685,3 +3958,165 @@ def test_the_ecmwf_section_carries_the_hand_check_s_own_numbers(rendered):
     # must not carry is this comparison.
     assert "its own figure" not in rendered["pages"]["report_card"]
     assert "more than 5 runs apart" not in rendered["pages"]["report_card"]
+
+
+# ------------------------------------------ SPEC 11.37, the phone's bottom bar
+
+@needs_node
+def test_the_closed_bar_is_the_whole_panel_and_the_map_has_the_rest(viewport):
+    """SPEC 11.37. Shut, the panel is one line and one button."""
+    for key, floor in (("390x664", 250), ("390x844", 420)):
+        shut = viewport["phone"][key]["shut"]
+        height = int(key.split("x")[1])
+        assert shut["open"] is False
+        assert shut["bar"] is not None, "no bottom bar"
+        assert shut["bar"]["bottom"] <= height + 1, (key, shut["bar"])
+        assert shut["handle"]["bottom"] <= height + 1
+        assert shut["search"]["bottom"] <= height + 1
+        assert shut["search"]["right"] <= int(key.split("x")[0]) + 1
+        # The bar is the whole of the shut panel: nothing under it.
+        assert shut["panel"]["height"] - shut["bar"]["height"] <= 2, (
+            key, shut["panel"], shut["bar"])
+        assert shut["map"]["height"] >= floor, (
+            f"{key}: the map is {shut['map']['height']}, under {floor}")
+
+
+@needs_node
+def test_the_line_before_a_place_is_chosen_fits_one_line_at_390(viewport):
+    """SPEC 11.37. "Tap the map to pick a place", on one line."""
+    shut = viewport["phone"]["390x664"]["shut"]
+    assert shut["handleText"] == "Tap the map to pick a place"
+    assert shut["handleLines"] == 1, shut["handleLines"]
+
+
+@needs_node
+def test_the_search_button_survives_the_longest_line_at_320(viewport):
+    """SPEC 11.37. The line gives way, never the button."""
+    seen = viewport["phone"]["320x568"]["withLongestLine"]
+    assert seen["handleText"] == longest_bar_line()
+    assert "Thiruvananthapuram" in seen["handleText"]
+    assert seen["search"]["height"] >= 44, seen["search"]
+    assert seen["search"]["bottom"] <= 568 + 1, seen["search"]
+    assert seen["search"]["right"] <= 320 + 1, seen["search"]
+    # The line is what wrapped or was cut, and it has not pushed the bar off
+    # the screen either.
+    assert seen["bar"]["bottom"] <= 568 + 1
+    assert seen["handleLines"] >= 1
+
+
+@needs_node
+def test_each_control_in_the_bar_does_one_thing(viewport):
+    """SPEC 11.37. The line, the button, and the handle again."""
+    here = viewport["phone"]["390x664"]
+
+    # The line opens the panel and asks for no keyboard.
+    assert here["afterLine"]["open"] is True
+    assert here["afterLine"]["focus"] != "place", (
+        "the line gave the search box the keyboard")
+    assert here["afterLine"]["handleText"] == "Hide the details"
+
+    # The handle closes it again.
+    assert here["afterHandleCloses"]["open"] is False
+    assert here["afterHandleCloses"]["handleText"] \
+        == "Tap the map to pick a place"
+
+    # "Search" opens it with the keyboard in the search box.
+    assert here["afterSearch"]["open"] is True
+    assert here["afterSearch"]["focus"] == "place", here["afterSearch"]
+
+
+@needs_node
+def test_tapping_the_map_opens_the_panel_on_that_square(viewport):
+    """SPEC 11.37 and 11.30. A result is never hidden behind a closed bar."""
+    here = viewport["phone"]["390x664"]
+    assert here["afterMapTap"]["open"] is True
+    assert here["inside"]["has"]["counts"], "no counts in the opened panel"
+    assert here["inside"]["has"]["trust"], "no trust chip in the opened panel"
+    # And the map gets its height back when the panel is closed again.
+    back = here["afterClosingAgain"]
+    assert back["open"] is False
+    assert back["wrap"] >= 250
+    assert abs(back["canvas"] - back["wrap"]) <= 2, (
+        f"the map is {back['wrap']} tall and its canvas {back['canvas']}: "
+        "it did not resize when the panel closed")
+
+
+@needs_node
+def test_the_open_panel_can_be_read_on_a_phone(viewport):
+    """SPEC 11.37, item by item, on the panel a tap on the map opens."""
+    inside = viewport["phone"]["390x664"]["inside"]
+    sizes = inside["sizes"]
+
+    # At least 15px: the lines that carry the answer.
+    for what in ("chosenRow", "rowWhat", "trustChip", "trustLine",
+                 "notProbability"):
+        assert sizes[what] is not None, what
+        assert sizes[what] >= 15, (what, sizes[what])
+    if sizes["pastLine"] is not None:
+        assert sizes["pastLine"] >= 15, sizes["pastLine"]
+
+    # The main result line is larger again.
+    assert sizes["chosenCount"] > sizes["chosenRow"], sizes
+    assert sizes["chosenCount"] >= 17, sizes["chosenCount"]
+
+    # Nothing in the panel under 13px, and every tap target 44px tall.
+    assert inside["belowThirteen"] == [], inside["belowThirteen"]
+    assert inside["tapTargetsUnder44"] == [], inside["tapTargetsUnder44"]
+
+    # It still scrolls to its last line.
+    content, box = inside["panelScroll"]
+    assert content > box, (content, box)
+
+
+@needs_node
+def test_the_white_line_is_in_how_to_read_the_map_on_a_phone(viewport):
+    """SPEC 11.37, item 5: moved, not dropped, and never in both places."""
+    # How to read this map is what a reader sees before they choose a
+    # place, which is where this line belongs.
+    seen = viewport["phone"]["390x664"]["afterLine"]
+    assert seen["whiteHere"] is True
+    assert seen["legendWhite"] == "none", seen["legendWhite"]
+
+
+def test_the_closed_bar_is_a_phone_rule_and_the_desktop_keeps_its_panel():
+    """SPEC 11.37. Every rule here is inside a phone media block."""
+    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
+    desktop = css.split("@media (max-width: 1023px)")[0]
+    assert ".handle, .sheetbar { display: none; }" in desktop
+    assert ".whitehere { display: none; }" in desktop
+    # The blocks themselves are indented, which is to say inside the media
+    # query; the only mention above it is the one that hides them.
+    for rule in ("  .sheetbar {", "  .sheetsearch {",
+                 "  .shell:not(.open) .sheetbody"):
+        assert rule not in desktop, rule
+        assert rule in css, rule
+
+
+def test_the_bar_says_what_the_panel_says(exports):
+    """SPEC 11.37. One line, in the panel's own words."""
+    said = exports(ROOT / "web" / "src" / "record.js", "barLine",
+                   [["Bhopal", 7, 51, 10],
+                    ["23.25 N 77.5 E", 0, 51, 1],
+                    [None, 7, 51, 10],
+                    ["Bhopal", None, 51, 10]])
+    assert said[0] == "Bhopal: 7 of 51 runs reach 10 mm"
+    assert said[1] == "23.25 N 77.5 E: 0 of 51 runs reach 1 mm"
+    # Nothing chosen, or no count yet: the prompt, never somebody else's
+    # number under this place's name.
+    assert said[2] == "Tap the map to pick a place"
+    assert said[3] == "Tap the map to pick a place"
+
+
+@needs_node
+def test_the_bar_shows_the_chosen_place_after_a_tap(viewport):
+    """SPEC 11.37. The rendered line, not the function that makes it."""
+    here = viewport["phone"]["390x664"]
+    shut = here["afterClosingAgain"]
+    assert shut["open"] is False
+    line = here["afterMapTap"]["handleText"]
+    assert line == "Hide the details", line
+
+
+
+
+
