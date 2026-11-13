@@ -7,6 +7,8 @@ at a time.
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from pipeline import labels
@@ -197,6 +199,11 @@ def whole(groups) -> dict:
         "bucket_floor": {"cases": 100, "dates": 10},
         "wording": "agreed with the satellite estimate",
         "crps_compared": False,
+        "not_computed": {"corp": "not computed",
+                          "random_error": "not computed"},
+        "crps": {"baseline": "the 30 days before the run", "rows": [],
+                 "disagreement": []},
+        "frequency_check": {"wording": "", "ratio": "", "rows": []},
         "groups_scored": groups,
     })
 
@@ -266,3 +273,133 @@ def test_the_rules_that_decided_the_labels_are_written_beside_them():
         "bucket_floor": {"cases": 100, "dates": 10}}
     assert record["crps_compared"] is False
     assert record["luck_wording"] == labels.LUCK
+
+# -------------------------------------------------------- the site file
+
+def built(groups=None, crps=True) -> tuple:
+    """A whole record and its site file, from one made-up group."""
+    groups = groups or [spread("Region A", 1, 10.0)]
+    result = {
+        "regions": ["Region A", "Region B"],
+        "leads": [1, 2],
+        "bootstrap": {"resamples": RESAMPLES},
+        "bucket_floor": {"cases": 100, "dates": 10},
+        "wording": "agreed with the satellite estimate",
+        "crps_compared": crps,
+        "not_computed": {"corp": "not computed",
+                         "random_error": "not computed"},
+        "crps": {
+            "baseline": "the 30 days before the run",
+            "rows": [{"variant": "all51", "region": "Region A",
+                      "lead_day": 1, "crpss_fair": 0.3, "crpss_lo": 0.2,
+                      "crpss_hi": 0.4}],
+            "disagreement": [{"region": "Region A", "lead_day": 1,
+                              "threshold_mm": 10.0,
+                              "brier_above_zero": False,
+                              "crps_above_zero": True, "disagrees": True}],
+        },
+        "frequency_check": {
+            "wording": "the model says this much rain more often than the "
+                       "satellite sees it",
+            "ratio": "mean forecast over observed frequency",
+            "rows": [{"variant": "all51", "region": "Region A",
+                      "lead_day": 1, "threshold_mm": 10.0, "cases": 10,
+                      "mean_forecast": 0.6, "observed": 0.5, "ratio": 1.2,
+                      "wording": "the model says this much rain more often "
+                                 "than the satellite sees it"},
+                     {"variant": "all51", "region": "All India",
+                      "lead_day": 1, "threshold_mm": 10.0, "cases": 20,
+                      "mean_forecast": 0.55, "observed": 0.5, "ratio": 1.1,
+                      "wording": "the model says this much rain more often "
+                                 "than the satellite sees it"}],
+        },
+        "groups_scored": groups,
+    }
+    record = labels.build(result)
+    return result, record, labels.site_summary(result, record)
+
+
+def test_the_site_file_is_small_enough_to_send():
+    """A page that waits for a megabyte is a page nobody reads."""
+    _, _, site = built()
+    size = len(json.dumps(site, separators=(",", ":")).encode())
+    assert size < labels.SITE_FILE_LIMIT
+    assert labels.SITE_FILE_LIMIT == 100_000
+    assert labels.SITE_FILE.name == "site_summary.json"
+
+
+def test_the_site_file_carries_the_label_and_why_and_nothing_spare():
+    """Everything a page needs to show a label honestly."""
+    _, record, site = built()
+    assert len(site["groups"]) == len(record["labels"])
+    row = [g for g in site["groups"] if g["region"] == "Region A"
+           and g["lead_day"] == 1 and g["threshold_mm"] == 10.0][0]
+    assert row["label"] == labels.GOOD and row["colour"] == "green"
+    for name in ("enough_data", "skill_above_zero", "range_narrow_enough",
+                 "small_honesty_error"):
+        assert name in row["conditions"]
+    assert row["conditions"]["enough_data"]["event_dates"] == 120
+    assert row["conditions"]["small_honesty_error"]["worst_error"] is not None
+    assert (row["bss"], row["bss_lo"], row["bss_hi"]) == (0.28, 0.21, 0.35)
+    assert row["buckets"] and all(
+        set(b) == {"k_from", "k_to", "cases", "observed", "times_in_10"}
+        for b in row["buckets"])
+    assert row["frequency_check"]["ratio"] == 1.2
+    # The period is stored once, for a file that goes down a wire.
+    assert site["period"] == PERIOD and site["period_on_every_label"] is True
+    assert "period" not in row
+    assert site["shows_by_label"][labels.GOOD]["percentage_rounded_to_10"]
+    assert site["frequency_check"]["all_india"][0]["ratio"] == 1.1
+
+
+def test_the_site_file_only_carries_counted_buckets():
+    """SPEC 6.4 and 6.7. The floor that governs the test governs the page."""
+    thin = group(region="Region A", lead_day=1, threshold_mm=10.0,
+                 buckets=[bucket(26, 30, mean=0.55, observed=0.60),
+                          bucket(31, 35, cases=20, dates=2)])
+    _, _, site = built([thin])
+    row = [g for g in site["groups"] if g["lead_day"] == 1
+           and g["region"] == "Region A"
+           and g["threshold_mm"] == 10.0][0]
+    assert [b["k_from"] for b in row["buckets"]] == [26]
+
+
+def test_neither_the_frequency_check_nor_crps_can_move_a_label():
+    """Both are reported beside the label. Neither decides it."""
+    result, record, _ = built()
+    before = {(r["region"], r["lead_day"], r["threshold_mm"]): r["label"]
+              for r in record["labels"]}
+    for row in record["labels"]:
+        assert "frequency_check" in row and "crps" in row
+
+    bare = dict(result)
+    bare["crps_compared"] = False
+    bare["frequency_check"] = {"wording": "", "ratio": "", "rows": []}
+    after = {(r["region"], r["lead_day"], r["threshold_mm"]): r["label"]
+             for r in labels.build(bare)["labels"]}
+    assert before == after
+
+
+def test_a_disagreement_with_crps_is_disclosed_beside_the_label():
+    """SPEC 6.1 and 6.9 rule 3. Brier still decides."""
+    _, record, site = built()
+    row = [r for r in record["labels"] if r["region"] == "Region A"
+           and r["lead_day"] == 1 and r["threshold_mm"] == 10.0][0]
+    assert row["crps"]["disagrees"] is True
+    assert row["crps"]["note"] == labels.CRPS_DISAGREES
+    assert "follows the Brier score" in labels.CRPS_DISAGREES
+    assert row["label"] == labels.GOOD, "the label is Brier's, not CRPS's"
+    seen = [g for g in site["groups"] if g["region"] == "Region A"
+            and g["lead_day"] == 1 and g["threshold_mm"] == 10.0][0]
+    assert seen["crps_disagrees"] is True
+    assert site["crps_disagrees_wording"] == labels.CRPS_DISAGREES
+    assert site["crps"][0]["crpss_fair"] == 0.3
+
+
+def test_when_crps_was_not_computed_the_site_file_says_nothing_of_it():
+    """SPEC 6.9 rule 2."""
+    _, record, site = built(crps=False)
+    assert site["crps_compared"] is False and site["crps"] == []
+    assert all(r["crps"] is None for r in record["labels"])
+    assert all(g["crps_disagrees"] is False for g in site["groups"])
+    assert site["not_computed"] == ["corp", "random_error"]

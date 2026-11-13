@@ -81,6 +81,13 @@ BLOCK_MIN_SQUARES = 20
 # SPEC 5.11 rule 23. The identity has to hold, not nearly hold.
 DECOMPOSITION_TOLERANCE = 1e-12
 
+# SPEC 5.11 rule 25. The CRPS baseline is the observed daily totals at that
+# square over the 30 days ending the day before the run date, and a case
+# without 20 of them is excluded and counted. Unlike the Brier reference of
+# 5.3 this uses nothing the forecast could not have known.
+CRPS_WINDOW = 30
+CRPS_MIN_DAYS = 20
+
 # SPEC 5.11 rule 31.
 PLACES = 6
 
@@ -92,6 +99,12 @@ PERIOD = (
     "2026. 177 runs over six months, most of them monsoon, so it says little "
     "about winter."
 )
+
+# The frequency check, in the words How we checked uses.
+FREQUENCY_NOTE = (
+    "the model says this much rain more often than the satellite sees it")
+FREQUENCY_NOTE_OTHER = (
+    "the model says this much rain less often than the satellite sees it")
 
 # SPEC 5.11 rule 10, the sentence How we checked has to carry.
 SMALL_GROUPS_NOTE = (
@@ -407,9 +420,102 @@ def count_at(totals: np.ndarray, thresholds, axis: int = 1) -> np.ndarray:
                      for t in thresholds])
 
 
+def crps_parts(sorted_x: np.ndarray, y: np.ndarray,
+               members) -> tuple[np.ndarray, np.ndarray]:
+    """Plain and fair CRPS for one ensemble per square (SPEC 5.7).
+
+    `sorted_x` is (member, square), ascending, with any missing member
+    sorted to the end; `members` is how many of each column are real, as a
+    number or a vector. Written as
+
+        CRPS = mean |x - y| - c * sum_i (2i - m + 1) x_(i)
+
+    with `c` one over m squared for the plain form and one over m times
+    m - 1 for the fair one. The second term is the mean distance between
+    two members, which is where the ensemble's own spread is paid for; the
+    plain form pays too little of it, by an amount that depends on how many
+    members there are, which is exactly the difference the 51-against-50
+    comparison is trying to see (SPEC 5.11 rule 26).
+    """
+    count = np.asarray(members, dtype=np.float64)
+    if count.ndim == 0:
+        count = np.full(sorted_x.shape[1], float(count))
+    size = sorted_x.shape[0]
+    real = np.arange(size, dtype=np.float64)[:, None] < count[None, :]
+    filled = np.where(real, np.nan_to_num(sorted_x), 0.0)
+    spread = ((2 * np.arange(size, dtype=np.float64)[:, None]
+               - count[None, :] + 1.0) * filled).sum(axis=0)
+    apart = np.where(real, np.abs(np.nan_to_num(sorted_x) - y[None, :]),
+                     0.0).sum(axis=0)
+    plain = apart / count - spread / (count * count)
+    fair = apart / count - spread / (count * (count - 1.0))
+    return plain, fair
+
+
+class CrpsAccumulator:
+    """One member set's CRPS totals, per region and lead day.
+
+    CRPS is on the ensemble of daily totals, not on the thresholded events
+    (SPEC 5.7), so it has no threshold and its groups are region x lead day.
+    """
+
+    def __init__(self, setup: Setup, name: str, members: int):
+        self.name = name
+        self.members = members
+        size = setup.n_region * setup.n_lead
+        shape = (size, setup.n_date)
+        self.size = size
+        self.row_n = np.zeros(shape, dtype=np.int64)
+        self.row_plain = np.zeros(shape, dtype=np.float64)
+        self.row_fair = np.zeros(shape, dtype=np.float64)
+        self.row_base_plain = np.zeros(shape, dtype=np.float64)
+        self.row_base_fair = np.zeros(shape, dtype=np.float64)
+        self.baseline_members = 0.0
+
+    def take(self, setup: Setup, di: int, li: int, keep: np.ndarray,
+             plain, fair, base_plain, base_fair, depth) -> None:
+        if not keep.any():
+            return
+        groups = setup.sq_region[keep] * setup.n_lead + li
+        for target, values in ((self.row_n, None),
+                               (self.row_plain, plain),
+                               (self.row_fair, fair),
+                               (self.row_base_plain, base_plain),
+                               (self.row_base_fair, base_fair)):
+            if values is None:
+                target[:, di] += np.bincount(groups, minlength=self.size)
+            else:
+                target[:, di] += np.bincount(groups, weights=values[keep],
+                                             minlength=self.size)
+        self.baseline_members += float(depth[keep].sum())
+
+    def group_name(self, g: int, setup: Setup) -> dict:
+        return {"region": setup.regions[g // setup.n_lead],
+                "lead_day": setup.leads[g % setup.n_lead]}
+
+
+def baseline_window(setup: Setup, obs_cache: dict, date: str):
+    """The 30 observed days before a run, as a sorted ensemble per square.
+
+    SPEC 5.11 rule 25 as the user settled it: the days ending the day
+    before the run, so nothing in it was unknown when the forecast was made.
+    """
+    start = dt.date.fromisoformat(date) - dt.timedelta(days=CRPS_WINDOW)
+    rows = []
+    for step in range(CRPS_WINDOW):
+        stamp = (start + dt.timedelta(days=step)).strftime("%Y%m%d")
+        if stamp in setup.available:
+            rows.append(obs_cache[stamp])
+    if not rows:
+        return None, np.zeros(setup.n_sq, dtype=np.float64)
+    stack = np.array(rows, dtype=np.float64)
+    depth = np.isfinite(stack).sum(axis=0).astype(np.float64)
+    return np.sort(stack, axis=0), depth
+
+
 def score(setup: Setup, ref: dict, obs_cache: dict,
           variants: list[Accumulator], report=print,
-          load=load_forecast) -> dict:
+          load=load_forecast, crps: list | None = None) -> dict:
     """Pass 2. Every case scored against its own reference group.
 
     `load` is how a date's stored accumulations are read. It is a parameter
@@ -419,6 +525,10 @@ def score(setup: Setup, ref: dict, obs_cache: dict,
     excluded = {"no_imerg_date": 0, "observation_incomplete": 0}
     used = 0
     started = time.time()
+    crps = crps or []
+    crps_tally = {"no_imerg_date": 0, "observation_incomplete": 0,
+                  "baseline_too_short": 0}
+    crps_used = 0
 
     for di, date in enumerate(setup.dates):
         totals = daily_totals(load(date))
@@ -433,12 +543,37 @@ def score(setup: Setup, ref: dict, obs_cache: dict,
             part = square_totals[:, square_totals.shape[1] - variant.members:]
             counts[variant.members] = count_at(
                 part, setup.thresholds).astype(np.int64)
+        ordered = {}
+        for each in crps:
+            part = square_totals[:, square_totals.shape[1] - each.members:]
+            ordered[each.members] = np.sort(part.astype(np.float64), axis=1)
+        window, depth = (baseline_window(setup, obs_cache, date)
+                         if crps else (None, None))
+        deep = (depth >= CRPS_MIN_DAYS) if crps else None
 
         for li, lead in enumerate(setup.leads):
             wanted = imerg_date_for(date, lead)
             if wanted not in setup.available:
                 excluded["no_imerg_date"] += setup.n_sq * setup.n_thr
+                crps_tally["no_imerg_date"] += setup.n_sq
                 continue
+            if crps:
+                here_obs = obs_cache[wanted]
+                good = np.isfinite(here_obs)
+                crps_tally["observation_incomplete"] += int((~good).sum())
+                short = good & ~deep
+                crps_tally["baseline_too_short"] += int(short.sum())
+                keep = good & deep
+                crps_used += int(keep.sum())
+                if keep.any() and window is not None:
+                    base_plain, base_fair = crps_parts(
+                        window, np.nan_to_num(here_obs), depth)
+                    for each in crps:
+                        plain, fair = crps_parts(
+                            ordered[each.members][lead - 1],
+                            np.nan_to_num(here_obs), each.members)
+                        each.take(setup, di, li, keep, plain, fair,
+                                  base_plain, base_fair, depth)
             obs = obs_cache[wanted]
             usable = np.isfinite(obs)
             excluded["observation_incomplete"] += (int((~usable).sum())
@@ -466,6 +601,13 @@ def score(setup: Setup, ref: dict, obs_cache: dict,
         raise SystemExit(
             f"{used} used and {tally['excluded_total']} excluded do not make "
             f"{possible} possible")
+    if crps:
+        possible = setup.n_date * setup.n_lead * setup.n_sq
+        tally["crps"] = {"possible": possible, "used": crps_used,
+                         "excluded": crps_tally,
+                         "excluded_total": sum(crps_tally.values())}
+        if crps_used + sum(crps_tally.values()) != possible:
+            raise SystemExit("the CRPS cases do not add up")
     return tally
 
 
@@ -619,6 +761,104 @@ def group_rows(setup: Setup, variant: Accumulator,
     return rows
 
 
+def frequency_rows(setup: Setup, variant: Accumulator) -> list[dict]:
+    """How often the model said it, against how often it happened.
+
+    The mean of `k/51` over a group's cases, the share of those cases in
+    which the event was observed, and the first over the second. It is the
+    plainest thing that can be said about a forecast: if the ratio is 1.4
+    the model said this much rain 1.4 times as often as the satellite saw
+    it. It decides nothing; it is reported because it is the sentence a
+    reader can check.
+    """
+    forecast = np.arange(variant.members + 1, dtype=np.float64)
+    forecast /= variant.members
+    out = []
+    for ri, region in enumerate(setup.regions + ["All India"]):
+        for li, lead in enumerate(setup.leads):
+            for ti, threshold in enumerate(setup.thresholds):
+                if region == "All India":
+                    spots = [((r * setup.n_lead + li) * setup.n_thr + ti)
+                             for r in range(setup.n_region)]
+                else:
+                    spots = [(ri * setup.n_lead + li) * setup.n_thr + ti]
+                cases = int(sum(variant.row_n[g].sum() for g in spots))
+                if cases == 0:
+                    continue
+                events = int(sum(variant.row_ev[g].sum() for g in spots))
+                said = float(sum((variant.bin_n[g] * forecast).sum()
+                                 for g in spots) / cases)
+                seen = events / cases
+                out.append({
+                    "variant": variant.name, "region": region,
+                    "lead_day": lead, "threshold_mm": threshold,
+                    "cases": cases, "mean_forecast": said, "observed": seen,
+                    "ratio": (said / seen) if seen > 0 else None,
+                    "wording": (FREQUENCY_NOTE if said > seen
+                                else FREQUENCY_NOTE_OTHER),
+                })
+    return out
+
+
+def crps_rows(setup: Setup, each: CrpsAccumulator,
+              counts: np.ndarray) -> list[dict]:
+    """CRPS, the baseline it is measured against, and the skill between."""
+    ranges = bootstrap(each.row_fair, each.row_base_fair, counts)
+    out = []
+    for g in range(each.size):
+        n = int(each.row_n[g].sum())
+        if n == 0:
+            continue
+        fair = float(each.row_fair[g].sum())
+        plain = float(each.row_plain[g].sum())
+        base_fair = float(each.row_base_fair[g].sum())
+        base_plain = float(each.row_base_plain[g].sum())
+        span = ranges[g]
+        lo, hi = span["bss_lo"], span["bss_hi"]
+        out.append({
+            "variant": each.name, **each.group_name(g, setup),
+            "cases": n, "dates": int((each.row_n[g] > 0).sum()),
+            "crps_fair": fair / n, "crps_plain": plain / n,
+            "baseline_crps_fair": base_fair / n,
+            "baseline_crps_plain": base_plain / n,
+            "crpss_fair": bss_of(fair, base_fair),
+            "crpss_plain": bss_of(plain, base_plain),
+            "crpss_lo": lo, "crpss_hi": hi,
+            "resamples_discarded": span["discarded"],
+        })
+    return out
+
+
+def crps_disagreements(groups: list[dict], crps: list[dict]) -> list[dict]:
+    """Where CRPS and Brier point different ways (SPEC 6.9 rule 3).
+
+    CRPS has no threshold, so the comparison is: at one region and lead
+    day, one of the two has its whole 95% range above 0 and the other does
+    not. The label still follows Brier (6.1); this is what is disclosed
+    beside it.
+    """
+    skill = {(row["region"], row["lead_day"]): row for row in crps
+             if row["variant"] == "all51"}
+    out = []
+    for group in groups:
+        if group["variant"] != "all51":
+            continue
+        if group["threshold_mm"] not in PUBLISHED_MM:
+            continue
+        other = skill.get((group["region"], group["lead_day"]))
+        if other is None or other["crpss_lo"] is None:
+            continue
+        brier_up = group["bss_lo"] is not None and group["bss_lo"] > 0
+        crps_up = other["crpss_lo"] > 0
+        out.append({
+            "region": group["region"], "lead_day": group["lead_day"],
+            "threshold_mm": group["threshold_mm"],
+            "brier_above_zero": brier_up, "crps_above_zero": crps_up,
+            "disagrees": brier_up != crps_up,
+        })
+    return out
+
+
 def by_date_block(setup: Setup, variant: Accumulator,
                   blocks: list[dict]) -> list[dict]:
     """Skill by contiguous blocks of start dates, to show whether it is
@@ -692,17 +932,24 @@ def build(setup: Setup, obs_cache: dict, report=print,
                     "(SPEC 5.11 rule 6)"),
     ]
 
+    crps = [CrpsAccumulator(setup, "all51", 51),
+            CrpsAccumulator(setup, "all50", 50)]
+
     report("  pass 2: scoring")
     tally = score(setup, ref, obs_cache, variants, report=report,
-                  load=load)
+                  load=load, crps=crps)
 
     counts = draws(setup.n_date)
     blocks = date_blocks(setup.dates)
-    groups, block_rows = [], []
+    groups, block_rows, frequency = [], [], []
     for variant in variants:
         ranges = bootstrap(variant.row_bs, variant.row_ref, counts)
         groups.extend(group_rows(setup, variant, ranges))
         block_rows.extend(by_date_block(setup, variant, blocks))
+        frequency.extend(frequency_rows(setup, variant))
+    crps_scored = []
+    for each in crps:
+        crps_scored.extend(crps_rows(setup, each, counts))
 
     return {
         "spec_section": "5",
@@ -710,10 +957,44 @@ def build(setup: Setup, obs_cache: dict, report=print,
         "note_small_reference_groups": SMALL_GROUPS_NOTE,
         "wording": "agreed with the satellite estimate, never correct "
                    "(SPEC 5.9)",
-        "crps_compared": False,
-        "crps_note": "CRPS and the CORP diagnostic (SPEC 5.7, Tier 2) have "
-                     "not been computed yet. Nothing on the site may mention "
-                     "them until they are.",
+        "crps_compared": bool(crps_scored),
+        "crps_note": "CRPS is on the ensemble of daily totals, not on the "
+                     "thresholded events, so it has no threshold. Its "
+                     "baseline is the observed daily totals at that square "
+                     "over the 30 days ending the day before the run, which "
+                     "is out of sample -- unlike the Brier reference of 5.3, "
+                     "which is not. The two are never to be compared as if "
+                     "they were the same yardstick.",
+        "not_computed": {
+            "corp": "The CORP isotonic diagnostic (SPEC 5.7) has not been "
+                    "computed. Nothing on the site may mention it.",
+            "random_error": "The high-randomError sensitivity (SPEC 5.7) "
+                            "has not been computed. Nothing on the site may "
+                            "mention it.",
+        },
+        "crps": {
+            "baseline": f"the observed daily totals at that square over the "
+                        f"{CRPS_WINDOW} days ending the day before the run",
+            "minimum_days": CRPS_MIN_DAYS,
+            "out_of_sample": True,
+            "forms": "plain and fair; the fair form corrects for ensemble "
+                     "size, so it is the one the skill score uses and the "
+                     "one the 51-against-50 comparison can be read from",
+            "skill_uses": "fair",
+            "groups": "region x lead day",
+            "rows": crps_scored,
+            "disagreement": crps_disagreements(groups, crps_scored),
+        },
+        "frequency_check": {
+            "what": "the mean of k/51 over a group's cases, against the "
+                    "share of those cases in which the event was observed",
+            "ratio": "mean forecast over observed frequency; above 1 means "
+                     "the model said it more often than the satellite saw "
+                     "it",
+            "wording": FREQUENCY_NOTE,
+            "decides": "nothing. No label depends on it.",
+            "rows": frequency,
+        },
         "regions": setup.regions,
         "leads": list(setup.leads),
         "thresholds_mm": list(setup.thresholds),

@@ -23,6 +23,7 @@ from .verify import OUT as VERIFICATION
 from .verify import PERIOD, PUBLISHED_MM, RESULTS
 
 LABELS_FILE = RESULTS / "labels.json"
+SITE_FILE = RESULTS / "site_summary.json"
 
 GOOD = "Good track record"
 ROUGH = "Treat as a rough guide"
@@ -41,6 +42,14 @@ MAX_DISCARDED = 0.01
 # SPEC 6.5. Fixed wording; not to be made more confident.
 LUCK = ("slightly better than the usual rain for this place and month, but "
         "the difference could be luck")
+
+# SPEC 6.1 and 6.9 rule 3. The label still follows Brier.
+CRPS_DISAGREES = (
+    "the two scores point different ways here: one of them beats its "
+    "baseline and the other does not. The label follows the Brier score, "
+    "and this is said rather than hidden")
+
+SITE_FILE_LIMIT = 100_000
 
 COLOURS = {GOOD: "green", ROUGH: "amber", THIN: "grey"}
 
@@ -166,6 +175,33 @@ def key(row: dict) -> tuple:
     return (row["region"], row["lead_day"], row["threshold_mm"])
 
 
+def crps_beside(result: dict) -> dict:
+    """CRPS by region and lead day, and where it points the other way.
+
+    SPEC 6.1 and 6.9 rule 3. The label follows Brier whatever this says;
+    what changes is that the disagreement is printed beside it instead of
+    being quietly dropped.
+    """
+    if not result.get("crps_compared"):
+        return {}
+    skill = {(row["region"], row["lead_day"]): row
+             for row in result["crps"]["rows"] if row["variant"] == "all51"}
+    flags = {(row["region"], row["lead_day"], row["threshold_mm"]): row
+             for row in result["crps"]["disagreement"]}
+    out = {}
+    for spot, row in flags.items():
+        here = skill[(spot[0], spot[1])]
+        out[spot] = {
+            "crpss_fair": here["crpss_fair"],
+            "crpss_lo": here["crpss_lo"], "crpss_hi": here["crpss_hi"],
+            "brier_above_zero": row["brier_above_zero"],
+            "crps_above_zero": row["crps_above_zero"],
+            "disagrees": row["disagrees"],
+            "note": (CRPS_DISAGREES if row["disagrees"] else None),
+        }
+    return out
+
+
 def build(result: dict) -> dict:
     resamples = result["bootstrap"]["resamples"]
     scored = result["groups_scored"]
@@ -219,6 +255,20 @@ def build(result: dict) -> dict:
     if len(headline) != expected:
         raise SystemExit(f"{len(headline)} labels, not {expected}")
 
+    # Beside the label, never deciding it: the frequency check and CRPS.
+    frequency = {(r["region"], r["lead_day"], r["threshold_mm"]): r
+                 for r in result["frequency_check"]["rows"]
+                 if r["variant"] == "all51"}
+    crps = crps_beside(result)
+    for row in headline:
+        spot = key(row)
+        said = frequency.get(spot)
+        row["frequency_check"] = None if said is None else {
+            "mean_forecast": said["mean_forecast"],
+            "observed": said["observed"], "ratio": said["ratio"],
+            "wording": said["wording"]}
+        row["crps"] = crps.get(spot)
+
     counts = {}
     for row in headline:
         counts[row["label"]] = counts.get(row["label"], 0) + 1
@@ -244,6 +294,93 @@ def build(result: dict) -> dict:
     }
 
 
+def site_summary(result: dict, record: dict) -> dict:
+    """The one file the website reads. Small enough to send every time.
+
+    Everything a page needs to show a label honestly and nothing else: the
+    label, why it is that label with the numbers behind it, the skill and
+    its range, the counted buckets the "came true about N times in 10"
+    phrase comes from, the frequency check, and the period. The big files
+    stay in the repository for anyone who wants to check the working.
+    """
+    groups = []
+    for row in record["labels"]:
+        conditions = row["conditions"] or {}
+        data = conditions.get("1_enough_data", {})
+        error = conditions.get("4_small_honesty_error", {})
+        skill = conditions.get("2_skill_above_zero") or {}
+        narrow = conditions.get("3_range_narrow_enough") or {}
+        crps = row.get("crps") or {}
+        groups.append({
+            "region": row["region"], "lead_day": row["lead_day"],
+            "threshold_mm": row["threshold_mm"],
+            "label": row["label"], "colour": row["colour"],
+            "conditions": {
+                "enough_data": {
+                    "pass": data.get("pass", False),
+                    "cases": data.get("cases", {}).get("value"),
+                    "dates": data.get("dates", {}).get("value"),
+                    "event_dates": data.get("event_dates", {}).get("value")},
+                "skill_above_zero": {"pass": skill.get("pass", False),
+                                     "value": skill.get("value")},
+                "range_narrow_enough": {"pass": narrow.get("pass", False),
+                                        "value": narrow.get("value")},
+                "small_honesty_error": {
+                    "pass": error.get("pass", False),
+                    "counted_buckets": error.get("counted_buckets"),
+                    "worst_error": error.get("worst_error")},
+            },
+            "bss": row.get("bss"), "bss_lo": row.get("bss_lo"),
+            "bss_hi": row.get("bss_hi"),
+            "base_rate": row.get("base_rate"),
+            "buckets": [{"k_from": b["k_from"], "k_to": b["k_to"],
+                         "cases": b["cases"], "observed": b["observed"],
+                         "times_in_10": b["times_in_10"]}
+                        for b in row["phrases"]],
+            "frequency_check": row.get("frequency_check"),
+            "crps_disagrees": bool(crps.get("disagrees")),
+            "luck": row.get("wording") == LUCK,
+            "disclose": row.get("disclose"),
+        })
+    india = [{"lead_day": r["lead_day"], "threshold_mm": r["threshold_mm"],
+              "cases": r["cases"], "mean_forecast": r["mean_forecast"],
+              "observed": r["observed"], "ratio": r["ratio"],
+              "wording": r["wording"]}
+             for r in result["frequency_check"]["rows"]
+             if r["variant"] == "all51" and r["region"] == "All India"
+             and r["threshold_mm"] in PUBLISHED_MM]
+    crps = [{"region": row["region"], "lead_day": row["lead_day"],
+             "crpss_fair": row["crpss_fair"], "crpss_lo": row["crpss_lo"],
+             "crpss_hi": row["crpss_hi"]}
+            for row in result["crps"]["rows"]
+            if row["variant"] == "all51"] if result["crps_compared"] else []
+    return {
+        "spec_section": "6",
+        "period": record["period"],
+        # The sentence belongs to every label; it is stored once because
+        # this file is sent to a browser, and the page puts it on each.
+        "period_on_every_label": True,
+        "wording": record["wording"],
+        "luck_wording": LUCK,
+        "crps_compared": result["crps_compared"],
+        "crps_disagrees_wording": CRPS_DISAGREES,
+        "crps_baseline": result["crps"]["baseline"],
+        "crps": crps,
+        "not_computed": sorted(result["not_computed"]),
+        "rules": record["rules"],
+        "shows_by_label": {name: shows_for(name)
+                           for name in (GOOD, ROUGH, THIN)},
+        "regions": record["regions"], "leads": record["leads"],
+        "thresholds_mm": record["thresholds_mm"],
+        "counts": record["counts"],
+        "frequency_check": {
+            "wording": result["frequency_check"]["wording"],
+            "ratio": result["frequency_check"]["ratio"],
+            "all_india": india},
+        "groups": groups,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-write", action="store_true")
@@ -258,12 +395,22 @@ def main() -> None:
     if record["sensitivity_changes"]:
         print(f"  {len(record['sensitivity_changes'])} labels have a "
               "sensitivity to disclose")
+    site = site_summary(result, record)
+    site_text = json.dumps(site, separators=(",", ":")) + "\n"
+    size = len(site_text.encode())
+    if size > SITE_FILE_LIMIT:
+        raise SystemExit(
+            f"{SITE_FILE.name} is {size} bytes, over the {SITE_FILE_LIMIT} "
+            "the site is allowed")
     if args.no_write:
         print("  --no-write: nothing written")
         return
     text = json.dumps(record, indent=1) + "\n"
     LABELS_FILE.write_bytes(text.encode())
     print(f"  wrote {LABELS_FILE.name}, {len(text.encode()) / 1e6:.2f} MB")
+    SITE_FILE.write_bytes(site_text.encode())
+    print(f"  wrote {SITE_FILE.name}, {size} bytes of the "
+          f"{SITE_FILE_LIMIT} allowed")
 
 
 if __name__ == "__main__":

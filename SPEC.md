@@ -1822,11 +1822,39 @@ floating-point tie decides which bucket a case is in.
 
 | # | Rule |
 |---|---|
-| 27 | `results/` is committed, holds `verification.json`, `labels.json` and `verification_meta.json`, and stays under about 5 MB in total, with its size reported. The per-case table is never written there; it belongs in `data/` |
+| 27 | `results/` is committed, holds `verification.json`, `labels.json`, `site_summary.json` and `verification_meta.json`, and stays under about 5 MB in total, with its size reported. The per-case table is never written there; it belongs in `data/`. **`site_summary.json` is the only one the website reads**, and it is held under 100,000 bytes by a check that stops the build; the big files stay for anyone who wants to check the working |
 | 28 | The SHA256 of 6.8 is taken over the file read as bytes with CRLF normalised to LF, which are the committed bytes. The working copy on this machine is CRLF, and a hash of it would never match anywhere else |
 | 29 | `verification_meta.json` adds to the list in 6.8: the seed, the number of resamples, the percentile method, the IMERG date range, the SHA256 of the admin-1 file and of `config/india_mask.json`, the git commit, the UTC time of the run, and the exclusion tally by reason |
 | 30 | Region assignment is built once into **`config/regions.json`** and committed, exactly as `config/india_mask.json` is. The Natural Earth admin-1 file lives in `data/raw/`, which is never committed, so nothing may be rebuilt from it at test time |
 | 31 | Two passes over the archive: one to build the reference, one to build the per-date rows. All accumulation in float64 and every number rounded to 6 decimal places on write, so two runs give byte-identical files |
+
+#### Added 13 November 2026, after the first results and deciding nothing
+
+The labels were already fixed by the rules above when these were written, and
+rerunning with them changed no label, no skill score and no bucket.
+
+**The frequency check.** Per region x lead day x threshold, and for all India
+together: the mean of `k/51` over a group's cases, the share of those cases in
+which the event was observed, and the first over the second. Above 1 the
+wording is
+
+> the model says this much rain more often than the satellite sees it
+
+and below 1 the same sentence with "less". It is in `verification.json` and in
+the site file. **It decides nothing.** No label depends on it; it is there
+because it is the plainest thing that can be said about a forecast and the
+easiest for a reader to check.
+
+**CRPS is now computed** (5.7, Tier 2), in both the plain and the fair form,
+against the baseline of rule 25. The fair form is what the skill score uses,
+because the plain one is biased by ensemble size and the 51-against-50
+comparison would otherwise read that bias as a difference. `crps_compared` is
+true, and the disagreement flags of 6.9 rule 3 are published beside the
+labels.
+
+**Still not computed**, and said so in both files rather than left to be
+assumed: the CORP isotonic diagnostic and the high-`randomError` sensitivity,
+both Tier 2. Nothing on the site may mention either until they exist.
 
 #### The period, on everything
 

@@ -500,3 +500,209 @@ def test_the_twelve_places_land_in_the_region_imd_puts_them_in():
     # placements, not ones we would have guessed.
     assert "Odisha" in regions["states"]["Central India"]
     assert "Andaman and Nicobar" in regions["states"]["South Peninsula"]
+
+# ------------------------------------------------- the frequency check
+
+def test_the_frequency_check_is_what_was_said_over_what_happened():
+    """How often the model said it, against how often it happened.
+
+    Over the whole toy archive the six forecasts are 51, 0, 25, 0, 51 and
+    25 of 51, so the mean forecast is 152/(51 x 6); the event happened in
+    three of the six, so the observed frequency is 0.5 and the ratio is
+    just under 1. Region B said 25 of 51 twice and saw one event.
+    """
+    result = toy_run()
+    rows = {(r["region"], r["threshold_mm"]): r
+            for r in result["frequency_check"]["rows"]
+            if r["variant"] == "all51" and r["lead_day"] == 1}
+    whole = rows[("All India", 10.0)]
+    assert whole["cases"] == 6
+    assert whole["mean_forecast"] == pytest.approx(152 / 51 / 6, abs=1e-12)
+    assert whole["observed"] == 0.5
+    assert whole["ratio"] == pytest.approx((152 / 51 / 6) / 0.5, abs=1e-12)
+
+    region_b = rows[("Region B", 10.0)]
+    assert region_b["mean_forecast"] == pytest.approx(25 / 51, abs=1e-12)
+    assert region_b["observed"] == 0.5
+    assert region_b["ratio"] == pytest.approx((25 / 51) / 0.5, abs=1e-12)
+
+    # All India is the regions added up, never a fifth group of its own.
+    assert sum(r["cases"] for r in result["frequency_check"]["rows"]
+               if r["variant"] == "all51" and r["lead_day"] == 1
+               and r["region"] != "All India") == whole["cases"]
+    assert result["frequency_check"]["decides"].startswith("nothing")
+
+
+def test_the_frequency_check_says_which_way_round_it_is():
+    """The sentence How we checked uses, and its opposite."""
+    # Every member forecasts rain; it rains on one square in two.
+    result = toy_run(forecasts={"20260601": (51, 51, 51),
+                                "20260602": (51, 51, 51)})
+    row = [r for r in result["frequency_check"]["rows"]
+           if r["region"] == "All India" and r["variant"] == "all51"][0]
+    assert row["mean_forecast"] == 1.0 and row["observed"] == 0.5
+    assert row["ratio"] == 2.0
+    assert row["wording"] == verify.FREQUENCY_NOTE
+    assert "more often than the satellite sees it" in row["wording"]
+
+    quiet = toy_run(forecasts={"20260601": (0, 0, 0),
+                               "20260602": (0, 0, 0)})
+    row = [r for r in quiet["frequency_check"]["rows"]
+           if r["region"] == "All India" and r["variant"] == "all51"][0]
+    assert row["ratio"] == 0.0
+    assert row["wording"] == verify.FREQUENCY_NOTE_OTHER
+
+
+# --------------------------------------------------------------- CRPS
+
+def brute_crps(members, y, fair: bool) -> float:
+    """CRPS straight from the definition, with the double sum written out."""
+    m = len(members)
+    apart = sum(abs(v - y) for v in members) / m
+    pairs = sum(abs(p - q) for p in members for q in members)
+    return apart - pairs / (2 * m * (m - 1) if fair else 2 * m * m)
+
+
+def test_crps_matches_the_definition_written_out_in_full():
+    """SPEC 5.7 and 5.11 rule 26. Plain and fair, both from the double sum."""
+    # Two members at 0 and 2, observed 1. The mean distance to the
+    # observation is 1; the four pairs are 0, 2, 2 and 0. The plain form
+    # pays half of 4/4 for the spread, the fair form half of 4/2.
+    pair = np.array([[0.0], [2.0]])
+    plain, fair = verify.crps_parts(pair, np.array([1.0]), 2)
+    assert plain[0] == pytest.approx(0.5, abs=1e-12)
+    assert fair[0] == pytest.approx(0.0, abs=1e-12)
+
+    # An ensemble with no spread at all is just the error.
+    flat = np.array([[3.0], [3.0], [3.0]])
+    plain, fair = verify.crps_parts(flat, np.array([5.0]), 3)
+    assert plain[0] == pytest.approx(2.0, abs=1e-12)
+    assert fair[0] == pytest.approx(2.0, abs=1e-12)
+
+    rng = np.random.default_rng(3)
+    members = np.sort(rng.gamma(0.4, 8.0, size=(51, 40)), axis=0)
+    truth = rng.gamma(0.4, 8.0, size=40)
+    plain, fair = verify.crps_parts(members, truth, 51)
+    for j in range(40):
+        column = list(members[:, j])
+        assert plain[j] == pytest.approx(
+            brute_crps(column, truth[j], False), abs=1e-9)
+        assert fair[j] == pytest.approx(
+            brute_crps(column, truth[j], True), abs=1e-9)
+    # The fair form pays more for spread, so it is never the larger one.
+    assert (fair < plain).all(), "strictly, wherever there is spread"
+
+
+def test_a_ragged_baseline_uses_only_the_days_it_has():
+    """SPEC 5.11 rule 25. The window is however many days really exist."""
+    column = np.array([[1.0, 4.0], [2.0, 5.0], [3.0, np.nan]])
+    depth = np.array([3.0, 2.0])
+    plain, fair = verify.crps_parts(column, np.array([2.0, 4.0]), depth)
+    assert plain[0] == pytest.approx(brute_crps([1, 2, 3], 2, False), 1e-12)
+    assert fair[0] == pytest.approx(brute_crps([1, 2, 3], 2, True), 1e-12)
+    assert plain[1] == pytest.approx(brute_crps([4, 5], 4, False), 1e-12)
+    assert fair[1] == pytest.approx(brute_crps([4, 5], 4, True), 1e-12)
+
+
+def test_a_case_without_twenty_days_behind_it_has_no_crps():
+    """SPEC 5.11 rule 25. Excluded and counted, never guessed at."""
+    result = toy_run()
+    assert verify.CRPS_WINDOW == 30 and verify.CRPS_MIN_DAYS == 20
+    tally = result["cases"]["crps"]
+    assert tally["possible"] == 6
+    assert tally["used"] == 0
+    assert tally["excluded"]["baseline_too_short"] == 6
+    assert result["crps_compared"] is False, "nothing to compare"
+    assert result["crps"]["rows"] == []
+
+
+def with_history():
+    """The toy archive again, with a month of observations behind it."""
+    import datetime as dt
+    obs = {}
+    day = dt.date(2026, 5, 2)
+    rng = np.random.default_rng(5)
+    while day <= dt.date(2026, 6, 3):
+        obs[day.strftime("%Y%m%d")] = list(rng.gamma(0.5, 14.0, size=3))
+        day += dt.timedelta(days=1)
+    obs["20260602"] = [20.0, 0.0, 20.0]
+    obs["20260603"] = [0.0, 20.0, 0.0]
+    return toy_run(obs=obs, available=set(obs))
+
+
+def test_crps_is_scored_against_the_thirty_days_before_the_run():
+    """SPEC 5.7, with the baseline of 5.11 rule 25."""
+    result = with_history()
+    assert result["crps_compared"] is True
+    assert result["cases"]["crps"]["used"] == 6
+    assert result["cases"]["crps"]["excluded_total"] == 0
+    rows = {(r["variant"], r["region"]): r for r in result["crps"]["rows"]}
+    row = rows[("all51", "Region A")]
+    assert row["cases"] == 4 and row["lead_day"] == 1
+    # Both forms are reported, and the fair one is what skill uses.
+    # Region A's members all say the same thing, so there is no spread to
+    # pay for and the two forms meet. The baseline has real spread.
+    assert row["crps_fair"] == row["crps_plain"]
+    assert row["baseline_crps_fair"] < row["baseline_crps_plain"]
+    assert row["crpss_fair"] == pytest.approx(
+        1 - row["crps_fair"] / row["baseline_crps_fair"], abs=1e-12)
+    assert result["crps"]["skill_uses"] == "fair"
+    assert result["crps"]["out_of_sample"] is True
+    assert ("all50", "Region A") in rows, "the 50-member card too"
+
+
+def test_the_crps_baseline_stops_the_day_before_the_run():
+    """SPEC 5.11 rule 25. Out of sample means out of sample.
+
+    The window is the 30 days ending the day *before* the run. Letting the
+    run's own day in -- or the day it is forecasting -- would make the
+    baseline know the answer, and a skill score against a baseline that
+    knows the answer is not a skill score. Each day here is marked with its
+    own number, so the test can say exactly which days were used.
+    """
+    import datetime as dt
+    obs = {}
+    day = dt.date(2026, 5, 1)
+    while day <= dt.date(2026, 6, 5):
+        obs[day.strftime("%Y%m%d")] = np.full(3, float(day.toordinal()))
+        day += dt.timedelta(days=1)
+    setup = toy_setup(dates=("20260601",), available=set(obs))
+    window, depth = verify.baseline_window(setup, obs, "20260601")
+
+    first = dt.date(2026, 5, 2).toordinal()
+    last = dt.date(2026, 5, 31).toordinal()
+    assert list(depth) == [30, 30, 30]
+    assert window[0, 0] == first, "the window opens 30 days before the run"
+    assert window[-1, 0] == last, "and closes the day before it"
+    used = set(window[:, 0].tolist())
+    assert float(dt.date(2026, 6, 1).toordinal()) not in used, "the run day"
+    assert float(dt.date(2026, 6, 2).toordinal()) not in used, "the day it "\
+        "is forecasting"
+    assert len(used) == 30
+
+def test_corp_and_the_random_error_sensitivity_say_they_are_not_computed():
+    """SPEC 6.9 rule 2. A check that did not run is never implied."""
+    result = toy_run()
+    for key in ("corp", "random_error"):
+        assert "not been computed" in result["not_computed"][key]
+        assert "may mention" in result["not_computed"][key]
+
+
+def test_crps_and_brier_pointing_different_ways_is_flagged():
+    """SPEC 6.9 rule 3. Disclosed beside the label; the label is Brier's."""
+    groups = [{"variant": "all51", "region": "R", "lead_day": 1,
+               "threshold_mm": 10.0, "bss_lo": 0.2},
+              {"variant": "all51", "region": "R", "lead_day": 2,
+               "threshold_mm": 10.0, "bss_lo": -0.1},
+              {"variant": "inland51", "region": "R", "lead_day": 1,
+               "threshold_mm": 10.0, "bss_lo": -0.1}]
+    crps = [{"variant": "all51", "region": "R", "lead_day": 1,
+             "crpss_lo": 0.3},
+            {"variant": "all51", "region": "R", "lead_day": 2,
+             "crpss_lo": 0.3}]
+    flags = verify.crps_disagreements(groups, crps)
+    assert len(flags) == 2, "the headline variant only"
+    assert flags[0]["disagrees"] is False
+    assert flags[1]["disagrees"] is True
+    assert flags[1]["brier_above_zero"] is False
+    assert flags[1]["crps_above_zero"] is True
