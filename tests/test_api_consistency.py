@@ -3927,6 +3927,54 @@ def test_every_hand_check_on_the_page_links_to_something_that_exists(
 
 
 @needs_node
+def test_the_list_names_every_file_each_check_wrote(rendered):
+    """SPEC 11.36. A check run on three dates wrote three files; a line that
+    links one of them tells a reader the check was done once.
+
+    The guard is the directory, not the list: every result file that exists
+    must be linked, so adding a run without adding its link fails here.
+    """
+    html = rendered["pages"]["how_we_checked"]
+    linked = set(re.findall(r'/handchecks/results/([^"]+)"', html))
+    on_disk = {path.name
+               for path in (ROOT / "handchecks" / "results").iterdir()
+               if path.is_file() and path.suffix in (".txt", ".csv")}
+    # The images and the page dump are shown or linked elsewhere; the files
+    # a reader is sent to read are these.
+    missing = sorted(on_disk - linked - {"hc_fail_stale.txt",
+                                         "hc_fail_13nov.txt"})
+    assert missing == [], f"written but not linked: {missing}"
+
+    # And the dates in the list are the dates in the file names.
+    for name, dates in (("HC1", ["13 May 2026", "1 August 2026",
+                                 "25 October 2026"]),
+                        ("HC2", ["13 May 2026", "25 October 2026"]),
+                        ("HC3", ["13 May 2026", "1 August 2026",
+                                 "25 October 2026"])):
+        line = html[html.index(f"<strong>{name}</strong>"):]
+        line = line[:line.index("</li>")]
+        for when in dates:
+            assert when in line, (name, when, line[:300])
+
+
+def test_the_list_says_how_many_squares_hc8_covered():
+    """SPEC 11.25 and 11.36. Five squares, counted from the file itself."""
+    import csv as csv_module
+
+    with (ROOT / "handchecks" / "results" / "hc8_map_square.csv").open(
+            encoding="utf-8", newline="") as fh:
+        rows = list(csv_module.DictReader(fh))
+    assert len(rows) == 5, len(rows)
+    assert {row["verdict"] for row in rows} == {"pass"}
+
+    page = (ROOT / "web" / "src" / "HowWeChecked.jsx").read_text("utf-8")
+    assert "five squares on the live map" in page
+    assert "one square on the live map" not in page
+    spec = (ROOT / "SPEC.md").read_text(encoding="utf-8")
+    assert "| HC8 | five squares on the live map" in spec
+
+
+@needs_node
 def test_the_ecmwf_section_carries_the_hand_check_s_own_numbers(rendered):
     """SPEC 11.36. The page quotes HC-ECMWF, in runs and never in points."""
     import csv as csv_module

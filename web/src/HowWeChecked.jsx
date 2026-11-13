@@ -29,35 +29,47 @@ const REPO = 'https://github.com/SumedhaKar/Precipitation-Forecast-App';
 const SPEC_CHECKS = `${REPO}/blob/main/SPEC.md#the-hand-checks`;
 const RESULTS = `${REPO}/blob/main/handchecks/results`;
 
+// SPEC 11.36. Each line's second part is the list of files that check
+// wrote: the first is what the name links to, and where there is more than
+// one, every one of them is named and linked by the run date it was done on.
 const HANDCHECKS = [
-  ['HC1', 'the saved subset against the original GRIB file, 13 May 2026',
-    'hc1_20260513.txt'],
-  ['HC2', 'the daily difference, worked out again', 'hc2_20260513.txt'],
-  ['HC3', 'the six steps and the 51 members', 'hc3_20260513.txt'],
+  ['HC1', 'the saved subset against the original GRIB file, on three run '
+    + "dates either side of the two things ECMWF changed in May and October",
+    [['13 May 2026', 'hc1_20260513.txt'],
+      ['1 August 2026', 'hc1_20260801.txt'],
+      ['25 October 2026', 'hc1_20261025.txt']]],
+  ['HC2', 'the daily difference, worked out again, on two run dates',
+    [['13 May 2026', 'hc2_20260513.txt'],
+      ['25 October 2026', 'hc2_20261025.txt']]],
+  ['HC3', 'the six steps and the 51 members, on three run dates',
+    [['13 May 2026', 'hc3_20260513.txt'],
+      ['1 August 2026', 'hc3_20260801.txt'],
+      ['25 October 2026', 'hc3_20261025.txt']]],
   ['HC4', 'one raw IMERG file, read field by field, on a file since deleted',
-    null],
+    []],
   ['HC-ALIGN', 'the forecast grid and the satellite grid against each other',
-    'hc_align.txt'],
+    [['', 'hc_align.txt']]],
   ['HC5', 'one cell of the area-weighted remap, nine pixels by hand',
-    'hc5_cell.csv'],
+    [['', 'hc5_cell.csv']]],
   ['HC6', 'all 51 member values in one square, read by ecCodes',
-    'hc6_members.csv'],
+    [['', 'hc6_members.csv']]],
   ['HC7', 'the published bytes against the run this laptop built',
-    'hc7_published.csv'],
-  ['HC8', 'one square on the live map: the colour, the bytes and the panel',
-    'hc8_map_square.csv'],
+    [['', 'hc7_published.csv']]],
+  ['HC8', 'five squares on the live map: the colour, the bytes and the panel',
+    [['', 'hc8_map_square.csv']]],
   ['HC9', 'one reliability band, worked out again from the archive',
-    'hc9_bucket.csv'],
-  ['HC-FAIL', 'the publisher broken seven ways: nothing was published and '
-    + 'the run already published stayed', 'hc_fail.csv'],
+    [['', 'hc9_bucket.csv']]],
+  ['HC-FAIL', 'the publisher broken seven ways and the run chooser given '
+    + 'five awkward servers: nothing was published and the run already '
+    + 'published stayed', [['', 'hc_fail.csv']]],
   ['HC-ECMWF', "our counts against ECMWF's own figure for 10 mm or more",
-    'hc_ecmwf.csv'],
+    [['', 'hc_ecmwf.csv']]],
   ['HC-REPORT', "fifteen of the report card's own scores, worked out again "
-    + 'outside the pipeline', 'hc_report.csv'],
+    + 'outside the pipeline', [['', 'hc_report.csv']]],
   ['HC-GHATS', 'one monsoon day of the remapped satellite field, drawn',
-    'hc_ghats.csv'],
+    [['', 'hc_ghats.csv']]],
   ['HC10', 'the final checklist, to be done at the end of the build: not '
-    + 'done yet, and nothing here depends on it', null],
+    + 'done yet, and nothing here depends on it', []],
 ];
 
 function Numbers({ rows }) {
@@ -635,14 +647,26 @@ export function Files() {
           </a>, the checks done again outside the pipeline. Each line links
           to what that check wrote:
           <ul className="hclist">
-            {HANDCHECKS.map(([name, what, file]) => (
+            {HANDCHECKS.map(([name, what, files]) => (
               <li key={name}>
-                <a href={file ? `${RESULTS}/${file}` : SPEC_CHECKS}>
+                <a href={files.length
+                  ? `${RESULTS}/${files[0][1]}` : SPEC_CHECKS}>
                   <strong>{name}</strong>
                 </a>
                 , {what}
-                {file ? '' : ' (no file of its own; it is written up in the '
-                  + 'specification)'}
+                {files.length > 1 ? (
+                  <>
+                    {': '}
+                    {files.map(([when, file], at) => (
+                      <span key={file}>
+                        {at ? ', ' : ''}
+                        <a href={`${RESULTS}/${file}`}>{when}</a>
+                      </span>
+                    ))}
+                  </>
+                ) : ''}
+                {files.length ? '' : ' (no file of its own; it is written up '
+                  + 'in the specification)'}
               </li>
             ))}
           </ul>

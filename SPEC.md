@@ -5463,17 +5463,22 @@ that is run by the thing it checks is not a check.
 The numbered ones were done first and keep their numbers. The named ones
 were added on 13 November 2026.
 
+HC1, HC2 and HC3 were each run on more than one date on purpose: 13 May, 1
+August and 25 October 2026 for HC1 and HC3, and 13 May and 25 October for
+HC2, which puts a run either side of both things ECMWF changed in 2026 (2.1).
+Each run wrote its own file and every one of them is linked from the site.
+
 | | what it redoes | script | result |
 |---|---|---|---|
-| HC1 | the saved subset against the original GRIB | `hc1_compare_grib.py` | `hc1_<date>.txt` |
-| HC2 | the daily difference, worked out again | `hc2_difference.py` | `hc2_<date>.txt` |
-| HC3 | the steps and the 51 members | `hc3_steps_members.py` | `hc3_<date>.txt` |
+| HC1 | the saved subset against the original GRIB, on three run dates | `hc1_compare_grib.py` | `hc1_20260513.txt`, `hc1_20260801.txt`, `hc1_20261025.txt` |
+| HC2 | the daily difference, worked out again, on two run dates | `hc2_difference.py` | `hc2_20260513.txt`, `hc2_20261025.txt` |
+| HC3 | the steps and the 51 members, on three run dates | `hc3_steps_members.py` | `hc3_20260513.txt`, `hc3_20260801.txt`, `hc3_20261025.txt` |
 | HC4 | one raw IMERG file, field by field | none: the file was deleted after it was read (2.6), and what it found is in 2.3 | |
 | HC-ALIGN | the two grids against each other | `hc_align.py` | `hc_align.txt` |
 | HC5 | one cell of the area-weighted remap | `hc5_cell.py` | `hc5_cell.csv` |
 | HC6 | the 51 member values in one square | `hc6_members.py` | `hc6_members.csv` |
 | HC7 | the published bytes against the built run | `hc7_published.py` | `hc7_published.csv` |
-| HC8 | one square on the live map | `hc8_map_square.py` | `hc8_map_square.csv`, `.jpg` |
+| HC8 | five squares on the live map (11.25) | `hc8_map_square.py` | `hc8_map_square.csv`, `.jpg` |
 | HC9 | one reliability band, from the archive | `hc9_bucket.py` | `hc9_bucket.csv` |
 | HC-FAIL | the publisher and the chooser, made to fail | `hc_fail.py`, `hc_fail_site.mjs` | `hc_fail.csv`, `hc_fail_stale.txt`, `.jpg`, `hc_fail_13nov.txt` |
 | HC-ECMWF | ECMWF's own probability of 10 mm against our count | `hc_ecmwf.py` | `hc_ecmwf.csv` |
