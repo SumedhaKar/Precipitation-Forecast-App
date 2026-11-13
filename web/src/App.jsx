@@ -22,7 +22,7 @@ import {
   Component, Suspense, lazy, useCallback, useEffect, useRef, useState,
 } from 'react';
 
-import Panel from './Panel';
+import Panel, { summaryLine } from './Panel';
 import Legend from './Legend';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { countKey } from './palette';
@@ -219,6 +219,9 @@ export default function App({ nav }) {
   const [from, setFrom] = useState(null);
   const [shown, setShown] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
+  // SPEC 11.37. Counting up asks the search box to take the keyboard; the
+  // box watches the number rather than a boolean, so asking twice works.
+  const [askSearch, setAskSearch] = useState(0);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
   // The number of the most recent request for a square's numbers (11.30).
@@ -518,20 +521,42 @@ export default function App({ nav }) {
         </div>
 
         <aside className="panel" aria-label="The square you chose">
-          <button
-            type="button"
-            className="handle"
-            aria-expanded={sheetOpen}
-            onClick={() => setSheetOpen(!sheetOpen)}
-          >
-            {sheetOpen ? 'Hide the details' : 'Show the details'}
-          </button>
+          {/* SPEC 11.37. On a phone this is the whole of the panel until it
+              is opened: one line and one button, and the map has the rest
+              of the screen. Each control does one thing. The line opens the
+              panel and takes no keyboard; "Search" opens it and gives the
+              search box the keyboard; open, the same button closes it. */}
+          <div className="sheetbar">
+            <button
+              type="button"
+              className="handle"
+              aria-expanded={sheetOpen}
+              onClick={() => setSheetOpen(!sheetOpen)}
+            >
+              {sheetOpen ? 'Hide the details'
+                : summaryLine(place, square, day, threshold)}
+            </button>
+            {sheetOpen ? null : (
+              <button
+                type="button"
+                className="sheetsearch"
+                onClick={() => {
+                  setSheetOpen(true);
+                  setAskSearch((asked) => asked + 1);
+                }}
+              >
+                Search
+              </button>
+            )}
+          </div>
+          <div className="sheetbody">
           <div className="finder">
             <Search
               onTown={town}
               onPoint={point}
               busy={busy}
               shown={shown}
+              askFocus={askSearch}
             />
             {/* `from` is passed so that this control's own message clears
                 when some other place is chosen. SPEC 11.29. */}
@@ -550,6 +575,7 @@ export default function App({ nav }) {
             from={from}
           />
           <Footer />
+          </div>
         </aside>
       </div>
     </div>

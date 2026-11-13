@@ -3,7 +3,7 @@
 // Every control is a real button or input in a labelled group, because the
 // map is a canvas and cannot be the only way to reach a square (SPEC 11.22).
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseLatLon, squareText } from './snap';
 import { findTowns, nearTowns, townLabel } from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
@@ -94,10 +94,18 @@ export function ThresholdChoice({ threshold, onThreshold }) {
  * and the answer never disagree. `shown` is that text and the box falls back
  * to it whenever the reader is not in the middle of typing.
  */
-export function Search({ onTown, onPoint, busy, shown }) {
+export function Search({ onTown, onPoint, busy, shown, askFocus }) {
   const [text, setText] = useState(null); // null means "not typing"
   const [said, setSaid] = useState(null);
   const [near, setNear] = useState([]);
+  const box = useRef(null);
+
+  // SPEC 11.37. The bottom bar's "Search" button opens the panel and asks
+  // for the keyboard by counting up; nothing else focuses this box, so the
+  // line beside it can open the panel without a keyboard appearing.
+  useEffect(() => {
+    if (askFocus) box.current?.focus();
+  }, [askFocus]);
 
   const typing = text !== null;
   const value = typing ? text : (shown || '');
@@ -152,6 +160,7 @@ export function Search({ onTown, onPoint, busy, shown }) {
       <div className="searchrow">
         <input
           id="place"
+          ref={box}
           type="text"
           autoComplete="off"
           placeholder="Search a town, or type lat, lon"

@@ -47,6 +47,7 @@ export function Headline() {
 }
 
 export function Grid() {
+  const said = headline(summary);
   return (
     <section className="cardsec">
       <h2>All {summary.groups.length} labels</h2>
@@ -64,6 +65,15 @@ export function Grid() {
         record, <strong>Rough guide</strong> is treat as a rough guide, and{' '}
         <strong>Too few</strong> is not enough past data.
       </p>
+      {/* SPEC 11.36. A mark and not a colour, because a reader who cannot
+          tell the colours apart has to be able to read this, and a plain
+          "+" rather than a tick because nothing here has passed: the label
+          beside it still says what the record is worth. */}
+      <p className="small">
+        <span className="beat" aria-hidden="true">+</span> better than the
+        usual rain for this place and month, but still a rough guide. It is
+        on {said.beat} of the {summary.groups.length}.
+      </p>
       {summary.regions.map((region) => (
         <div className="gridwrap" key={region}>
           <h3>{region}</h3>
@@ -79,15 +89,22 @@ export function Grid() {
             <tbody>
               {gridFor(summary, region).map((row) => (
                 <tr key={row.threshold}>
-                  <th scope="row">{row.threshold} mm</th>
+                  <th scope="row" className="nowrap">
+                    {row.threshold} mm
+                  </th>
                   {row.cells.map((cell) => (
                     <td key={cell.lead}>
                       <span
                         className={`chip ${COLOURS[cell.colour] || 'grey'}`}
                         aria-label={`${region}, day ${cell.lead}, `
-                          + `${row.threshold} mm: ${cell.label}`}
+                          + `${row.threshold} mm: ${cell.label}`
+                          + (cell.beat ? ', better than the usual rain for '
+                            + 'this place and month' : '')}
                       >
                         {cell.short}
+                        {cell.beat
+                          ? <span className="beat" aria-hidden="true">+</span>
+                          : null}
                       </span>
                     </td>
                   ))}

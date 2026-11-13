@@ -20,21 +20,56 @@ import {
 import { CellMap } from './plots';
 
 const REPO = 'https://github.com/SumedhaKar/Precipitation-Forecast-App';
-// The nine hand checks of the specification. HC4 read a raw IMERG file that
-// was deleted after it was checked (SPEC 2.6), so its findings are in SPEC
-// 2.3 rather than in a script here; the other eight have both a script and a
-// record, and hc_align is a tenth that came before them.
+// SPEC 11.36. Every hand check that has been done, each with the file it
+// wrote. Two have no file of their own: HC4 read a raw IMERG file that was
+// deleted after it was checked (SPEC 2.6), so what it found is in SPEC 2.3,
+// and HC10 is the checklist for the end of the build and has not been done.
+// Both link to the specification instead. No file is named here that is not
+// in the repository.
+const SPEC_CHECKS = `${REPO}/blob/main/SPEC.md#the-hand-checks`;
+const RESULTS = `${REPO}/blob/main/handchecks/results`;
+
+// SPEC 11.36. Each line's second part is the list of files that check
+// wrote: the first is what the name links to, and where there is more than
+// one, every one of them is named and linked by the run date it was done on.
 const HANDCHECKS = [
-  ['HC1', 'the GRIB file against the subset', true],
-  ['HC2', 'the daily difference, worked out again', true],
-  ['HC3', 'the steps and the members', true],
+  ['HC1', 'the saved subset against the original GRIB file, on three run '
+    + "dates either side of the two things ECMWF changed in May and October",
+    [['13 May 2026', 'hc1_20260513.txt'],
+      ['1 August 2026', 'hc1_20260801.txt'],
+      ['25 October 2026', 'hc1_20261025.txt']]],
+  ['HC2', 'the daily difference, worked out again, on two run dates',
+    [['13 May 2026', 'hc2_20260513.txt'],
+      ['25 October 2026', 'hc2_20261025.txt']]],
+  ['HC3', 'the six steps and the 51 members, on three run dates',
+    [['13 May 2026', 'hc3_20260513.txt'],
+      ['1 August 2026', 'hc3_20260801.txt'],
+      ['25 October 2026', 'hc3_20261025.txt']]],
   ['HC4', 'one raw IMERG file, read field by field, on a file since deleted',
-    false],
-  ['HC5', 'one cell of the area-weighted remap', true],
-  ['HC6', 'the 51 member values in one square', true],
-  ['HC7', 'the published bytes', true],
-  ['HC8', 'one square on the live map', true],
-  ['HC9', 'one reliability band, worked out again from the archive', true],
+    []],
+  ['HC-ALIGN', 'the forecast grid and the satellite grid against each other',
+    [['', 'hc_align.txt']]],
+  ['HC5', 'one cell of the area-weighted remap, nine pixels by hand',
+    [['', 'hc5_cell.csv']]],
+  ['HC6', 'all 51 member values in one square, read by ecCodes',
+    [['', 'hc6_members.csv']]],
+  ['HC7', 'the published bytes against the run this laptop built',
+    [['', 'hc7_published.csv']]],
+  ['HC8', 'five squares on the live map: the colour, the bytes and the panel',
+    [['', 'hc8_map_square.csv']]],
+  ['HC9', 'one reliability band, worked out again from the archive',
+    [['', 'hc9_bucket.csv']]],
+  ['HC-FAIL', 'the publisher broken seven ways and the run chooser given '
+    + 'five awkward servers: nothing was published and the run already '
+    + 'published stayed', [['', 'hc_fail.csv']]],
+  ['HC-ECMWF', "our counts against ECMWF's own figure for 10 mm or more",
+    [['', 'hc_ecmwf.csv']]],
+  ['HC-REPORT', "fifteen of the report card's own scores, worked out again "
+    + 'outside the pipeline', [['', 'hc_report.csv']]],
+  ['HC-GHATS', 'one monsoon day of the remapped satellite field, drawn',
+    [['', 'hc_ghats.csv']]],
+  ['HC10', 'the final checklist, to be done at the end of the build: not '
+    + 'done yet, and nothing here depends on it', []],
 ];
 
 function Numbers({ rows }) {
@@ -535,6 +570,43 @@ export function Limits() {
   );
 }
 
+/* SPEC 11.36. What HC-ECMWF found, in the units this site publishes.
+   ECMWF's own figure is a percentage and ours is a count of 51, so the gap
+   is given here as a number of runs; the words "per cent" and the sign do
+   not belong on a page about counts, and the numbers are the mean absolute
+   difference and the tail from `handchecks/results/hc_ecmwf.csv`. This is
+   on this page only: it is a check of our arithmetic, not a forecast, and
+   it has no place beside a square's numbers or on the report card. */
+export function Ecmwf() {
+  return (
+    <section className="cardsec">
+      <h2>Our counts against ECMWF&apos;s own figure</h2>
+      <p>
+        ECMWF publishes, for the same run and the same day, its own figure
+        for 10 mm or more in a square. It is not a count of model runs -- it
+        takes values far below what one run of 51 is worth -- so it can
+        never be the same number as ours, and what can be asked is how far
+        apart the two are.
+      </p>
+      <p>
+        On the run of 12 November 2026, for day 1 at 10 mm, our count out of
+        51 was compared with that figure at every one of the 4,613 India
+        squares. Read as runs of 51, the average gap was about a tenth of
+        one run, and 8 of the 4,613 squares were more than 5 runs apart.
+      </p>
+      <p>
+        This shows the counting is right. It does not show the model is
+        right; that is what the report card checks.
+      </p>
+      <p className="small">
+        The whole comparison, with the files it read and the two sabotages
+        that show it bites, is in{' '}
+        <a href={`${RESULTS}/hc_ecmwf.csv`}>handchecks/results/hc_ecmwf.csv</a>.
+      </p>
+    </section>
+  );
+}
+
 export function Files() {
   return (
     <section className="cardsec">
@@ -572,14 +644,29 @@ export function Files() {
           <a href={`${REPO}/tree/main/handchecks`}>handchecks/</a> and{' '}
           <a href={`${REPO}/tree/main/handchecks/results`}>
             handchecks/results/
-          </a>, nine checks done again outside the pipeline:
-          <ul>
-            {HANDCHECKS.map(([name, what, script]) => (
+          </a>, the checks done again outside the pipeline. Each line links
+          to what that check wrote:
+          <ul className="hclist">
+            {HANDCHECKS.map(([name, what, files]) => (
               <li key={name}>
-                <strong>{name}</strong>, {what}
-                {script ? '' : ' (no script here: the file it read was '
-                  + 'deleted after it was checked, and what it found is in '
-                  + 'SPEC 2.3)'}
+                <a href={files.length
+                  ? `${RESULTS}/${files[0][1]}` : SPEC_CHECKS}>
+                  <strong>{name}</strong>
+                </a>
+                , {what}
+                {files.length > 1 ? (
+                  <>
+                    {': '}
+                    {files.map(([when, file], at) => (
+                      <span key={file}>
+                        {at ? ', ' : ''}
+                        <a href={`${RESULTS}/${file}`}>{when}</a>
+                      </span>
+                    ))}
+                  </>
+                ) : ''}
+                {files.length ? '' : ' (no file of its own; it is written up '
+                  + 'in the specification)'}
               </li>
             ))}
           </ul>
@@ -601,6 +688,7 @@ export default function HowWeChecked() {
       <Crps />
       <Tally />
       <Limits />
+      <Ecmwf />
       <Files />
     </article>
   );

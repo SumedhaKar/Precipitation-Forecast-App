@@ -71,13 +71,20 @@ export function headline(summary) {
   const one = names.length === 1
     ? `All ${groups.length} of them read "${names[0]}".`
     : names.map((name) => `${counts[name]} read "${name}"`).join(', ') + '.';
+  // "and all 60 were too confident" when it is every one of them, which is
+  // plainer than "and 60 of them", and it stops being true the day it is
+  // not all of them.
+  const confident = honest === groups.length
+    ? `all ${honest} were too confident`
+    : `${honest} of them were too confident`;
   return {
     total: groups.length,
     counts,
+    beat,
     sentence: `${one} ${beat} of the ${groups.length} beat the usual rain `
-      + `for their place and month over the whole range, and ${honest} of `
-      + 'them were too confident: when many runs agreed, the satellite saw '
-      + 'it less often than they said.',
+      + `for their place and month over the whole range, and ${confident}: `
+      + 'when many runs agreed, the satellite saw it less often than they '
+      + 'said.',
   };
 }
 
@@ -93,6 +100,11 @@ export function gridFor(summary, region) {
         short: group ? shortLabel(group.label) : null,
         colour: group ? group.colour : null,
         bss: group ? group.bss : null,
+        // SPEC 11.36. Read, never worked out again here: the page shows
+        // what `site_summary.json` already decided, and a page that
+        // recomputed a condition could disagree with the label beside it.
+        beat: group
+          ? Boolean(group.conditions.skill_above_zero.pass) : false,
       };
     }),
   }));
