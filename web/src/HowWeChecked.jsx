@@ -583,10 +583,10 @@ export function Ecmwf() {
       <h2>Our counts against ECMWF&apos;s own figure</h2>
       <p>
         ECMWF publishes, for the same run and the same day, its own figure
-        for 10 mm or more in a square. It is not a count of model runs -- it
-        takes values far below what one run of 51 is worth -- so it can
-        never be the same number as ours, and what can be asked is how far
-        apart the two are.
+        for 10 mm or more (the tpg10 field) in a square. It is not a count
+        of model runs -- it takes values far below what one run of 51 is
+        worth -- so it can never be the same number as ours, and what can be
+        asked is how far apart the two are.
       </p>
       <p>
         On the run of 12 November 2026, for day 1 at 10 mm, our count out of

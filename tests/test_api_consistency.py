@@ -3782,28 +3782,72 @@ def test_the_report_card_grid_fits_a_390_pixel_screen(viewport):
     assert page["wideFontScrollWidth"] <= 390, page["wideFontScrollWidth"]
 
 
-def test_no_height_rule_uses_a_viewport_unit_without_a_dvh_line_after_it():
-    """SPEC 11.35. `vh` may appear only as the line before its `dvh`.
+@pytest.fixture(scope="module")
+def built_css(tmp_path_factory):
+    """The stylesheet as it is actually served, not as it is written.
+
+    This exists because the two are not the same. The fallback of 11.35 was
+    first written as a `100vh` line immediately before its `100dvh` line,
+    which is the ordinary way to write one; the minifier dropped it, because
+    a declaration the next line overrides is dead weight to it, and the
+    stylesheet that went to readers carried `dvh` alone. A test that reads
+    `src/styles.css` cannot see that. This one reads the build.
+    """
+    web = ROOT / "web"
+    if node is None or not (web / "node_modules" / "vite").exists():
+        pytest.skip("node and the web dependencies are needed to build")
+    out = tmp_path_factory.mktemp("css")
+    vite = web / "node_modules" / ".bin" / (
+        "vite.cmd" if os.name == "nt" else "vite")
+    done = subprocess.run(
+        [str(vite), "build", "--outDir", str(out), "--emptyOutDir",
+         "--logLevel", "error"],
+        capture_output=True, text=True, check=False, cwd=web, timeout=600)
+    assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
+    sheets = sorted((out / "assets").glob("*.css"))
+    assert sheets, "the build wrote no stylesheet"
+    return "\n".join(path.read_text(encoding="utf-8")
+                     for path in sheets)
+
+
+def test_the_stage_is_sized_from_the_visible_viewport_in_the_built_sheet(
+        built_css):
+    """SPEC 11.35, checked on the bytes a reader is sent.
+
+    The real rule is `dvh`; the fallback is an @supports block, which no
+    minifier may drop, and not a line a later line overrides.
+    """
+    assert "100dvh" in built_css
+    fallback = re.search(
+        r"@supports not \(height: ?100dvh\)\s*\{\s*\.shell\s*\{"
+        r"([^}]*)\}", built_css)
+    assert fallback is not None, (
+        "the built stylesheet has no @supports fallback for a browser "
+        "without dvh")
+    inside = fallback.group(1)
+    assert "height:100vh" in inside.replace(" ", ""), inside
+    assert "max-height:100vh" in inside.replace(" ", ""), inside
+
+
+def test_no_height_rule_uses_a_viewport_unit_outside_the_dvh_fallback():
+    """SPEC 11.35. `vh` may appear only inside the @supports fallback.
 
     A phone's `100vh` includes the strip behind the browser's bars and
-    `100dvh` does not, so every `vh` height has to be followed by the `dvh`
-    that overrides it. Anything else is the bug waiting to come back.
+    `100dvh` does not, so a `vh` height anywhere else is the bug waiting to
+    come back.
     """
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    said = [(m.group(1).strip(), m.group(2).strip())
-            for m in re.finditer(r"([a-z-]+)\s*:\s*([^;{}]+);", bare)]
-    found = 0
-    for at, (prop, value) in enumerate(said):
-        if not re.search(r"\d+vh", value):
-            continue
-        found += 1
-        after = said[at + 1] if at + 1 < len(said) else ("", "")
-        assert after[0] == prop, (prop, value, after)
-        assert re.search(r"\d+dvh", after[1]), (prop, value, after)
-    assert found == 2, (
-        f"{found} viewport-unit heights; the only ones left should be the "
-        "shell's height and max-height fallbacks")
+    head = "@supports not (height: 100dvh)"
+    assert head in bare, "the fallback block is gone"
+    at = bare.index(head)
+    shut = bare.index("}\n}", at) + 3
+    block = bare[at:shut]
+    assert len(re.findall(r"\d+vh", block)) == 2, block
+    rest = bare[:at] + bare[shut:]
+    assert re.search(r"\d+vh", rest) is None, (
+        "a viewport-unit height outside the fallback: "
+        f"{re.search(r'[^;{{}}]*[0-9]+vh[^;{{}}]*', rest).group(0)}")
 
 
 def test_the_phone_layout_takes_the_map_s_height_out_of_the_stage():
@@ -4165,6 +4209,177 @@ def test_the_bar_shows_the_chosen_place_after_a_tap(viewport):
     assert line == "Hide the details", line
 
 
+# ------------------- SPEC 11.20 and 11.33: the panel's and the bar's own words
+
+# What the forecast page may say that the two document pages may not. The
+# panel's job is to stop a reader reading its counts as odds, and it does
+# that by naming the thing they are not: the heading "It is not a
+# probability." and the sentence of 11.21 under it. The word is allowed in
+# those two sentences and nowhere else, and the test pins the sentences
+# rather than the word so the allowance cannot spread.
+FORECAST_ALLOWED = {
+    "probability": ("it is not a probability.",
+                    "these are counts out of 51 model runs, not a "
+                    "calibrated probability."),
+}
 
 
+@pytest.fixture(scope="module")
+def forecast_words(tmp_path_factory):
+    """The panel and the bar rendered to text, over every state they have.
 
+    Real `/api/place` answers drive it: a small run is published through the
+    real publisher into a temporary directory, served over HTTP, and the
+    real `api/place.mjs` is asked for several squares. What is swept is
+    therefore the panel a reader is given and not a drawing of one.
+    """
+    web = ROOT / "web"
+    if node is None or not (web / "node_modules" / "vite").exists():
+        pytest.skip("node and the web dependencies are needed to render")
+
+    tmp = tmp_path_factory.mktemp("forecast")
+    with pytest.MonkeyPatch.context() as mp:
+        india = small_grid(mp)
+        live = tmp / "live"
+        live.mkdir()
+        mp.setattr(publish, "LIVE", live)
+        mp.setattr(publish, "run_dir", lambda run_id: live / run_id)
+        write_run(live, RUN, india)
+        served = tmp / "store"
+        answer = publish.publish(FakeStore(), RUN, work_dir=served, mark=False)
+        assert answer["published"] is True
+        # Inside the context, where the small grid is the grid.
+        squares = india_squares({"india": india})
+        assert len(squares) == 30, len(squares)
+
+    handler = type("Rooted", (Quiet,),
+                   {"__init__": lambda self, *a, **kw: Quiet.__init__(
+                       self, *a, directory=str(served), **kw)})
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+
+    try:
+        harness = tmp / "harness.mjs"
+        harness.write_text(HARNESS, encoding="utf-8")
+        answers = []
+        for lat, lon in squares[::7]:
+            reply = call(harness, "place", f"?lat={lat}&lon={lon}", base)
+            assert reply["status"] == 200, (lat, lon, reply["body"][:200])
+            answers.append(reply["json"])
+        assert len(answers) >= 3
+
+        out = web / "node_modules" / ".ssr-test"
+        vite = web / "node_modules" / ".bin" / (
+            "vite.cmd" if os.name == "nt" else "vite")
+        done = subprocess.run(
+            [str(vite), "build", "--ssr", "src/ssr.jsx", "--outDir",
+             "node_modules/.ssr-test", "--logLevel", "error"],
+            capture_output=True, text=True, check=False, cwd=web)
+        assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
+
+        given = tmp / "answers.json"
+        given.write_text(json.dumps(answers), encoding="utf-8")
+        script = (
+            "import { readFileSync } from 'node:fs';\n"
+            "const mod = await import(process.argv[2]);\n"
+            "const answers = JSON.parse(readFileSync(process.argv[3],"
+            " 'utf-8'));\n"
+            "process.stdout.write(JSON.stringify("
+            "mod.forecastWords(answers)));\n")
+        runner = out / "run-forecast.mjs"
+        runner.write_text(script, encoding="utf-8")
+        done = subprocess.run(
+            [node, str(runner), (out / "ssr.js").as_uri(), str(given)],
+            capture_output=True, text=True, check=False, cwd=web)
+        assert done.returncode == 0, f"node failed: {done.stderr}"
+        said = json.loads(done.stdout)
+        assert len(said) > 50, len(said)
+        return said
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def forbidden_in(text: str, allowed: dict) -> str | None:
+    """The first forbidden word in `text`, or None. SPEC 11.20 and 11.33.
+
+    `allowed` maps a word to the sentences it may appear in; those sentences
+    are taken out before the sweep, so the word is allowed where it is
+    written and nowhere else.
+    """
+    low = text.lower()
+    for sentences in allowed.values():
+        for sentence in sentences:
+            low = low.replace(sentence, " ")
+    for word in FORBIDDEN:
+        if word == "certain":
+            # SPEC 11.33. The ban is on the claim "certain"; "too uncertain
+            # to tell" is a confession and the opposite of a claim, so the
+            # whole word is what is forbidden and not the letters.
+            if re.search(r"\bcertain\b", low):
+                return word
+        elif word == "warn":
+            # "Not an official warning" is required of this site, and is the
+            # one warning word it may say.
+            if "warn" in low.replace("official warning", ""):
+                return word
+        elif word in low:
+            return word
+    return None
+
+
+@needs_node
+def test_the_panel_and_the_bar_say_no_percentage(forecast_words):
+    """SPEC 6.7 and 11.33, over the forecast page's own words.
+
+    A percentage implies a reliability the record has not earned. The counts
+    and the day sentence were swept from the first day; this sweeps the
+    panel's written text and the bar of 11.37 with them.
+    """
+    for html in forecast_words:
+        text = words_of(html)
+        assert "%" not in text, text[:200]
+        assert "percent" not in text.lower(), text[:200]
+
+
+@needs_node
+def test_the_panel_and_the_bar_say_no_forbidden_word(forecast_words):
+    """SPEC 11.20's list, over every state the panel and the bar have.
+
+    The forecast page has one word of its own: it may say "It is not a
+    probability.", because refusing the reading is the point of the
+    sentence. Everything else on the list is banned here as it is on the two
+    document pages.
+    """
+    seen = 0
+    for html in forecast_words:
+        text = words_of(html)
+        if not text.strip():
+            continue
+        found = forbidden_in(text, FORECAST_ALLOWED)
+        assert found is None, f"{found} in: {text[:300]}"
+        seen += 1
+    assert seen > 50, seen
+
+    # The allowance is a sentence and not a licence: the word may appear
+    # only in the sentence that refuses the reading, and that sentence has
+    # to be there.
+    every = " ".join(words_of(html) for html in forecast_words).lower()
+    for sentence in FORECAST_ALLOWED["probability"]:
+        assert sentence in every, sentence
+    assert every.count("probability") == sum(
+        every.count(sentence)
+        for sentence in FORECAST_ALLOWED["probability"])
+
+
+@needs_node
+def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
+    """A sweep that renders nothing passes. This says what it rendered."""
+    every = " ".join(words_of(html) for html in forecast_words)
+    for must in ("model runs", "How to read this map", "It is not a "
+                 "probability.", "Lakshadweep", "Tap the map to pick a place",
+                 "Hide the details", "outside the forecast area",
+                 "no WebGL 2"):
+        assert must in every, must

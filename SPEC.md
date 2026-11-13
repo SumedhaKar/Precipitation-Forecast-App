@@ -5226,6 +5226,23 @@ reach a screen, not on a description of them.
 | the period sentence | appears on both pages |
 | no percentage | appears on either page, for any choice a reader can make |
 | the forbidden words | hold over every string either page can produce |
+
+**And over the forecast page's own panel and bar, which they did not.** Until
+13 November 2026 the sweep covered only the two strings the panel *computes*
+-- the day sentence of 11.20 and the track-record answers of `record.js` --
+and never its written text, which is most of what a reader reads, nor the bar
+of 11.37. `ssr.jsx` now renders the panel from real `/api/place` answers in
+every state it has (an answer for all five days and all three thresholds,
+nothing chosen, waiting, a square still loading, both island notes and each
+of the ten failure lines) and the bar's three labels with it, and the same
+list and the same no-percentage rule are swept over the lot.
+
+The forecast page has **one** word the two document pages do not: it may say
+`probability`, in the two sentences that refuse the reading -- the heading
+"It is not a probability." and the sentence of 11.21 under it. The allowance
+is written as those sentences and not as the word, so it cannot spread: the
+count of the word over the whole sweep must equal the count of those two
+sentences. Inserting "certain" into How to read this map is caught.
 | the menu | is three real links to the three paths, with `aria-current` on the one being read |
 | `vercel.json` | rewrites everything but `/api/` and `/assets/` to `/index.html`, and nothing the built page loads depends on the rewrite |
 | `<noscript>` | links to all five result files and to `SPEC.md` |
@@ -5293,11 +5310,24 @@ is left after the header and the controls -- and never out of the viewport:
 
 | | |
 |---|---|
-| `.shell` | `height: 100vh` then `height: 100dvh`, in that order, and the same pair for `max-height`. The `vh` line is the fallback for a browser with no `dvh`; the `dvh` line is the rule |
+| `.shell` | `height: 100dvh` and `max-height: 100dvh`, with the `100vh` fallback in an `@supports not (height: 100dvh)` block and **not** as a line before them |
 | `.mapwrap` | `flex: 1 1 auto` with a floor of 6rem (5rem under 560 pixels). It may shrink; it may not vanish |
 | `.panel` | `flex: 0 1 auto`, `min-height: 3.4rem`, `max-height: 45%` of the stage. The minimum is a little more than the handle, which is the guarantee the handle is on the screen |
 | `.shell.open .panel` | `max-height: 78%` of the stage, not `none`. With `none` the panel grew past the bottom of the screen and the 51 member values could not be scrolled to |
 | no viewport unit | may be used for the height of anything inside the shell |
+
+**The fallback had to move, and the reason is a rule of its own.** It was
+first written the ordinary way, a `100vh` line immediately before its
+`100dvh` line. The source was right and the site was not: the minifier drops
+a declaration the next line overrides, so the stylesheet actually served
+carried `dvh` alone, and a browser that had never heard of `dvh` would have
+had no height at all. It was found on 13 November 2026 by reading the
+deployed `assets/*.css` after the merge, not by reading the source. An
+`@supports` block cannot be dropped that way.
+
+The lesson is kept as a test rather than as a note: one test now builds the
+site and reads the stylesheet the build wrote, because a rule that is true in
+`src/styles.css` and false in what is served is worse than no rule.
 
 `viewport-fit=cover` is **not** set. Without it the page is laid out inside
 the safe area and the bars cannot cover it; with it every edge that touches
@@ -5355,7 +5385,8 @@ signed mean, which would hide them -- and the count of squares more than 5
 runs apart. Then, in those words: "This shows the counting is right. It does
 not show the model is right; that is what the report card checks." ECMWF's
 own word for its figure cannot be used here, because it is one of the
-forbidden words of 11.20; "its own figure for 10 mm or more" is the wording,
+forbidden words of 11.20; "its own figure for 10 mm or more (the tpg10
+field)" is the wording, which names the field without using the word,
 with the point that it is not a count of runs said plainly beside it. This
 is on How we checked only, never on the forecast page and never on the
 report card.
