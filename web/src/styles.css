@@ -129,6 +129,12 @@ header {
   max-width: 46ch;
 }
 
+/* SPEC 11.38. One line about freshness, on a phone, where the run line's
+   three facts in two greys were two of the lines that pushed the map
+   under the fold. The desktop keeps the run line; each is hidden at the
+   other's width, so only one is ever read. */
+.fresh { display: none; }
+
 .run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
 .runid {
   margin-left: 0.6rem;
@@ -1000,6 +1006,67 @@ footer p { max-width: 70ch; }
 
 @media (max-width: 1023px) {
   header { gap: 0.3rem; }
+
+  /* SPEC 11.38. The phone's header is three short rows and no more: the
+     name with the warning chip beside it, the tagline and the freshness
+     line under it, and the menu. The run line's three facts in two greys
+     were two of the lines that pushed the map under the fold.
+
+     A grid, because the chip has to sit beside the name while the tagline
+     and the freshness line sit under it, and the three are not siblings:
+     flex can do one of those or the other and not both. */
+  header {
+    display: grid;
+    /* The chip is given a narrow column and wraps inside it. Left to
+       `auto` it takes its own max-content width -- 250 of the 390 pixels
+       -- and the name, the tagline and the freshness line were squeezed
+       into 119, where the tagline ran to four lines. */
+    grid-template-columns: minmax(0, 1fr) minmax(5rem, 8rem);
+    align-items: start;
+    column-gap: 0.5rem;
+    row-gap: 0.25rem;
+  }
+  .titles { grid-column: 1; grid-row: 1; }
+  .headwarn { grid-column: 2; grid-row: 1; width: auto; }
+  .topnav { grid-column: 1 / -1; margin: 0; }
+
+  /* SPEC 11.22 is satisfied without the words: the current page is bold
+     and underscored, which is not a colour, and the words are still said
+     to a screen reader. On a phone they are what wraps the menu onto a
+     second line, and a second line of menu costs the map more than the
+     words are worth. */
+  .hereword {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .navlink.here {
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 2px;
+  }
+
+  .run { display: none; }
+  .fresh {
+    display: block;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--quiet);
+  }
+
+  .fresh.old {
+    color: var(--warn-ink);
+    background: var(--warn-bg);
+    border-radius: 6px;
+    padding: 0.1rem 0.4rem;
+  }
   .headwarn { width: 100%; }
 
   .stage { flex-direction: column; }
@@ -1237,10 +1304,15 @@ footer p { max-width: 70ch; }
    result is in SPEC 11.29. */
 @media (max-width: 560px) {
   header {
-    align-items: center;
+    align-items: flex-start;
     gap: 0.15rem 0.5rem;
     padding: 0.4rem 0.7rem;
   }
+
+  /* The name and the warning chip share the first row; the tagline, the
+     freshness line and the menu each take one of their own. */
+  .titles { flex: 1 1 100%; order: 1; }
+  h1 { flex: 0 0 auto; }
 
   h1 { font-size: 1.02rem; margin: 0; }
 
@@ -1255,10 +1327,9 @@ footer p { max-width: 70ch; }
 
   .controls { gap: 0.35rem 0.6rem; padding: 0.4rem 0.6rem; }
 
-  /* "Day" is hidden, not dropped: the radio group still names itself with
-     it through aria-labelledby, which works on a hidden element. Five dates
-     in a row do not need a word over them. */
-  .days .grouplabel { display: none; }
+  /* SPEC 11.38. "Which day?" is a question and it is asked out loud. The
+     label used to be the word "Day", which five dates in a row did not
+     need, so it was hidden; a question is worth its one line. */
   .days .radios button { font-size: 0.76rem; }
   .window { font-size: 0.7rem; line-height: 1.3; }
 

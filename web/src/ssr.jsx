@@ -23,7 +23,7 @@ import TopNav from './TopNav';
 import Panel, { Welcome, summaryLine } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import Legend from './Legend';
-import { Footer, RunLine, StaleBanner } from './App';
+import { Footer, Freshness, RunLine, StaleBanner } from './App';
 import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
 import { NO_LOCATION, locationProblem, mapProblem } from './messages';
@@ -166,8 +166,19 @@ export function forecastWords(answers) {
   out.push(renderToStaticMarkup(<Footer />));
   if (run) {
     out.push(renderToStaticMarkup(<RunLine run={run} />));
+    // The run a test publishes is dated, so freshness is forced here:
+    // both of the two things this line can say are rendered and swept.
+    const fresh = {
+      ...run,
+      run_time_utc: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+      age_hours: 2,
+    };
+    out.push(renderToStaticMarkup(<Freshness run={fresh} />));
+    // And the same run made old, which is the only other thing the
+    // freshness line and the banner can say.
     const old = { ...run, age_hours: 41, stale: true,
       run_time_utc: '2026-01-01T00:00:00+00:00' };
+    out.push(renderToStaticMarkup(<Freshness run={old} />));
     out.push(renderToStaticMarkup(<StaleBanner run={old} />));
   }
   // The calm line for a tap on the sea or on a neighbour's land.

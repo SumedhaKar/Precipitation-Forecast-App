@@ -1644,6 +1644,51 @@ def test_the_nicknames_are_ours_and_are_written_down():
     assert "not an official category" in panel.lower()
 
 
+# ------------------------------- SPEC 11.38: how old this forecast is
+
+@needs_node
+def test_the_freshness_line_says_when_and_how_old(forecast_words):
+    """SPEC 11.38. One line on a phone, where the run line was three."""
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="fresh"' not in html:
+            continue
+        text = words_of(html).strip()
+        assert text.startswith("Updated "), text
+        assert " IST" in text and "h old" in text, text
+        # No year: on a phone it is a word nobody reads.
+        assert not re.search(r"20\d\d", text), text
+        seen += 1
+    assert seen >= 1, "the freshness line was never rendered"
+
+
+@needs_node
+def test_the_stale_wording_never_promises_a_newer_run(forecast_words):
+    """SPEC 11.8 and 11.38.
+
+    The banner used to read "A newer model run has not been published",
+    which is true and reads as a promise that one is coming. Nothing here
+    knows that: the store may be behind, ECMWF may be late, the run may
+    never arrive. It says how old this one is and stops.
+    """
+    said = []
+    for html in forecast_words:
+        if not isinstance(html, str):
+            continue
+        text = words_of(html)
+        if "hours old" in text:
+            said.append(text)
+    assert said, "no stale wording was rendered"
+    for text in said:
+        low = text.lower()
+        assert "a newer one has not arrived yet" in low, text
+        for promise in ("will be", "on its way", "coming", "shortly",
+                        "soon", "due", "shall"):
+            assert promise not in low, (promise, text)
+        # And it never implies one has been published either.
+        assert "has not been published" not in low, text
+
+
 # ---------------------------- SPEC 11.38: what the day buttons are called
 
 DAYS_JS = ROOT / "web" / "src" / "days.js"

@@ -86,7 +86,9 @@ export default function TopNav({ path, onGo }) {
                 {page.name}
                 {/* The colour is not the only thing that says which page
                     this is: SPEC 11.22. */}
-                {here ? <span className="small"> (you are here)</span> : null}
+                {here ? (
+                  <span className="small hereword"> (you are here)</span>
+                ) : null}
               </a>
             </li>
           );

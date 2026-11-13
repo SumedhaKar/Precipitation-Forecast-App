@@ -73,6 +73,16 @@ function istText(stamp) {
     + `${twelve}:${minute} ${suffix}`;
 }
 
+/** "2026-11-13T12:33:35+05:30" -> "13 Nov, 12:33 pm". SPEC 11.38. */
+function shortIst(stamp) {
+  const full = istText(stamp);
+  if (!full) return null;
+  // istText gives "13 Nov 2026, 12:33 pm"; the year is the only thing
+  // dropped, and it is dropped by the shape of that string and not by a
+  // second date parser.
+  return full.replace(/^(\d+ \w+) \d{4},/, '$1,');
+}
+
 /**
  * Is this run too old to show without saying so?
  *
@@ -94,6 +104,43 @@ export function StaleBanner({ run }) {
       <strong>This forecast is {run.age_hours} hours old;</strong>{' '}
       a newer one has not arrived yet. Nothing here has been updated since{' '}
       {istText(run.run_time_ist)} IST.
+    </p>
+  );
+}
+
+/**
+ * How old this forecast is, in one line. SPEC 11.38.
+ *
+ * The header's run line is three facts in two sizes of grey -- the run
+ * time, the publish time and the run ID -- and on a phone it was two of
+ * the lines that pushed the map under the fold. A reader wants to know one
+ * thing: is this fresh? So this is the phone's copy, and the run line stays
+ * the desktop's; the run ID and the UTC time are in "For the curious".
+ *
+ * When the run is older than the 36 hours of 11.8 the line becomes the
+ * warning itself. It never says a newer one is on its way, because nothing
+ * here knows that: 11.8's banner used to say "a newer model run has not
+ * been published", which is true, and the hopeful reading of it is not.
+ */
+export function Freshness({ run }) {
+  if (!run) return null;
+  if (staleNow(run)) {
+    return (
+      <p className="fresh old" role="status">
+        <strong>
+          This forecast is {run.age_hours} hours old; a newer one has not
+          arrived yet.
+        </strong>
+      </p>
+    );
+  }
+  const when = shortIst(run.publish_time_ist || run.run_time_ist);
+  const hours = Number.isFinite(run.age_hours)
+    ? Math.round(run.age_hours) : null;
+  return (
+    <p className="fresh">
+      Updated {when} IST
+      {hours === null ? null : ` · ${hours} h old`}
     </p>
   );
 }
@@ -490,6 +537,7 @@ export default function App({ nav, onGo }) {
             are.
           </p>
           <RunLine run={run} />
+          <Freshness run={run} />
         </div>
         {/* SPEC 11.34: the three pages, in the header of all three. */}
         {nav}
