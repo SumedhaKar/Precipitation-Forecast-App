@@ -8,7 +8,7 @@
   "functions": {
     "api/*.mjs": {
       "maxDuration": 10,
-      "includeFiles": "config/store.json",
+      "includeFiles": "config/{store,regions}.json",
       "excludeFiles": "{data/**,handchecks/**,results/**,tests/**,pipeline/**,scripts/**,web/**,.github/**,.venv/**,*.md}"
     }
   }

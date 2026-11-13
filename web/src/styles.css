@@ -612,6 +612,89 @@ header {
   vertical-align: -1px;
 }
 
+/* ------------------------------------------- the trust label, SPEC 11.33 */
+
+/* The three labels of SPEC 6.7, as words on a colour. The colour is never the
+   only carrier: the label is written out every time it appears. Each pair was
+   measured -- green 6.82, amber 7.48, grey 7.35 -- so the words clear WCAG AA
+   at this size with room to spare. The chip backgrounds are near enough white
+   to need a border of their own to read as chips at all. */
+.chip {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.chip.green { background: #e3f3e4; color: #1b5e20; border-color: #9ccc9f; }
+.chip.amber { background: #fff4e5; color: #7a4100; border-color: #e8c795; }
+.chip.grey { background: #e7ebee; color: #3e4c59; border-color: #c6ced6; }
+
+/* On a threshold row the chip takes a line of its own: three labels across
+   three rows at 380 pixels would otherwise be three columns of one word. */
+.chip.tiny {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+}
+
+/* SPEC 11.33: the same size as the count above it. A record that has to be
+   read in smaller type than the number it qualifies is a footnote, and this
+   is not a footnote. */
+.pastline {
+  margin: 0.3rem 0 0.1rem;
+  padding: 0.3rem 0.5rem 0.35rem;
+  font-size: 0.88rem;
+  background: var(--page);
+  border-left: 3px solid var(--rule);
+  border-radius: 0 6px 6px 0;
+}
+
+.aboutten { color: var(--quiet); }
+
+.trust { margin: 0.5rem 0 0.2rem; }
+
+.trustline {
+  margin: 0 0 0.35rem;
+  font-size: 0.84rem;
+  color: var(--quiet);
+}
+
+.trustline .chip { margin-right: 0.3rem; vertical-align: 1px; }
+
+.whylabel { font-size: 0.82rem; color: var(--quiet); }
+.whylabel summary { cursor: pointer; color: #0b4f8a; }
+.whylabel[open] summary { margin-bottom: 0.4rem; }
+
+.conds {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.conds li {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--rule);
+}
+
+.conds li.met { border-left-color: #9ccc9f; }
+.conds li.no { border-left-color: #e8c795; }
+.condname { color: var(--ink); }
+.condrule { color: var(--faint); }
+
+.trustnotes { margin: 0; }
+.trustnotes dt { color: var(--ink); }
+.trustnotes dd { margin: 0 0 0.4rem; }
+
 /* -------------------------------------------------------- the day strip */
 
 .strip { margin-top: 1rem; }
@@ -808,6 +891,7 @@ footer p { max-width: 70ch; }
   .legend-foot { display: none; }
 
   .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
+  .pastline { font-size: 0.84rem; }
 }
 
 /* ------------------------------------------- phone: the map is the hero */

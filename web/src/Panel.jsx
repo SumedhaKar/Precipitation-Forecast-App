@@ -9,12 +9,13 @@
 // api/place computed from the published integers, and the one sentence a day
 // is built by api/place from that day's three counts and nothing else.
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { colourOf, inkOf, labelOf, notProbability } from './palette';
 import { squareText } from './snap';
 import { nameOfSquare } from './places';
 import { sameSquare } from './answers';
+import { trustFor } from './trust';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -108,6 +109,69 @@ export function DaySentence({ day }) {
 }
 
 /**
+ * The trust label for one region, lead day and threshold. SPEC 11.33.
+ *
+ * The word and the colour are both read from the frozen record. There is no
+ * rule here that turns a number into a colour: `pipeline/labels.py` decided
+ * that before any of these numbers were looked at (SPEC 6.8).
+ */
+export function Chip({ trust, small }) {
+  return (
+    <span className={`chip ${trust.colour}${small ? ' tiny' : ''}`}>
+      {trust.label}
+    </span>
+  );
+}
+
+/**
+ * What the record says about the chosen day and threshold. SPEC 11.33.
+ *
+ * One chip, one line saying which of the four checks it did not pass, and
+ * everything behind it a reader could want in order to disagree with us.
+ * `trust` is null only where there is no region, which is to say nowhere the
+ * site can answer for at all.
+ */
+export function TrustBlock({ place, day, threshold }) {
+  const k = THRESHOLDS.indexOf(threshold);
+  const count = day.counts_by_threshold[k].count;
+  const trust = trustFor(place.square.region, day.lead_day, threshold, count,
+    place.members);
+  if (!trust) return null;
+  return (
+    <div className="trust">
+      <p className="trustline">
+        <Chip trust={trust} /> {trust.why}
+      </p>
+      <details className="whylabel">
+        <summary>Why this label?</summary>
+        <ul className="conds">
+          {trust.conditions.map((condition) => (
+            <li key={condition.name} className={condition.pass ? 'met' : 'no'}>
+              <span className="condname">
+                {condition.name}:{' '}
+                <strong>{condition.pass ? 'passed' : 'not passed'}</strong>
+              </span>
+              <span className="condgot">{condition.got}</span>
+              <span className="condrule">
+                The rule asks for {condition.rule}.
+              </span>
+            </li>
+          ))}
+        </ul>
+        <dl className="trustnotes">
+          {trust.notes.map((note) => (
+            <Fragment key={note.what}>
+              <dt>{note.what}</dt>
+              <dd>{note.says}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      </details>
+    </div>
+  );
+}
+
+/**
  * The three counts for the chosen day, each row a way of choosing it.
  *
  * SPEC 11.28. These were a table, and the chosen row was shaded, so the rows
@@ -116,6 +180,10 @@ export function DaySentence({ day }) {
  * both read and set the one `threshold` the page holds.
  */
 export function Counts({ place, day, threshold, onThreshold }) {
+  // SPEC 11.33. The region is the API's (api/place reads config/regions.json),
+  // never worked out here, so a square cannot be shown another region's
+  // record.
+  const region = place.square.region;
   return (
     <div className="counts">
       <h3 id="countshead">
@@ -125,6 +193,8 @@ export function Counts({ place, day, threshold, onThreshold }) {
         {THRESHOLDS.map((amount, k) => {
           const count = day.counts_by_threshold[k].count;
           const chosen = amount === threshold;
+          const trust = trustFor(region, day.lead_day, amount, count,
+            place.members);
           return (
             <li key={amount}>
               <button
@@ -137,6 +207,11 @@ export function Counts({ place, day, threshold, onThreshold }) {
                 <span className="rowwhat">{amount} mm or more</span>
                 <span className="rowcount">
                   <strong>{count}</strong> of {place.members} model runs
+                  {/* SPEC 6.7: a share of ten is only ever shown beside a
+                      green label, and no group is green today. */}
+                  {trust && trust.percent ? (
+                    <span className="aboutten">, {trust.percent}</span>
+                  ) : null}
                 </span>
                 <span className="rowband">
                   <span
@@ -146,7 +221,13 @@ export function Counts({ place, day, threshold, onThreshold }) {
                   />
                   {labelOf(count)}
                 </span>
+                {/* SPEC 11.33: three thresholds are three track records, and
+                    often three different labels. */}
+                {trust ? <Chip trust={trust} small /> : null}
               </button>
+              {chosen && trust && trust.past ? (
+                <p className="pastline">{trust.past}</p>
+              ) : null}
             </li>
           );
         })}
@@ -352,6 +433,7 @@ export default function Panel({
         threshold={threshold}
         onThreshold={onThreshold}
       />
+      <TrustBlock place={place} day={chosen} threshold={threshold} />
       <DayStrip
         place={place}
         day={day}

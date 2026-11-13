@@ -4973,6 +4973,12 @@ assignment lives. The page keeps no second copy of it. Every square the site
 can answer for has a region: the 4,613 squares of the India mask (3.5) and the
 4,613 squares `config/regions.json` assigns are the same squares.
 
+`includeFiles` in `vercel.json` widens to `config/{store,regions}.json` for
+it. 11.23 dropped `nearest_city` rather than widen it for a city name; a
+region is not decoration. It is the key a label is filed under, and if the
+page worked it out for itself the site could show one region's record under
+another region's square.
+
 #### What the panel shows
 
 | where | what |
@@ -4997,6 +5003,7 @@ said as one sentence:
 | one time | "about 1 time in 10", not "1 times" |
 | not a counted bucket | "Too few past cases with this many runs agreeing to say how often it came true." The floor of 6.4 -- 100 cases from 10 start dates -- governs what we say out loud as well as what we test |
 | the satellite, always | "the satellite saw it", never "it rained". 5.9: the satellite is an estimate and the forecast agreed with it or did not. The one place "came true" survives is the line above, carried word for word from 6.7 |
+| a run with any other number of members | nothing is said. The bands are counts out of 51 (2.1), and a count out of some other number is not the same question |
 
 #### Percentages
 
@@ -5025,15 +5032,29 @@ with that file.
 
 #### Tests
 
-Eight, over `web/src/record.js`, which has no imports so `node` can drive it:
-the chip and the sentence equal `site_summary.json` for all 60 groups at every
-count; the sentence is omitted exactly where the bucket is not counted; no
-percentage appears for any real group, and the made-up green one gets
-"about 4 in 10"; the forbidden-word list of 11.20 holds over every sentence
-the panel can produce; `api/place` gives every India square the region
-`config/regions.json` gives it, and no square outside India a region at all;
-the twelve place tests of 5.4 answer through the API; and `web/src/summary.json`
-is `results/site_summary.json` byte for byte.
+Ten. Most of them drive `web/src/record.js`, which has no imports so `node`
+can run it against the real file, over all 60 groups at all 52 counts -- 3,120
+answers, each one compared with `results/site_summary.json`:
+
+| | |
+|---|---|
+| the label, the colour, the sentence and the four conditions | are the record's, for every group and every count |
+| the sentence | is withheld exactly where the band is not counted, and nowhere else |
+| a share of ten | appears for no group of the real record, and a made-up green one gets "about 4 in 10" |
+| the forbidden words of 11.20 | hold over every string the label can put on the page, and every sentence says "the satellite saw it" |
+| a run with other than 51 members | gets no sentence at all |
+| `api/place` | gives all 15,609 squares of the box the region `config/regions.json` gives them, which for 4,613 is one of the four and for the rest is none, and those 4,613 are the India mask of 3.5 square for square |
+| the twelve place tests of 5.4 | answer through the function the site asks |
+| a whole request | carries `region` and `region_code` for the square it answers for, agreeing with that function |
+| `web/src/summary.json` | is `results/site_summary.json` byte for byte, and the only `.json` the page imports besides the towns, the units and the outlines |
+| the panel | puts the sentence under the chosen count only, carries a chip on every row, and decides no label, frequency or colour of its own |
+
+Eight sabotages, eight caught: "it rained" for "the satellite saw it", a count
+with no counted band borrowing the nearest one, a share of ten without a green
+label, the page rounding a frequency itself, the line naming the checks it
+passed rather than the ones it did not, the region read one row further north,
+the sentence shown on every threshold row, and one digit changed in the
+bundled copy of the record.
 
 ---
 
