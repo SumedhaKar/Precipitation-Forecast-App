@@ -644,7 +644,20 @@ export default function ForecastMap({
         style: EMPTY_STYLE,
         bounds: INDIA,
         maxBounds: LIMITS,
-        minZoom: 3,
+        // SPEC 11.38. It was 3, and 3 is above the zoom that fits India on
+        // a phone, so the fit was silently clamped and the south of the
+        // country was off the bottom of the screen: 18.7 to 38.6 N in a
+        // 390 by 664 browser, which is Kerala, Tamil Nadu, Karnataka and
+        // half of Andhra Pradesh not drawn at all on first load.
+        //
+        // MapLibre's world is 512 pixels at zoom 0, so 6 to 38 N is 0.0488
+        // of it at every zoom, which is 200 pixels at zoom 3 and 400 at
+        // zoom 4. A phone's map box is 261 pixels tall with 108 of them
+        // spent on the padding that keeps India clear of the zoom buttons
+        // and the attribution, so the fit needs zoom 2.62 and could not
+        // have it. Two is below that with room to spare, and maxBounds
+        // still stops anybody wandering off the country.
+        minZoom: 2,
         maxZoom: 9,
         dragRotate: false,
         pitchWithRotate: false,
@@ -732,9 +745,24 @@ export default function ForecastMap({
       // would zoom India down to nothing on a small screen, which is worse
       // than a legend over the sea.
       const cap = (value, whole) => Math.min(value + gap, whole / 3);
+      // SPEC 11.38. The top is the gap and nothing else.
+      //
+      // The zoom buttons are 58 pixels tall in the top **right** corner,
+      // and padding the whole top edge by 68 of a phone's 261 pixel map
+      // took a quarter of the height away from the fit. The fit then
+      // wanted a zoom below the minimum, was clamped, and drew 18.7 to
+      // 38.6 N: Kerala, Tamil Nadu, Karnataka and half of Andhra Pradesh
+      // were off the bottom of the screen on first load.
+      //
+      // Padding the right is what keeps the country clear of the buttons,
+      // because that is the edge they are on. What the buttons cover once
+      // the fit is right is the top right of the **box** of SPEC 1.4,
+      // which is 38 N 98 E and thereabouts -- China, drawn beige, with no
+      // forecast square anywhere near it. Nothing of India is under them.
+      const seenRight = most(right);
       return {
-        top: cap(most(top), canvas.height),
-        right: cap(most(right), canvas.width),
+        top: gap,
+        right: cap(seenRight, canvas.width),
         bottom: cap(most(bottom), canvas.height),
         left: gap,
       };
@@ -889,6 +917,12 @@ export default function ForecastMap({
       // nothing is moving any more, and the map is the same map every time.
       created.once('idle', () => {
         if (labels.current) labels.current.resized();
+        // SPEC 11.38. And fit again now that nothing is moving. The first
+        // fit happens on `load`, which can be before the flexbox has given
+        // the map its real height; the ResizeObserver catches most of
+        // that, and this catches the rest. It does nothing at all if the
+        // reader has already moved the map themselves.
+        if (!touched.current) refit();
       });
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => {

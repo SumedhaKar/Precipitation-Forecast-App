@@ -3921,6 +3921,9 @@ const LOOK = `(async () => {
     legendWhite: document.querySelector('.legend-white')
       ? getComputedStyle(document.querySelector('.legend-white'))
         .display : null,
+    // SPEC 11.38: what the map is actually showing, from the map itself.
+    view: (document.querySelector('.map') && document.querySelector('.map').mapView)
+      ? document.querySelector('.map').mapView() : null,
     focus: document.activeElement ? (document.activeElement.id
       || document.activeElement.className || document.activeElement.tagName)
       : null,
@@ -4197,7 +4200,7 @@ def viewport(tmp_path_factory):
         runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
         plan = {
             "api": str(ROOT / "api"),
-            "sizes": [[390, 664], [390, 844], [320, 568]],
+            "sizes": [[390, 664], [390, 844], [320, 568], [1440, 900]],
             "longest": longest_bar_line(),
             "target": target,
         }
@@ -4260,6 +4263,33 @@ def test_the_handle_opens_the_panel_and_the_last_line_can_be_reached(
     content, box = inside["panelScroll"]
     assert content > box, (content, box)
     assert box <= 664
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "1440x900"])
+def test_the_whole_of_india_is_in_view_on_first_load(viewport, size):
+    """SPEC 11.38. 6 to 38 N and both coasts, before anybody touches it.
+
+    The zoom buttons are 58 pixels tall in the top right corner, and the
+    fit padded the whole top edge by 68 of a phone's 261 pixel map. The
+    fit then wanted a zoom below the minimum, was clamped there, and drew
+    18.7 to 38.6 N: Kerala, Tamil Nadu, Karnataka and half of Andhra
+    Pradesh were not on the screen at all when the page opened.
+    """
+    here = viewport["phone"][size]
+    view = here["shut"]["view"]
+    assert view, f"the map did not report a view at {size}"
+    west, south, east, north = view["bounds"]
+    # The box of SPEC 1.4, with a tenth of a degree of slack for the
+    # floating point of a projection and back.
+    assert south <= 6.0 + 0.1, (size, south)
+    assert north >= 38.0 - 0.1, (size, north)
+    assert west <= 68.0 + 0.1, (size, west)
+    assert east >= 98.0 - 0.1, (size, east)
+    # And it is not fitted by zooming out to half of Asia either: the view
+    # is never more than three times the box it is fitting.
+    assert (north - south) <= 3 * 32, (size, north - south)
+    assert (east - west) <= 3 * 30, (size, east - west)
 
 
 @needs_node
