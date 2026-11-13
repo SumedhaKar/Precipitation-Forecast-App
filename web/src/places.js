@@ -40,6 +40,16 @@ export function nameOfSquare(lat, lon) {
   return list.nameOfSquare(TOWNS, lat, lon);
 }
 
+/** SPEC 11.38. The city's name, "near <city>", or "this area". */
+export function placeName(lat, lon) {
+  return list.placeName(TOWNS, lat, lon);
+}
+
+/** The nearest city within 50 km, or null. */
+export function nearestTown(lat, lon, withinKm) {
+  return list.nearestTown(TOWNS, lat, lon, withinKm);
+}
+
 export function findTowns(text, most) {
   return list.findTowns(TOWNS, text, most);
 }

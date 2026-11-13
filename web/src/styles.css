@@ -518,15 +518,21 @@ header {
 
 .didyoumean button:hover { background: var(--card); }
 
+/* SPEC 11.38. The name, bold and first. It is no longer a coordinate with
+   a city hung off it, so it is a heading and nothing else. */
 .placeline h2 {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-  font-variant-numeric: tabular-nums;
+  margin: 0 0 0.1rem;
+  font-size: 1.15rem;
 }
 
-.cityname { font-size: 0.85rem; font-weight: 400; color: var(--quiet); }
+/* SPEC 11.38. The square's own centre, under the name rather than in
+   front of it: a reader who tapped the map wants the place first. */
+.atsquare {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
 
 .moved {
   font-size: 0.82rem;

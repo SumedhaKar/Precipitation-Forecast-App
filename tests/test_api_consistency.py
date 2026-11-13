@@ -23,6 +23,7 @@ import datetime as dt
 import gzip
 import http.server
 import json
+import math
 import os
 import re
 import shutil
@@ -1069,6 +1070,93 @@ def test_a_square_with_two_towns_in_it_names_both(exports):
     assert said[4] == "Chennai"
     # A town the grid cannot carry never names a square.
     assert said[5] is None
+
+
+@needs_node
+def test_a_square_is_named_near_its_city_or_called_this_area(exports):
+    """SPEC 11.38. Three answers, in order: the city, "near", "this area".
+
+    The limit is 50 km, which is under two squares, so "near Nagpur" is
+    never said about somewhere a reader would call a different place. The
+    distances below are measured here, with the same great-circle formula
+    written out again, so the test knows which side of the limit each
+    square is on rather than assuming it.
+    """
+    towns = load_towns()
+
+    def km(one, two):
+        lat1, lon1 = one
+        lat2, lon2 = two
+        rad = math.pi / 180
+        a = (math.sin((lat2 - lat1) * rad / 2) ** 2
+             + math.cos(lat1 * rad) * math.cos(lat2 * rad)
+             * math.sin((lon2 - lon1) * rad / 2) ** 2)
+        return 2 * 6371 * math.asin(min(1, math.sqrt(a)))
+
+    # A list, not a dict: two towns share a name (both Aurangabads), and a
+    # dict would quietly drop one of them and so one of the distances.
+    forecast = [town for town in towns if not town.get("not_forecast")]
+    names = {town["name"] for town in forecast}
+    nagpur = next(town for town in forecast if town["name"] == "Nagpur")
+    here = (nagpur["lat"], nagpur["lon"])
+
+    # Its own square: the city's name, with no "near" in front of it.
+    own = exports(TOWNLIST, "placeName", [[towns, here[0], here[1]]])[0]
+    assert own == "Nagpur", own
+
+    # One square away. Measured, not assumed: this is under 50 km.
+    close = (round(here[0] - 0.25, 2), here[1])
+    assert km(here, close) < 50, km(here, close)
+    said = exports(TOWNLIST, "placeName", [[towns, close[0], close[1]]])[0]
+    assert said.startswith("near "), said
+
+    # Somewhere with no city within 50 km at all, found rather than guessed.
+    far = None
+    lat = 24.0
+    while lat < 30.0 and far is None:
+        lon = 70.0
+        while lon < 90.0:
+            if all(km((lat, lon), (town["lat"], town["lon"])) > 50
+                   for town in forecast):
+                far = (lat, lon)
+                break
+            lon += 0.25
+        lat += 0.25
+    assert far is not None, "no square in the sweep is 50 km from every city"
+    assert exports(TOWNLIST, "placeName",
+                   [[towns, far[0], far[1]]])[0] == "this area"
+
+    # And the rule itself, over a sweep: whatever is said, it agrees with
+    # the distances. Every square of the India box at half a degree.
+    points = india_box_points()
+    said_all = exports(TOWNLIST, "placeName", [[towns, *p] for p in points])
+    for point, name in zip(points, said_all):
+        nearest = min(km(tuple(point), (town["lat"], town["lon"]))
+                      for town in forecast)
+        if name == "this area":
+            assert nearest > 50, (point, nearest)
+        elif name.startswith("near "):
+            assert nearest <= 50, (point, nearest)
+            assert name[5:] in names, name
+        else:
+            assert nearest == 0, (point, name, nearest)
+
+
+@needs_node
+def test_an_island_the_grid_cannot_carry_never_names_a_square(exports):
+    """SPEC 11.38. "near Port Blair" where there is no Port Blair forecast.
+
+    Kavaratti and Port Blair are in the city list and have no square. A
+    square in the sea beside them must not be named after them, because the
+    name would promise numbers that do not exist.
+    """
+    towns = load_towns()
+    islands = [town for town in towns if town.get("not_forecast")]
+    assert islands, "the list has no island cities to check"
+    for town in islands:
+        said = exports(TOWNLIST, "placeName",
+                       [[towns, town["lat"], town["lon"]]])[0]
+        assert town["name"] not in said, (town["name"], said)
 
 
 @pytest.mark.skipif(

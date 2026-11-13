@@ -13,7 +13,7 @@ import { Fragment, useState } from 'react';
 
 import { colourOf, inkOf, labelOf, notProbability } from './palette';
 import { squareText } from './snap';
-import { nameOfSquare } from './places';
+import { placeName } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
@@ -70,10 +70,8 @@ export function headlineFor(place, day, threshold) {
     && chosen.counts_by_threshold[k];
   if (!entry) return null;
   const where = place.square;
-  const name = nameOfSquare(where.lat, where.lon)
-    || squareText(where.lat, where.lon);
-  return headline(name, chosen.short_ist, entry.count, place.members,
-    threshold);
+  return headline(placeName(where.lat, where.lon), chosen.short_ist,
+    entry.count, place.members, threshold);
 }
 
 /** The headline, at the top of the panel, under the place name. */
@@ -83,22 +81,31 @@ export function Headline({ place, day, threshold }) {
   return <p className="headline">{said}</p>;
 }
 
+/**
+ * The place name, and the coordinates under it. SPEC 11.38.
+ *
+ * The name is first and bold; the square's own centre is the small line
+ * beneath. The first build had it the other way round -- "23.25 N 77.50 E"
+ * in the heading with the city after it -- which is the order a grid
+ * reference is written in and not the order a person reads one.
+ *
+ * "Your location" stays what a location is called (SPEC 11.28): the reader
+ * knows where they are, and the square is on the line below.
+ */
 export function PlaceLine({ place, from }) {
   const where = place.square;
-  const name = nameOfSquare(where.lat, where.lon);
+  const name = from === 'location' ? 'Your location'
+    : placeName(where.lat, where.lon);
   return (
     <div className="placeline" aria-live="polite">
-      <h2>
-        {squareText(where.lat, where.lon)}
-        {name ? <span className="cityname">{name}</span> : null}
-      </h2>
+      <h2>{name}</h2>
+      <p className="atsquare">{squareText(where.lat, where.lon)}</p>
       {/* SPEC 11.28: a location is reported as its square and nothing
           finer, and the name appears only because that square is exactly
           that town's square. */}
       {from === 'location' ? (
         <p className="small">
-          Your location: square {squareText(where.lat, where.lon)}. Your exact
-          position was not sent anywhere.
+          Your exact position was not sent anywhere.
         </p>
       ) : null}
       {where.moved ? (

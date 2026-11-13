@@ -34,6 +34,67 @@ export function nameOfSquare(towns, lat, lon) {
   return `${here.slice(0, -1).join(', ')} and ${here[here.length - 1]}`;
 }
 
+// How far apart two squares are, in kilometres. SPEC 11.38.
+//
+// The great-circle distance on a sphere of 6,371 km. Both points are square
+// centres on a 0.25 degree grid, so the two are never more than a few
+// hundred kilometres apart when this matters and the choice of radius
+// changes nothing a reader could see; it is the honest formula rather than
+// a flat-earth approximation because there is no reason to use the other.
+const EARTH_KM = 6371;
+
+export function kmApart(oneLat, oneLon, twoLat, twoLon) {
+  const rad = Math.PI / 180;
+  const dLat = (twoLat - oneLat) * rad;
+  const dLon = (twoLon - oneLon) * rad;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(oneLat * rad) * Math.cos(twoLat * rad)
+    * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * The nearest city to a square, within a limit, or null. SPEC 11.38.
+ *
+ * Islands the grid cannot carry are not offered: a square in the Bay of
+ * Bengal is not "near Port Blair" when there is no forecast at Port Blair
+ * at all. Ties go to the name that comes first alphabetically, so the same
+ * square is always called the same thing.
+ */
+export function nearestTown(towns, lat, lon, withinKm = 50) {
+  let best = null;
+  for (const town of towns) {
+    if (town.not_forecast) continue;
+    const away = kmApart(lat, lon, town.lat, town.lon);
+    if (away > withinKm) continue;
+    if (!best || away < best.away
+      || (away === best.away && town.name.localeCompare(best.town.name) < 0)) {
+      best = { town, away };
+    }
+  }
+  return best ? best.town : null;
+}
+
+/**
+ * What to call a square, in the words a reader uses. SPEC 11.38.
+ *
+ * A grid reference is not a place name. The panel led with "23.25 N 77.50 E"
+ * and put the city after it, which is the order a coordinate is written in
+ * and not the order anybody reads; a reader who taps the map wants to know
+ * where they have tapped.
+ *
+ * Three answers, in this order: the city whose own square this is; "near"
+ * the nearest city within 50 km, which is under two squares, so the word is
+ * never said about somewhere a reader would call a different place; and
+ * "this area" where there is no city near enough to name.
+ */
+export function placeName(towns, lat, lon, withinKm = 50) {
+  const here = nameOfSquare(towns, lat, lon);
+  if (here) return here;
+  const near = nearestTown(towns, lat, lon, withinKm);
+  return near ? `near ${near.name}` : 'this area';
+}
+
 /**
  * Towns matching what has been typed: the ones that start with it first.
  *
