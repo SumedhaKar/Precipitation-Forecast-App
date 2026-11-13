@@ -1,0 +1,24 @@
+hc9,"one reliability bucket, SPEC 5.6"
+region,South Peninsula
+lead_day,1
+threshold_mm,10.0
+dates,20260513 20260528 20260612 20260627 20260712 20260727 20260811 20260826 20260910 20260925 20261010 20261025
+date_rule,every 15th run date of Pile A
+bucket_k_from,51
+bucket_k_to,51
+bucket_rule,"highest band of k with at least 30 cases, chosen from the forecast side alone"
+excluded_incomplete,0
+
+what,by hand,pipeline,difference
+cases,58,58,0
+mean_forecast,1.0,1.0,0.0
+observed,0.9655172413793104,0.965517,2.413793104283357e-07
+
+sabotage,outcome,note
+the observation read a quarter degree north,CAUGHT,observed 0.931034 instead of 0.965517
+the daily total taken as step 24 rather than 48 minus 24,CAUGHT,"67 cases instead of 58, observed 0.507463"
+a member exactly at the threshold not counted,missed,"no member total in these cases sits on 10.0 mm, and one that did would leave the k = 51 bucket rather than change its score"
+incomplete IMERG pixels counted as no rain,missed,"none of these 58 box-days had an incomplete pixel, so the rule had nothing to change here"
+plain degrees instead of spherical weights,missed,"within one 0.25 degree box at these latitudes the two weightings differ by under half a per cent, which moved no value across 10 mm"
+
+verdict,PASS

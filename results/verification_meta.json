@@ -1,0 +1,48 @@
+{
+ "spec_section": "6.8, with the additions of 5.11 rule 29",
+ "generated_utc": "2026-11-13T07:45:11+00:00",
+ "spec_sha256": "55cea87493ce0d1b673c9fb4fbec9512ae5a0f6a87a803d901c001d941e38915",
+ "spec_sha256_note": "over SPEC.md with CRLF normalised to LF, which are the committed bytes",
+ "git_commit": "a5629a9fe79825d501a94d43b71666b711ed4d16",
+ "pile_a": {
+  "first": "20260513",
+  "last": "20261105",
+  "dates": 177,
+  "missing_or_failed": []
+ },
+ "imerg": {
+  "product": "GPM_3IMERGDL",
+  "version": "V07C",
+  "doi": "10.5067/GPM/IMERGDL/DAY/07",
+  "first": "20260514",
+  "last": "20261110",
+  "dates": 181
+ },
+ "inputs": {
+  "india_mask_sha256": "837277dc16512b3c8d6cf08daec154fd9c6b3a97c0e192ebec49352e12804687",
+  "regions_sha256": "667ffe527787dd94e10ae69f4b23621d1940e97b776204d173de018045dda12a",
+  "admin1_sha256": "efc59726337323058f9446210adc96673179cd344e053666ee3d28cb58ba2b05"
+ },
+ "bootstrap": {
+  "resamples": 1000,
+  "seed": 20261112,
+  "unit": "whole start dates, with replacement",
+  "percentile_method": "linear",
+  "percentiles": [
+   2.5,
+   97.5
+  ],
+  "reference": "fixed, computed once from the full sample (SPEC 5.5)",
+  "discard_limit": 0.01
+ },
+ "cases": {
+  "possible": 20412525,
+  "used": 20412525,
+  "excluded": {
+   "no_imerg_date": 0,
+   "observation_incomplete": 0
+  },
+  "excluded_total": 0
+ },
+ "period": "Track record from ECMWF AIFS ENS 00 UTC runs of 13 May to 5 November 2026, checked against NASA IMERG Late V07C for 14 May to 10 November 2026. 177 runs over six months, most of them monsoon, so it says little about winter."
+}
