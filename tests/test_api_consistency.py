@@ -2438,6 +2438,80 @@ def expected_past(group: dict, count: int) -> str:
             f"saw it {often}.")
 
 
+def expected_reason(group: dict, count: int) -> str:
+    """SPEC 11.38's chip reason, written out again rather than imported."""
+    bucket = bucket_of(group, count)
+    if bucket is None:
+        return TOO_FEW
+    times = bucket["times_in_10"]
+    if times <= 0:
+        often = "fewer than 1 time in 10"
+    elif times >= 10:
+        often = "nearly every time"
+    else:
+        often = f"about {times} {'time' if times == 1 else 'times'} in 10"
+    threshold = group["threshold_mm"]
+    amount = int(threshold) if float(threshold).is_integer() else threshold
+    return (f"When the runs said this before in {group['region']}, the "
+            f"satellite saw rain of {amount} mm or more {often}.")
+
+
+BETTER = "This is better than the usual rain for this place and month."
+
+
+@needs_node
+def test_the_chip_reason_is_the_track_record(record):
+    """SPEC 11.38. Every group, every count, against the rule rewritten.
+
+    The chip used to be followed by the name of whichever of the four
+    checks the group failed, which is a sentence about our method. What a
+    first-time reader can use is what the record measured: when the runs
+    said this here before, how often did the satellite see it?
+
+    Driven through `trustFor`, which is what the panel calls, so what is
+    checked is the sentence the panel is handed.
+    """
+    summary = summary_file()
+    calls = []
+    wanted = []
+    for group in summary["groups"]:
+        for count in COUNTS:
+            calls.append(["trustFor", group["region"], group["lead_day"],
+                          group["threshold_mm"], count, MEMBERS])
+            wanted.append(expected_reason(group, count))
+    assert len(calls) > 3000, len(calls)
+    got = [answer["reason"] for answer in record(calls)]
+    assert got == wanted
+
+    # "the satellite saw rain", never "it rained" (SPEC 5.9), and never a
+    # forbidden word, over every group and count there is.
+    for said in wanted:
+        low = said.lower()
+        assert "it rained" not in low, said
+        for word in FORBIDDEN:
+            assert word not in low, (word, said)
+
+
+@needs_node
+def test_the_good_sentence_is_said_only_where_the_check_passed(record):
+    """SPEC 11.38. One sentence, and only for the groups that earned it."""
+    summary = summary_file()
+    calls = [["trustFor", group["region"], group["lead_day"],
+              group["threshold_mm"], 25, MEMBERS]
+             for group in summary["groups"]]
+    got = [answer["better"] for answer in record(calls)]
+    passed = 0
+    for group, said in zip(summary["groups"], got):
+        if group["conditions"]["skill_above_zero"]["pass"]:
+            assert said == BETTER, group["region"]
+            passed += 1
+        else:
+            assert said is None, group["region"]
+    # A test that never saw the sentence would pass whatever it said.
+    assert passed > 0, "no group passed the skill check, so nothing was shown"
+    assert passed < len(got), "every group passed, so nothing was withheld"
+
+
 def expected_why(group: dict) -> str:
     """The one line under the chip, SPEC 11.33, written out again."""
     missed = [words for key, words in MISSED
@@ -4431,7 +4505,7 @@ def test_the_bar_shows_the_chosen_place_after_a_tap(viewport):
 # rather than the word so the allowance cannot spread.
 FORECAST_ALLOWED = {
     "probability": ("it is not a probability.",
-                    "these are counts out of 51 model runs, not a "
+                    "these are counts out of 51 runs, not a "
                     "calibrated probability."),
 }
 
@@ -4542,6 +4616,94 @@ def forbidden_in(text: str, allowed: dict) -> str | None:
     return None
 
 
+# SPEC 11.38. The panel's order, by the class each block is drawn with.
+ANSWER_FIRST = ("placeline", "headline", "strip", "dots", "counts",
+                "notpromise", "curious")
+
+ONCE_ONLY = "A count of runs, not a promise of rain."
+
+
+@needs_node
+def test_the_panel_puts_the_answer_first(forecast_words):
+    """SPEC 11.38. Place, headline, five days, dots, amounts, then the rest.
+
+    The review measured the place line 193 pixels down a 258 pixel window
+    and the five-day strip 936 pixels down. The order is the answer first
+    and the working after it, and the one closed section is last.
+    """
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="placeline"' not in html:
+            continue
+        at = []
+        for name in ANSWER_FIRST:
+            mark = f'class="{name}'
+            assert mark in html, (name, html[:200])
+            at.append(html.index(mark))
+        assert at == sorted(at), list(zip(ANSWER_FIRST, at))
+        seen += 1
+    assert seen > 20, seen
+
+
+@needs_node
+def test_the_caveat_is_said_once(forecast_words):
+    """SPEC 11.38. It was under the legend, under the counts and in How to
+    read this map: three times on one screen, which is how a sentence stops
+    being read."""
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="placeline"' not in html:
+            continue
+        text = words_of(html)
+        assert text.count(ONCE_ONLY) == 1, text.count(ONCE_ONLY)
+        # And it points at the record, which is the only thing that could
+        # settle it.
+        assert 'href="/report-card"' in html
+        seen += 1
+    assert seen > 20, seen
+
+
+@needs_node
+def test_the_dots_are_readable_without_opening_anything(forecast_words):
+    """SPEC 11.38. The four counts and the line that says what a dot is."""
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="dots"' not in html:
+            continue
+        # Outside the closed section, which comes after them.
+        assert html.index('class="dots"') < html.index('class="curious"')
+        text = words_of(html)
+        assert "The 51 runs, one dot each" in text
+        assert ("Each dot is one run; its colour shows how much rain it "
+                "brings that day." in text)
+        seen += 1
+    assert seen > 20, seen
+
+
+@needs_node
+def test_the_page_has_one_name_for_the_fifty_one(forecast_words):
+    """SPEC 11.38. "runs", everywhere, and never "model runs" or "members".
+
+    The page had four names for the same thing. A reader who does not
+    already know they are the same thing has no way to learn it here.
+    """
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str):
+            continue
+        text = words_of(html).lower()
+        if not text.strip():
+            continue
+        assert "model run" not in text, text[:200]
+        assert "member" not in text, text[:200]
+        assert "ensemble" not in text, text[:200]
+        seen += 1
+    assert seen > 50, seen
+    every = " ".join(words_of(html) for html in forecast_words
+                     if isinstance(html, str))
+    assert "of 51 runs" in every
+
+
 @needs_node
 def test_the_panel_and_the_bar_say_no_percentage(forecast_words):
     """SPEC 6.7 and 11.33, over the forecast page's own words.
@@ -4586,12 +4748,48 @@ def test_the_panel_and_the_bar_say_no_forbidden_word(forecast_words):
         for sentence in FORECAST_ALLOWED["probability"])
 
 
+def test_the_forecast_sweep_would_catch_a_forbidden_word():
+    """A sweep that cannot fail proves nothing. SPEC 11.38.
+
+    The same words the panel really says, with one word put into them, and
+    the sweep asked about each. The allowance is a sentence and not a
+    licence, so "probability" outside its two sentences is caught too.
+    """
+    clean = ("Srinagar, Today: a few of the 51 runs bring 10 mm or more "
+             "(7 of 51). It is not a probability.")
+    assert forbidden_in(clean, FORECAST_ALLOWED) is None, clean
+
+    for word in ("certain", "likely", "dry", "wet", "heavy", "chance",
+                 "risk", "percent", "%"):
+        spoiled = clean.replace("a few of", f"{word} of")
+        assert forbidden_in(spoiled, FORECAST_ALLOWED) == word, word
+
+    # The allowance is for the sentence that refuses the reading, not for
+    # the word wherever it turns up.
+    loose = clean + " The probability is 4 in 10."
+    assert forbidden_in(loose, FORECAST_ALLOWED) == "probability"
+
+    # "too uncertain to tell" is a confession and not the claim "certain".
+    assert forbidden_in("Rough guide: too uncertain to tell.",
+                        FORECAST_ALLOWED) is None
+    # And "Not an official warning" is the one warning word the site says.
+    assert forbidden_in("Not an official warning.", FORECAST_ALLOWED) is None
+    assert forbidden_in("We warn of rain.", FORECAST_ALLOWED) == "warn"
+
+
 @needs_node
 def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
     """A sweep that renders nothing passes. This says what it rendered."""
     every = " ".join(words_of(html) for html in forecast_words)
-    for must in ("model runs", "How to read this map", "It is not a "
+    for must in ("of 51 runs", "How to read this map", "It is not a "
                  "probability.", "Lakshadweep", "Tap the map to pick a place",
                  "Hide the details", "outside the forecast area",
-                 "no WebGL 2"):
+                 "no WebGL 2",
+                 # SPEC 11.38: the new blocks, so a sweep that stopped
+                 # rendering them could not pass quietly.
+                 "Will it rain where you are in the next 5 days?",
+                 "The next five days", "The 51 runs, one dot each",
+                 "A count of runs, not a promise of rain.",
+                 "For the curious: the numbers behind this",
+                 "When the runs said this before in"):
         assert must in every, must

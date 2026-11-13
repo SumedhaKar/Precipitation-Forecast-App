@@ -107,8 +107,10 @@ export const NEIGHBOURS = '#dcd7cb';
 // with a real count in it ("1 of 51 model runs, which is not a calibrated
 // probability.") is a fragment with no verb. One sentence, no count in it, so
 // it cannot be read as a claim about the number beside it.
-export const NOT_PROBABILITY = `These are counts out of ${MEMBERS} model `
-  + 'runs, not a calibrated probability.';
+// SPEC 11.38 amends it once more: "model runs" was one of four names this
+// page had for the 51, and the page has one now.
+export const NOT_PROBABILITY = `These are counts out of ${MEMBERS} runs, `
+  + 'not a calibrated probability.';
 
 export function notProbability() {
   return NOT_PROBABILITY;

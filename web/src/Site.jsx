@@ -22,7 +22,7 @@ export default function Site() {
   // menu changes the path without a navigation, so nothing else would.
   useEffect(() => { document.title = titleOf(path); }, [path]);
   const nav = <TopNav path={path} onGo={go} />;
-  if (path === '/') return <App nav={nav} />;
+  if (path === '/') return <App nav={nav} onGo={go} />;
   return (
     <div className="doc">
       <header className="dochead">

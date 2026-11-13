@@ -785,7 +785,15 @@ header {
 
 .trustline .chip { margin-right: 0.3rem; vertical-align: 1px; }
 
+/* SPEC 11.38. The one good thing the record can say, where it can say it. */
+.betterline {
+  margin: 0.2rem 0 0.4rem;
+  font-size: 0.9rem;
+  color: var(--quiet);
+}
+
 .whylabel { font-size: 0.82rem; color: var(--quiet); }
+.whyline { margin: 0 0 0.5rem; }
 .whylabel summary { cursor: pointer; color: #0b4f8a; }
 .whylabel[open] summary { margin-bottom: 0.4rem; }
 
@@ -915,6 +923,31 @@ ol.values li {
 ol.values li.control { outline: 1px solid var(--picked); }
 .who { font-size: 0.6rem; color: var(--faint); }
 .mm { font-size: 0.85rem; }
+
+/* SPEC 11.38. The one caveat, said once, where the answer is. */
+.notpromise {
+  margin: 0.8rem 0 0.6rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--page);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--quiet);
+}
+
+/* Everything a reader can choose to open, in one place and shut. */
+.curious {
+  margin: 0.6rem 0 0.4rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.5rem;
+}
+
+.curious > summary {
+  cursor: pointer;
+  color: #0b4f8a;
+  font-size: 0.9rem;
+}
+
+.curious[open] > summary { margin-bottom: 0.6rem; }
 
 .arith {
   margin-top: 0.8rem;
@@ -1054,6 +1087,19 @@ footer p { max-width: 70ch; }
      open, and none of them is worth two thirds of a phone. */
   .shell:not(.open) .sheetbody { display: none; }
 
+  /* SPEC 11.38. Once there is an answer, the answer comes first and the
+     box that asked for it goes under it. The review measured the place
+     line 193 pixels down a 258 pixel window, behind a search box the
+     reader had just finished using. The bar's Search button still opens
+     the panel with the keyboard, so the way in is unchanged.
+
+     Only on a phone: on a desktop the panel is a column beside the map
+     and the box is not in the way of anything. */
+  .shell.answered .sheetbody { display: flex; flex-direction: column; }
+  .shell.answered .sheetbody .panel-body { order: 1; }
+  .shell.answered .sheetbody .finder { order: 2; margin-top: 0.8rem; }
+  .shell.answered .sheetbody footer { order: 3; }
+
   /* Closed, the panel is the bar: no padding of its own under it, or
      the map loses a line of screen to nothing at all. */
   .shell:not(.open) .panel {
@@ -1068,6 +1114,13 @@ footer p { max-width: 70ch; }
   .welcome-map { display: block; }
   .welcome-panel { display: none; }
   .shell.open .welcome-map { display: none; }
+
+  /* The card says "or tap the map", so a tap on the card has to reach the
+     map: at 390 pixels it covers most of what is left of it, and a reader
+     who did as they were told would have hit a white rectangle. The card
+     passes taps through and its two buttons take their own. */
+  .welcome-map { pointer-events: none; }
+  .welcome-map button { pointer-events: auto; }
 
   /* It has to fit inside the map's own box without scrolling, so the type
      is a step smaller and the padding a third less. Nothing is dropped. */

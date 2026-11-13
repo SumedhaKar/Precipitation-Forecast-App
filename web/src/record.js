@@ -201,6 +201,47 @@ export function pastSentence(group, count, members) {
     + `${group.lead_day}, the satellite saw it ${howOften(bucket)}.`;
 }
 
+/**
+ * The track record as the chip's own reason. SPEC 11.38.
+ *
+ * The chip used to be followed by a line naming which of the four checks
+ * the group failed — "too few past cases", "too uncertain to tell" — which
+ * is a sentence about our method and not about this reader's square. The
+ * reason a label is what it is, said in a way a first-time reader can use,
+ * is what the record measured: the last time the runs said this here, how
+ * often did the satellite see it?
+ *
+ * "the satellite saw rain of 10 mm or more", never "it rained" (SPEC 5.9):
+ * IMERG is an estimate from space and is never ground truth. The two ends
+ * keep 11.33's wording, because "about 0 times in 10" reads as never and
+ * the record did not say never.
+ *
+ * The long form, with the period, the band of agreement and the day number,
+ * is `pastSentence` and is in "For the curious".
+ */
+export function recordLine(group, count, members) {
+  if (!group || members !== RECORD_MEMBERS) return null;
+  const bucket = bucketFor(group, count);
+  if (!bucket) return TOO_FEW;
+  return `When the runs said this before in ${group.region}, the satellite `
+    + `saw rain of ${amount(group.threshold_mm)} or more `
+    + `${howOften(bucket)}.`;
+}
+
+// SPEC 11.38. Said only where the group's own skill check passed. It is the
+// one unambiguously good thing the record can say about a group, and an
+// amber chip with nothing but its failures beside it describes a worse
+// record than the one that was measured.
+export const BETTER_THAN_USUAL = 'This is better than the usual rain for '
+  + 'this place and month.';
+
+/** That sentence, or null where the check did not pass. */
+export function betterThanUsual(group) {
+  if (!group || !group.conditions) return null;
+  const skill = group.conditions.skill_above_zero || {};
+  return skill.pass ? BETTER_THAN_USUAL : null;
+}
+
 /** The names of the conditions this group did not pass, in 6.2's order. */
 export function failed(group) {
   if (!group || !group.conditions) return [];
@@ -329,6 +370,9 @@ export function trustFor(summary, region, leadDay, threshold, count,
     label: group.label,
     colour: group.colour,
     why: whyLine(group),
+    // SPEC 11.38: what the chip says out loud, and the one good thing.
+    reason: recordLine(group, count, members),
+    better: betterThanUsual(group),
     past: pastSentence(group, count, members),
     percent: aboutInTen(group, count, members),
     conditions: conditionLines(summary, group),

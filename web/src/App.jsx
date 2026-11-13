@@ -205,7 +205,7 @@ class MapFrame extends Component {
   }
 }
 
-export default function App({ nav }) {
+export default function App({ nav, onGo }) {
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState(null);
   const [counts, setCounts] = useState(null);
@@ -457,7 +457,13 @@ export default function App({ nav }) {
     : null;
 
   return (
-    <div className={sheetOpen ? 'shell open' : 'shell'}>
+    <div className={[
+      'shell', sheetOpen ? 'open' : '',
+      // SPEC 11.38. On a phone the answer comes before the box that asked
+      // for it: the place line was 193 pixels down, behind a search box the
+      // reader had just used. The stylesheet does the moving.
+      place && square ? 'answered' : '',
+    ].filter(Boolean).join(' ')}>
       <header>
         <div className="titles">
           {/* SPEC 11.38. The site's name, and under it the one sentence
@@ -607,6 +613,7 @@ export default function App({ nav }) {
             from={from}
             onFind={findCity}
             onHowTo={howToRead}
+            onGo={onGo}
           />
           <Footer />
           </div>

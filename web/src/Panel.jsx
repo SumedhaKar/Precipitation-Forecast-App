@@ -17,6 +17,7 @@ import { placeName } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
+import { plainClick } from './TopNav';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -74,6 +75,30 @@ export function headlineFor(place, day, threshold) {
     entry.count, place.members, threshold);
 }
 
+/**
+ * A link to the report card. SPEC 11.38.
+ *
+ * A plain <a href>, so a middle click opens a tab and the keyboard reaches
+ * it with no handler of ours; a plain left click becomes the pushState the
+ * menu uses, where the page has one to offer. With no `onGo` -- which is
+ * what the server renderer and the tests have -- it is simply a link, and
+ * the path it points at is a real page either way (SPEC 11.34).
+ */
+export function ReportCardLink({ onGo, children }) {
+  return (
+    <a
+      href="/report-card"
+      onClick={(event) => {
+        if (!onGo || !plainClick(event)) return;
+        event.preventDefault();
+        onGo('/report-card');
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
 /** The headline, at the top of the panel, under the place name. */
 export function Headline({ place, day, threshold }) {
   const said = headlineFor(place, day, threshold);
@@ -124,7 +149,7 @@ export function DayStrip({ place, day, threshold, onDay }) {
   const k = THRESHOLDS.indexOf(threshold);
   return (
     <div className="strip">
-      <h3>All five days at {threshold} mm</h3>
+      <h3>The next five days</h3>
       <ol>
         {place.days.map((entry) => {
           const count = entry.counts_by_threshold[k].count;
@@ -148,7 +173,7 @@ export function DayStrip({ place, day, threshold, onDay }) {
         })}
       </ol>
       <p className="small">
-        Each cell is that day&apos;s count out of 51 at {threshold} mm, in the
+        Each cell is that day&apos;s count of runs at {threshold} mm, in the
         same colours as the map. Dates are IST. Choose one to change the day.
       </p>
     </div>
@@ -186,7 +211,7 @@ export function Chip({ trust, small }) {
  * `trust` is null only where there is no region, which is to say nowhere the
  * site can answer for at all.
  */
-export function TrustBlock({ place, day, threshold }) {
+export function TrustBlock({ place, day, threshold, onGo }) {
   const k = THRESHOLDS.indexOf(threshold);
   const count = day.counts_by_threshold[k].count;
   const trust = trustFor(place.square.region, day.lead_day, threshold, count,
@@ -195,10 +220,23 @@ export function TrustBlock({ place, day, threshold }) {
   return (
     <div className="trust">
       <p className="trustline">
-        <Chip trust={trust} /> {trust.why}
+        <Chip trust={trust} /> {trust.reason}
       </p>
+      {/* SPEC 11.38: the one unambiguously good thing the record can say,
+          said only where the check it rests on passed. */}
+      {trust.better ? (
+        <p className="betterline">
+          {trust.better}{' '}
+          <ReportCardLink onGo={onGo}>See the record</ReportCardLink>
+        </p>
+      ) : null}
       <details className="whylabel">
         <summary>Why this label?</summary>
+        {/* SPEC 11.38. Which of the four checks went wrong used to be the
+            line under the chip. It is a sentence about our method rather
+            than about this square, so it is the first thing inside the
+            disclosure instead of the first thing a reader meets. */}
+        <p className="whyline">{trust.why}</p>
         <ul className="conds">
           {trust.conditions.map((condition) => (
             <li key={condition.name} className={condition.pass ? 'met' : 'no'}>
@@ -235,10 +273,6 @@ export function TrustBlock({ place, day, threshold }) {
  * both read and set the one `threshold` the page holds.
  */
 export function Counts({ place, day, threshold, onThreshold }) {
-  // SPEC 11.33. The region is the API's (api/place reads config/regions.json),
-  // never worked out here, so a square cannot be shown another region's
-  // record.
-  const region = place.square.region;
   return (
     <div className="counts">
       <h3 id="countshead">
@@ -248,8 +282,6 @@ export function Counts({ place, day, threshold, onThreshold }) {
         {THRESHOLDS.map((amount, k) => {
           const count = day.counts_by_threshold[k].count;
           const chosen = amount === threshold;
-          const trust = trustFor(region, day.lead_day, amount, count,
-            place.members);
           return (
             <li key={amount}>
               <button
@@ -261,12 +293,7 @@ export function Counts({ place, day, threshold, onThreshold }) {
               >
                 <span className="rowwhat">{amount} mm or more</span>
                 <span className="rowcount">
-                  <strong>{count}</strong> of {place.members} model runs
-                  {/* SPEC 6.7: a share of ten is only ever shown beside a
-                      green label, and no group is green today. */}
-                  {trust && trust.percent ? (
-                    <span className="aboutten">, {trust.percent}</span>
-                  ) : null}
+                  <strong>{count}</strong> of {place.members} runs
                 </span>
                 <span className="rowband">
                   <span
@@ -276,18 +303,11 @@ export function Counts({ place, day, threshold, onThreshold }) {
                   />
                   {labelOf(count)}
                 </span>
-                {/* SPEC 11.33: three thresholds are three track records, and
-                    often three different labels. */}
-                {trust ? <Chip trust={trust} small /> : null}
               </button>
-              {chosen && trust && trust.past ? (
-                <p className="pastline">{trust.past}</p>
-              ) : null}
             </li>
           );
         })}
       </ul>
-      <p className="small">{notProbability()}</p>
     </div>
   );
 }
@@ -300,7 +320,7 @@ export function Dots({ place, day }) {
   });
   return (
     <div className="dots">
-      <h3>Each of the 51 model runs</h3>
+      <h3>The 51 runs, one dot each</h3>
       <ol className="dotgrid">
         {dots.map((category, index) => (
           // eslint-disable-next-line react/no-array-index-key
@@ -319,6 +339,13 @@ export function Dots({ place, day }) {
           </li>
         ))}
       </ul>
+      {/* SPEC 11.38. One line saying what a dot is. The grid of 51 squares
+          was drawn with no sentence to read it by, so a reader who did not
+          already know what an ensemble was met 51 coloured boxes. */}
+      <p className="small">
+        Each dot is one run; its colour shows how much rain it brings that
+        day.
+      </p>
     </div>
   );
 }
@@ -337,7 +364,7 @@ export function MemberValues({ day }) {
   const count = day.members_mm.length;
   return (
     <div className="members">
-      <h3>What each model run gives, in whole millimetres</h3>
+      <h3>What each run gives, in whole millimetres</h3>
       {spread.same ? (
         <p className="spread">
           All {count} runs: {spread.lowest} mm
@@ -391,6 +418,52 @@ export function SquareUsed({ place }) {
       Square i = {where.i}, j = {where.j}, tile {where.tile}. Asked for{' '}
       {squareText(where.asked.lat, where.asked.lon)}.
     </p>
+  );
+}
+
+/**
+ * Which run this is, to the second and by its own name. SPEC 11.38.
+ *
+ * The header's run line is three facts in two sizes of grey, and on a phone
+ * it was two of the lines that pushed the map under the fold. A reader who
+ * wants the run ID and the UTC stamp wants them exactly; a reader who does
+ * not wants one line saying how old this is, which is what the header now
+ * carries. So these are in here.
+ */
+export function RunDetail({ run }) {
+  if (!run) return null;
+  return (
+    <p className="arith">
+      Run {run.run_id}, the 00 UTC run of {run.run_time_utc}.
+      {run.publish_time_ist
+        ? ` Published ${run.publish_time_ist} IST.` : null}
+    </p>
+  );
+}
+
+/**
+ * Everything a reader can choose to open. SPEC 11.38.
+ *
+ * Three reviews called this page too textual, and the count of sentences
+ * was most of why. Nothing is deleted: the 51 values, the square's own
+ * arithmetic, the run's name and time, and the long form of the track
+ * record are all here, in one place, shut until they are asked for.
+ */
+export function ForTheCurious({ place, day, threshold }) {
+  const k = THRESHOLDS.indexOf(threshold);
+  const count = day.counts_by_threshold[k].count;
+  const trust = trustFor(place.square.region, day.lead_day, threshold, count,
+    place.members);
+  return (
+    <details className="curious">
+      <summary>For the curious: the numbers behind this</summary>
+      <MemberValues day={day} />
+      {/* The long track-record sentence: the period, the band of agreement,
+          the region and the day number, all of which change the answer. */}
+      {trust && trust.past ? <p className="pastline">{trust.past}</p> : null}
+      <SquareUsed place={place} />
+      <RunDetail run={place.run} />
+    </details>
   );
 }
 
@@ -476,7 +549,7 @@ export function Welcome({ onFind, onHowTo, where }) {
 
 export default function Panel({
   place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
-  onFind, onHowTo,
+  onFind, onHowTo, onGo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
   // are shown for the chosen square or not at all. `place.square.asked` is
@@ -529,17 +602,14 @@ export default function Panel({
   }
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
+  // SPEC 11.38. The order is the answer first and the working after it:
+  // where, what, the five days, the 51 runs, the three amounts, how much
+  // this label has been worth, and then one caveat said once. Everything a
+  // reader can choose to open is in the one closed section at the end.
   return (
     <div className="panel-body">
       <PlaceLine place={place} from={from} />
       <Headline place={place} day={day} threshold={threshold} />
-      <Counts
-        place={place}
-        day={chosen}
-        threshold={threshold}
-        onThreshold={onThreshold}
-      />
-      <TrustBlock place={place} day={chosen} threshold={threshold} />
       <DayStrip
         place={place}
         day={day}
@@ -547,8 +617,25 @@ export default function Panel({
         onDay={onDay}
       />
       <Dots place={place} day={chosen} />
-      <MemberValues day={chosen} />
-      <SquareUsed place={place} />
+      <Counts
+        place={place}
+        day={chosen}
+        threshold={threshold}
+        onThreshold={onThreshold}
+      />
+      <TrustBlock place={place} day={chosen} threshold={threshold}
+        onGo={onGo} />
+      {/* SPEC 11.38. The one caveat, said once. It was under the legend,
+          under the counts and inside How to read this map, three times on
+          one screen, which is how a sentence stops being read. */}
+      <p className="notpromise">
+        A count of runs, not a promise of rain.{' '}
+        <ReportCardLink onGo={onGo}>
+          See how the counts have held up
+        </ReportCardLink>
+        .
+      </p>
+      <ForTheCurious place={place} day={chosen} threshold={threshold} />
     </div>
   );
 }
