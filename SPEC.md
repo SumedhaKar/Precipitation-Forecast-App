@@ -5706,8 +5706,24 @@ links of 13.6 pixels. The floors are the page's now, not the panel's:
 | at 390 x 664, after choosing | the place name, the headline and the five-day strip are all in the open panel without scrolling |
 
 Where they do not fit, the headline wraps to two lines and the strip's
-cells shrink first. No text goes under the floors to make room, and the
-open panel keeps the height 11.37 gave it.
+cells shrink first. No text goes under the floors to make room.
+
+**What the floors cost, measured at 390 x 664.** The three rows go from
+30 pixels tall to 44, and that height comes out of the map: the shut map
+was 250 pixels and is 227. It is the trade this section chose, and the
+test that used to ask for 250 asks for 225 and says why. The open panel
+takes the last of the map's own floor as well -- 56 pixels rather than
+80 -- which is what puts the five cells of the strip on the screen; the
+map is thinner and never gone, and it has all of it back the moment the
+panel is shut.
+
+The 12 pixel floor is the page's and not the panel's, so it reaches the
+names drawn **on** the map too: the state codes were 9.6 pixels and the
+city names 11.5. The fit of 11.31 measures the drawn word, so a larger
+word means a code where a name used to fit and nothing where a code used
+to, which is that algorithm doing its job rather than a layout to repair.
+MapLibre's own zoom buttons are 29 pixels and are not ours to lay out;
+its attribution is set to 12 where the stylesheet can reach it.
 
 #### Tests
 

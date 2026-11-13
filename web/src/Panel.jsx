@@ -19,6 +19,7 @@ import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
 import { plainClick } from './TopNav';
 import { AMOUNTS } from './Controls';
+import { dayButton, dayName, istToday } from './days';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -63,7 +64,7 @@ export function summaryLine(place, square, day, threshold) {
  * say different things about the same square. Pure, and exported, so a test
  * can drive it against a real answer.
  */
-export function headlineFor(place, day, threshold) {
+export function headlineFor(place, day, threshold, today) {
   if (!place || !place.square || !place.days) return null;
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
@@ -72,8 +73,13 @@ export function headlineFor(place, day, threshold) {
     && chosen.counts_by_threshold[k];
   if (!entry) return null;
   const where = place.square;
-  return headline(placeName(where.lat, where.lon), chosen.short_ist,
-    entry.count, place.members, threshold);
+  // SPEC 11.38, one name per thing: the day is called what the button
+  // above the map calls it. "Today" on the button and "Sat 14 Nov" in the
+  // sentence under it are two names for one day.
+  const when = dayName(chosen.from_ist, today || istToday(),
+    chosen.short_ist);
+  return headline(placeName(where.lat, where.lon), when, entry.count,
+    place.members, threshold);
 }
 
 /**
@@ -101,8 +107,8 @@ export function ReportCardLink({ onGo, children }) {
 }
 
 /** The headline, at the top of the panel, under the place name. */
-export function Headline({ place, day, threshold }) {
-  const said = headlineFor(place, day, threshold);
+export function Headline({ place, day, threshold, today }) {
+  const said = headlineFor(place, day, threshold, today);
   if (!said) return null;
   return <p className="headline">{said}</p>;
 }
@@ -146,8 +152,9 @@ export function PlaceLine({ place, from }) {
   );
 }
 
-export function DayStrip({ place, day, threshold, onDay }) {
+export function DayStrip({ place, day, threshold, onDay, today }) {
   const k = THRESHOLDS.indexOf(threshold);
+  const now = today || istToday();
   return (
     <div className="strip">
       <h3>The next five days</h3>
@@ -166,7 +173,9 @@ export function DayStrip({ place, day, threshold, onDay }) {
                   + `${place.members} runs bring ${threshold} mm or more`}
                 onClick={() => onDay(entry.lead_day)}
               >
-                <span className="cellday">{entry.short_ist}</span>
+                <span className="cellday">
+                  {dayButton(entry.from_ist, now, entry.short_ist)}
+                </span>
                 <span className="cellcount">{count}</span>
               </button>
             </li>
@@ -555,12 +564,14 @@ export function Welcome({ onFind, onHowTo, where }) {
       <button type="button" className="findcity" onClick={onFind}>
         Find my city
       </button>
-      <p className="ortap">or tap the map</p>
-      {/* A button and not a link: on a phone this has to open the panel,
-          which is a thing the page does and not a place to go. */}
-      <button type="button" className="howtolink" onClick={onHowTo}>
-        How to read this map
-      </button>
+      <p className="ortap">
+        or tap the map
+        {/* A button and not a link: on a phone this has to open the panel,
+            which is a thing the page does and not a place to go. */}
+        <button type="button" className="howtolink" onClick={onHowTo}>
+          How to read this map
+        </button>
+      </p>
     </div>
   );
 }

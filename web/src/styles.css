@@ -138,7 +138,7 @@ header {
 .run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
 .runid {
   margin-left: 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -243,8 +243,10 @@ header {
 
 .group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
 
+/* SPEC 11.38: 12 pixels is the floor for the whole forecast page, not the
+   phone alone. These were 11.5 and 10.6 on a desktop. */
 .grouplabel {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--faint);
@@ -289,7 +291,11 @@ header {
   top: 0;
   left: 0;
   white-space: nowrap;
-  font-size: 0.72rem;
+  /* SPEC 11.38: the page's 12 pixel floor applies to the names drawn on
+     the map too. They were 11.5. The fit of 11.31 measures the drawn word,
+     so a bigger word means fewer names where there is no room -- which is
+     the algorithm doing its job. */
+  font-size: 0.75rem;
   line-height: 1.2;
   font-weight: 500;
   color: var(--ink);
@@ -301,9 +307,15 @@ header {
 
 /* The unit's own name, inside the unit: quieter than a town, and in small
    capitals, so a reader can tell at a glance which words are a state and
-   which are a place that has numbers. */
+   which are a place that has numbers.
+
+   SPEC 11.38 raises it from 0.6rem to the page's floor: 9.6 pixels is not
+   a size anybody reads on a phone, and nothing on this page may be under
+   12 now. The fit of 11.31 measures the drawn word, so a bigger word
+   simply means a code where a name used to fit and nothing where a code
+   used to -- which is the algorithm doing its job and not a layout bug. */
 .maplabel.state {
-  font-size: 0.6rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -386,7 +398,7 @@ header {
   align-items: center;
   gap: 1px;
   min-width: 2.3rem;
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   color: var(--quiet);
   font-variant-numeric: tabular-nums;
 }
@@ -576,7 +588,7 @@ header {
 }
 
 .amounts .nickname { font-weight: 600; }
-.amounts .mmtag { font-size: 0.8em; color: var(--quiet); }
+.amounts .mmtag { font-size: 0.75rem; color: var(--quiet); }
 .amounts .radios button.on .mmtag { color: inherit; }
 
 /* The nicknames again, in How to read this map, with what they are not. */
@@ -629,17 +641,19 @@ header {
 }
 
 .welcome .ortap {
-  margin: 0.45rem 0 0.2rem;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 0.6rem;
+  margin: 0.3rem 0 0;
   font-size: 0.9rem;
   color: var(--faint);
 }
 
 .welcome .howtolink {
-  display: block;
-  width: 100%;
   min-height: 44px;
-  padding: 0.3rem;
+  padding: 0.3rem 0.2rem;
   background: none;
   border: 0;
   color: #0b4f8a;
@@ -880,7 +894,7 @@ header {
 
 .cell.chosen { outline: 2px solid var(--picked); outline-offset: 1px; }
 /* `color` comes from the palette's own ink for that class, set inline. */
-.cellday { font-size: 0.64rem; white-space: nowrap; }
+.cellday { font-size: 0.75rem; white-space: nowrap; }
 .cellcount {
   font-size: 0.95rem;
   font-weight: 600;
@@ -961,7 +975,7 @@ ol.values li.control { outline: 1px solid var(--picked); }
   padding: 0.45rem 0.6rem;
   background: var(--page);
   border-radius: 6px;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: var(--quiet);
 }
 
@@ -1081,11 +1095,42 @@ footer p { max-width: 70ch; }
      handle. */
   .mapwrap { flex: 1 1 auto; min-height: 6rem; order: 1; }
 
-  .controls { gap: 0.4rem 1rem; padding: 0.45rem 0.6rem; }
+  .controls { gap: 0.25rem 1rem; padding: 0.3rem 0.6rem; }
 
   .radios { flex-wrap: nowrap; }
 
-  .radios button { font-size: 0.78rem; padding: 0.3rem 0.5rem; }
+  /* SPEC 11.38. 11.37 gave the panel and the bar a floor and left the
+     controls bar and the menu where they were: 12.2 pixel day buttons
+     29.8 pixels tall, and nav links of 13.6 pixels. These are the three
+     rows a reader has to hit with a thumb, so they are the three that get
+     the floor: 44 pixels tall and 15 pixel type. */
+  .radios button {
+    font-size: 0.95rem;
+    padding: 0.3rem 0.4rem;
+    min-height: 44px;
+  }
+
+  .topnav .navlink {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+    padding: 0.2rem 0.6rem;
+  }
+
+  /* And the floor for everything else the forecast page writes: 12 pixels,
+     which is the smallest the rest of the bar may be. Nothing is dropped
+     to pay for it. */
+  .controls .grouplabel { font-size: 0.75rem; }
+  .controls .window { font-size: 0.75rem; }
+  .headwarn { font-size: 0.75rem; }
+  .legend .grouplabel { font-size: 0.75rem; }
+  .legend-rows li { font-size: 0.75rem; }
+  .amounts .mmtag { font-size: 0.75rem; }
+
+  /* MapLibre's own attribution is the one piece of text on this page that
+     is not ours; it is set to the same floor rather than left at 10. */
+  .maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib a { font-size: 12px; }
 
   /* SPEC 11.29. The five days share the width instead of scrolling off it.
      Five buttons reading "Fri 13 Nov" come to 418 pixels on a 390 pixel
@@ -1125,7 +1170,7 @@ footer p { max-width: 70ch; }
     position: sticky;
     top: 0;
     z-index: 3;
-    padding: 0.55rem 0.6rem 0.45rem;
+    padding: 0.45rem 0.6rem 0.35rem;
     background: var(--card);
     border-bottom: 1px solid var(--rule);
   }
@@ -1187,10 +1232,15 @@ footer p { max-width: 70ch; }
 
      Only on a phone: on a desktop the panel is a column beside the map
      and the box is not in the way of anything. */
-  .shell.answered .sheetbody { display: flex; flex-direction: column; }
-  .shell.answered .sheetbody .panel-body { order: 1; }
-  .shell.answered .sheetbody .finder { order: 2; margin-top: 0.8rem; }
-  .shell.answered .sheetbody footer { order: 3; }
+  /* `.open` is in the selector on purpose. Without it this rule and the
+     one above it have the same specificity, this one comes later, and
+     `display: flex` beat `display: none`: closing the bar after a place
+     was answered left the whole panel on the screen and the map at its
+     80 pixel floor. */
+  .shell.open.answered .sheetbody { display: flex; flex-direction: column; }
+  .shell.open.answered .sheetbody .panel-body { order: 1; }
+  .shell.open.answered .sheetbody .finder { order: 2; margin-top: 0.8rem; }
+  .shell.open.answered .sheetbody footer { order: 3; }
 
   /* Closed, the panel is the bar: no padding of its own under it, or
      the map loses a line of screen to nothing at all. */
@@ -1214,19 +1264,60 @@ footer p { max-width: 70ch; }
   .welcome-map { pointer-events: none; }
   .welcome-map button { pointer-events: auto; }
 
-  /* It has to fit inside the map's own box without scrolling, so the type
-     is a step smaller and the padding a third less. Nothing is dropped. */
-  .welcome-map { left: 0.5rem; right: 0.5rem; top: 0.5rem; padding: 0.7rem 0.8rem; }
-  .welcome-map h2 { font-size: 1.02rem; margin-bottom: 0.35rem; }
-  .welcome-map p { font-size: 0.9rem; margin-bottom: 0.5rem; }
+  /* It has to fit inside the map's own box, so the type is a step smaller
+     and the padding a third less. Nothing is dropped. The last line is the
+     cap: where the map is shorter than the card can be -- a 320 by 568
+     screen leaves it 80 pixels -- the card scrolls inside itself rather
+     than running off the bottom of the screen with its button beyond the
+     edge, which is the fault of 11.35 in a different box. */
+  .welcome-map {
+    left: 0.5rem;
+    right: 0.5rem;
+    top: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    max-height: calc(100% - 1rem);
+    overflow-y: auto;
+  }
+  .welcome-map h2 { font-size: 1rem; margin-bottom: 0.3rem; }
+  .welcome-map p { font-size: 0.85rem; margin-bottom: 0.4rem; }
   .welcome-map .findcity { min-height: 46px; font-size: 1rem; }
-  .welcome-map .ortap { margin: 0.3rem 0 0.1rem; }
+  .welcome-map .ortap { margin: 0.25rem 0 0; font-size: 0.85rem; }
 
   .titles { flex: 1 1 100%; }
 
   /* SPEC 11.37. The white line moves into How to read this map, where
      there is room for it; in the bar it cost the map a whole line. */
   .legend-white { display: none; }
+
+  /* SPEC 11.38. At 390 x 664 the name, the headline and the five cells of
+     the strip are all inside the open panel without scrolling. The room
+     for that comes out of margins and padding, in this order, and never
+     out of the type: the headline is allowed its two lines and the cells
+     are allowed to shrink, which is what 11.38 says gives way first. The
+     strip's note is under the cells and is the first thing below the fold,
+     because it explains the cells rather than carrying an answer. */
+  .panel .placeline h2 { font-size: 1.05rem; margin-bottom: 0; }
+  .panel .atsquare { margin-bottom: 0.15rem; }
+  .panel .headline {
+    margin: 0.15rem 0 0.3rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 1rem;
+  }
+  .panel .strip { margin-top: 0.1rem; }
+  .panel .strip h3 { font-size: 0.85rem; margin-bottom: 0.1rem; }
+  /* The cells are what 11.38 says gives way first, so they give way: the
+     padding inside them, never the type on them. */
+  .panel .strip .cell { padding: 0.1rem 0.1rem; gap: 0; }
+  .panel .strip ol { margin-bottom: 0.2rem; }
+  .panel .atsquare { font-size: 0.82rem; }
+
+  /* SPEC 11.38. Open, the panel is what the reader asked for, so the map
+     gives up the last of its floor to it -- 56 pixels rather than 80 --
+     and gets all of it back the moment the panel is closed. The map is
+     thinner and never gone (11.35). This is the last 24 pixels of the
+     five-day strip, and the alternative was taking the type below the
+     floor of this section, which 11.38 forbids. */
+  .shell.open .mapwrap { min-height: 3.5rem; }
 
   /* SPEC 11.37, read on a Samsung A32. Nothing in the panel under 13px,
      the lines that carry the answer at 15 or more, and the chosen row --
@@ -1271,7 +1362,7 @@ footer p { max-width: 70ch; }
   .panel .conds, .panel .trustnotes { font-size: 0.86rem; }
   .panel #credits p, .panel #credits a,
   .panel #credits summary { font-size: 0.86rem; }
-  .panel .reveal, .panel #credits summary {
+  .panel .reveal, .panel #credits summary, .panel .curious > summary {
     min-height: 44px;
     display: flex;
     align-items: center;
@@ -1319,33 +1410,51 @@ footer p { max-width: 70ch; }
   /* The warning sits beside the title rather than under it, which is one
      line rather than two, and it is still the first thing on the page after
      the title itself. */
-  .headwarn { width: auto; font-size: 0.72rem; padding: 0.1rem 0.4rem; }
+  .headwarn { width: auto; font-size: 0.75rem; padding: 0.1rem 0.4rem; }
 
   .titles { flex: 1 1 auto; gap: 0 0.6rem; }
   .run { font-size: 0.7rem; line-height: 1.35; }
   .runid { margin-left: 0.4rem; font-size: 0.66rem; }
 
-  .controls { gap: 0.35rem 0.6rem; padding: 0.4rem 0.6rem; }
+  .controls { gap: 0.2rem 0.6rem; padding: 0.25rem 0.6rem; }
 
   /* SPEC 11.38. "Which day?" is a question and it is asked out loud. The
      label used to be the word "Day", which five dates in a row did not
      need, so it was hidden; a question is worth its one line. */
-  .days .radios button { font-size: 0.76rem; }
-  .window { font-size: 0.7rem; line-height: 1.3; }
+  .window { line-height: 1.3; }
 
-  .group { gap: 0.15rem; }
-  .grouplabel { font-size: 0.66rem; letter-spacing: 0.02em; }
+  .group { gap: 0.1rem; }
+  .grouplabel { letter-spacing: 0.02em; }
 
   /* A thinner legend: the same seven classes and the same seven numbers,
      in two thirds of the height. */
-  .legend { gap: 0.15rem; }
-  .legend .grouplabel { font-size: 0.72rem; }
-  .legend-rows .swatch { height: 0.6rem; }
-  .legend-rows li { font-size: 0.58rem; min-width: 0; }
+  .legend { gap: 0.1rem; }
+  .legend-rows .swatch { height: 0.55rem; }
+  .legend-rows li { min-width: 0; }
 
   /* A smaller floor on the smallest screens, so that the stage can still
      be split when the browser's bars take a fifth of it. */
   .mapwrap { min-height: 5rem; }
+
+  /* SPEC 11.38. The menu on one row at 320 pixels. Three links at 15
+     point come to 258 of the 320, so what gives is the padding around
+     them and not the type on them; a second row of menu costs 49 pixels
+     that a 568 pixel screen does not have. */
+  .topnav ul { gap: 0.2rem; }
+  .topnav .navlink { padding: 0.2rem 0.3rem; }
+
+  /* And the chip takes a narrower column, so the tagline has the width
+     to be two lines rather than three. */
+  header { grid-template-columns: minmax(0, 1fr) minmax(4.5rem, 7rem); }
+}
+
+/* SPEC 11.38. A 320 by 568 screen, which is the smallest this site is
+   measured on. The floors of 11.38 are 44 pixels on three rows that used
+   to be 30, and on this screen that height has to come from somewhere:
+   it comes from the map's own floor, which drops to 64 pixels while the
+   bar and the whole of the controls stay on the screen. */
+@media (max-width: 360px) {
+  .mapwrap { min-height: 4rem; }
 }
 
 /* --------------------------------- the three pages, SPEC 11.34 */

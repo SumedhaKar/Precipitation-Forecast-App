@@ -737,7 +737,9 @@ def test_the_not_a_probability_sentence_is_the_approved_wording(exports):
     whatever the count is, so there is nothing for it to disagree with.
     """
     said = exports(PALETTE, "notProbability", [[], [40]])
-    assert said[0] == ("These are counts out of 51 model runs, not a "
+    # SPEC 11.38 amends it once more: "model runs" was one of four names
+    # this page had for the 51, and the page has one now.
+    assert said[0] == ("These are counts out of 51 runs, not a "
                        "calibrated probability.")
     assert said[1] == said[0], "the count must not change the sentence"
     # It is a sentence: a verb, and nothing to complete.
@@ -1417,7 +1419,7 @@ def test_every_way_a_location_can_fail_says_one_clear_line(exports):
         assert line.endswith(".")
         assert len(line) < 160
         # Every one of them leaves the reader somewhere to go.
-        assert "town" in line
+        assert "city" in line
 
     assert said[0] != said[1] != said[2]
     assert "permission" in said[0].lower()
@@ -1438,7 +1440,7 @@ def test_the_map_failing_says_the_numbers_are_still_there(exports):
                    [["webgl2"], ["maplibre"], ["chunk"], ["anything else"]])
     for line in said:
         assert "\n" not in line
-        assert "search for a town" in line
+        assert "search for a city" in line
         assert "latitude and longitude" in line
     assert "WebGL 2" in said[0]
     assert said[0] != said[1] != said[2]
@@ -2007,7 +2009,10 @@ def test_the_panel_cannot_draw_numbers_for_another_square():
     # one, whatever reaches it.
     assert "sameSquare(place.square.asked, square)" in panel
     assert "if (!place || !answered)" in panel
-    assert "Loading {squareText(square.lat, square.lon)}…" in panel
+    # SPEC 11.38 reworded it: "Reading the 51 runs for this square",
+    # with the square itself on the quiet line beside it.
+    assert "Reading the 51 runs for this square" in panel
+    assert "{squareText(square.lat, square.lon)}" in panel
 
 
 def test_the_city_a_unit_is_labelled_with_follows_the_three_times_rule():
@@ -2126,7 +2131,7 @@ def test_the_white_squares_inside_india_are_explained():
     shows through. The legend says so in one line.
     """
     legend = LEGEND.read_text("utf-8")
-    assert "White: inside India but not forecast at this grid size" in legend
+    assert "White: no forecast for this spot" in legend
     assert 'className="legend-white"' in legend
 
 
@@ -2371,7 +2376,7 @@ def test_a_colour_swatch_is_not_a_control():
     # Two in the legend, and three in the panel since the white line moved
     # into How to read this map (SPEC 11.37). Every one of them, wherever
     # they are, is a hidden span with nothing pressable near it.
-    for name, many in (("Legend.jsx", 2), ("Panel.jsx", 3)):
+    for name, many in (("Legend.jsx", 3), ("Panel.jsx", 4)):
         text = (ROOT / "web" / "src" / name).read_text("utf-8")
         parts = text.split('className="swatch"')
         assert len(parts) == many + 1, name
@@ -3134,25 +3139,25 @@ def test_the_site_reads_one_file_and_it_is_the_frozen_one():
 
 
 def test_the_panel_shows_the_chip_the_sentence_and_the_expander():
-    """SPEC 11.33, in the page's own structure."""
+    """SPEC 11.33, as SPEC 11.38 leaves it."""
     panel = PANEL.read_text(encoding="utf-8")
 
-    # The region is the API's, not the page's: the panel names the file in a
-    # comment and never reads a square out of it.
-    assert "const region = place.square.region;" in panel
+    # The region is the API's, not the page's: the panel reads it off the
+    # answer and never works it out.
+    assert "place.square.region" in panel
     assert "region_rows" not in panel
-    assert "import" not in panel.split("const region = place.square.region;")[0]        .split("const THRESHOLDS")[1]
 
-    # A chip on every threshold row, and one for the chosen day and
-    # threshold with its line and its expander.
-    assert panel.count("<Chip trust={trust} small />") == 1
-    assert "<Chip trust={trust} />" in panel
+    # SPEC 11.38: one chip, not four. It was drawn once per amount row and
+    # once more under them, which is a wall of "Rough guide" and not a
+    # label.
+    assert "<Chip trust={trust} small />" not in panel
+    assert panel.count("<Chip trust={trust} />") == 1
     assert "<summary>Why this label?</summary>" in panel
-    assert "<TrustBlock place={place} day={chosen} threshold={threshold} />" \
-        in panel
-    # The sentence sits under the chosen count and nowhere else.
+    assert ("<TrustBlock place={place} day={chosen} threshold={threshold}"
+            in panel)
+    # The long sentence is in the closed section, once.
     assert panel.count('className="pastline"') == 1
-    assert "{chosen && trust && trust.past ? (" in panel
+    assert 'className="pastline"' in panel.split("ForTheCurious")[1]
 
     # Nothing in the panel decides a label or a frequency.
     for word in ("Good track record", "Treat as a rough guide",
@@ -3924,6 +3929,27 @@ const LOOK = `(async () => {
     // SPEC 11.38: what the map is actually showing, from the map itself.
     view: (document.querySelector('.map') && document.querySelector('.map').mapView)
       ? document.querySelector('.map').mapView() : null,
+    // SPEC 11.38: the three rows a thumb has to hit, and the page's own
+    // 12 pixel floor over everything it writes. MapLibre's controls are
+    // its own and are not ours to set, so they are named and skipped.
+    rows: [...document.querySelectorAll(
+      '.days .radios button, .amounts .radios button, .topnav .navlink')]
+      .map((e) => {
+        const r = e.getBoundingClientRect();
+        return [e.className || e.tagName, Math.round(r.height * 10) / 10,
+          Math.round(parseFloat(getComputedStyle(e).fontSize) * 10) / 10,
+          e.textContent.trim().slice(0, 20)];
+      }),
+    underTwelve: [...document.querySelectorAll('*')].filter((e) => {
+      if (e.closest('.maplibregl-ctrl')) return false;
+      const r = e.getBoundingClientRect();
+      if (!r.height || !r.width) return false;
+      if (![...e.childNodes].some(
+        (n) => n.nodeType === 3 && n.textContent.trim())) return false;
+      return parseFloat(getComputedStyle(e).fontSize) < 12;
+    }).map((e) => [e.className || e.tagName,
+      Math.round(parseFloat(getComputedStyle(e).fontSize) * 10) / 10,
+      e.textContent.trim().slice(0, 30)]),
     focus: document.activeElement ? (document.activeElement.id
       || document.activeElement.className || document.activeElement.tagName)
       : null,
@@ -3974,7 +4000,9 @@ const INSIDE = `(() => {
       trustChip: px('.trustline .chip'),
       trustLine: px('.trustline'),
       pastLine: px('.pastline'),
-      notProbability: px('.counts > .small'),
+      notPromise: px('.notpromise'),
+      headline: px('.headline'),
+      placeName: px('.placeline h2'),
     },
     has: {
       counts: !!document.querySelector('.countrow'),
@@ -3986,6 +4014,24 @@ const INSIDE = `(() => {
         : null,
     },
     panelText: panel.textContent.replace(/\s+/g, ' ').slice(0, 220),
+    // SPEC 11.38: where the three blocks that carry the answer end, in the
+    // panel's own scrolling coordinates, and how tall its window is.
+    answerFirst: (() => {
+      const box = panel.getBoundingClientRect();
+      const at = (s) => {
+        const e = panel.querySelector(s);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return [Math.round(r.top - box.top + panel.scrollTop),
+          Math.round(r.bottom - box.top + panel.scrollTop)];
+      };
+      return {
+        clientHeight: panel.clientHeight,
+        placeline: at('.placeline'),
+        headline: at('.headline'),
+        stripCells: at('.strip ol'),
+      };
+    })(),
     panelScroll: [panel.scrollHeight, panel.clientHeight],
     belowThirteen: small,
     tapTargetsUnder44: short,
@@ -4600,7 +4646,11 @@ def test_the_ecmwf_section_carries_the_hand_check_s_own_numbers(rendered):
 @needs_node
 def test_the_closed_bar_is_the_whole_panel_and_the_map_has_the_rest(viewport):
     """SPEC 11.37. Shut, the panel is one line and one button."""
-    for key, floor in (("390x664", 250), ("390x844", 420)):
+    # SPEC 11.38 lowered these by 16 pixels: the day buttons, the amount
+    # buttons and the menu are 44 pixels tall now instead of 30, and that
+    # height comes out of the map. It is the trade 11.38 chose, written
+    # down here rather than discovered later.
+    for key, floor in (("390x664", 225), ("390x844", 405)):
         shut = viewport["phone"][key]["shut"]
         height = int(key.split("x")[1])
         assert shut["open"] is False
@@ -4670,7 +4720,7 @@ def test_tapping_the_map_opens_the_panel_on_that_square(viewport):
     # And the map gets its height back when the panel is closed again.
     back = here["afterClosingAgain"]
     assert back["open"] is False
-    assert back["wrap"] >= 250
+    assert back["wrap"] >= 225
     assert abs(back["canvas"] - back["wrap"]) <= 2, (
         f"the map is {back['wrap']} tall and its canvas {back['canvas']}: "
         "it did not resize when the panel closed")
@@ -4684,7 +4734,7 @@ def test_the_open_panel_can_be_read_on_a_phone(viewport):
 
     # At least 15px: the lines that carry the answer.
     for what in ("chosenRow", "rowWhat", "trustChip", "trustLine",
-                 "notProbability"):
+                 "notPromise", "headline", "placeName"):
         assert sizes[what] is not None, what
         assert sizes[what] >= 15, (what, sizes[what])
     if sizes["pastLine"] is not None:
@@ -4701,6 +4751,67 @@ def test_the_open_panel_can_be_read_on_a_phone(viewport):
     # It still scrolls to its last line.
     content, box = inside["panelScroll"]
     assert content > box, (content, box)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_the_three_rows_a_thumb_hits_are_44_pixels_and_15_point(
+        viewport, size):
+    """SPEC 11.38. 11.37 gave the panel a floor and left these behind.
+
+    The review measured the day buttons at 12.2 point and 29.8 pixels tall
+    and the menu links at 13.6 and 30.4 -- on the one bar a reader has to
+    use before they can read anything at all.
+    """
+    rows = viewport["phone"][size]["shut"]["rows"]
+    assert len(rows) >= 8, rows  # five days, three amounts, three links
+    for name, height, size_px, text in rows:
+        assert height >= 43.5, (size, name, height, text)
+        assert size_px >= 15, (size, name, size_px, text)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_nothing_on_the_forecast_page_is_under_twelve_pixels(viewport, size):
+    """SPEC 11.38. The page's own floor, at every phone width.
+
+    MapLibre's own controls are skipped: their type is the library's and
+    is set by the stylesheet to 12 where it can be, but the buttons are
+    not ours to lay out.
+    """
+    small = viewport["phone"][size]["shut"]["underTwelve"]
+    assert small == [], (size, small)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_nothing_scrolls_sideways_on_a_phone(viewport, size):
+    """SPEC 11.38, and 11.29 before it."""
+    shut = viewport["phone"][size]["shut"]
+    width = int(size.split("x")[0])
+    assert shut["docScrollWidth"] <= width, (size, shut["docScrollWidth"])
+    assert shut["bodyScrollWidth"] <= width, (size, shut["bodyScrollWidth"])
+
+
+@needs_node
+def test_the_answer_is_on_the_screen_without_scrolling_at_390_by_664(
+        viewport):
+    """SPEC 11.38. The name, the headline and the five cells, after a tap.
+
+    The review measured the place line 193 pixels down a 258 pixel window
+    and the five-day strip 936 pixels down. This is the rule that replaces
+    that: what the reader asked for is on the screen when the panel opens,
+    and the working is what they scroll to.
+    """
+    inside = viewport["phone"]["390x664"]["inside"]
+    at = inside["answerFirst"]
+    assert at, "the panel did not report where the answer is"
+    window = at["clientHeight"]
+    for what in ("placeline", "headline", "stripCells"):
+        assert at[what] is not None, what
+        assert at[what][1] <= window, (what, at[what], window)
+    # In that order, and the strip after the headline.
+    assert at["placeline"][0] < at["headline"][0] < at["stripCells"][0]
 
 
 @needs_node
