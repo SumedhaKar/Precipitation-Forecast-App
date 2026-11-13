@@ -19,11 +19,13 @@ from __future__ import annotations
 import argparse
 import json
 
+from .verify import META as VERIFICATION_META
 from .verify import OUT as VERIFICATION
-from .verify import PERIOD, PUBLISHED_MM, RESULTS
+from .verify import BLOCK_MIN_SQUARES, PERIOD, PUBLISHED_MM, RESULTS
 
 LABELS_FILE = RESULTS / "labels.json"
 SITE_FILE = RESULTS / "site_summary.json"
+DETAILS_FILE = RESULTS / "site_details.json"
 
 GOOD = "Good track record"
 ROUGH = "Treat as a rough guide"
@@ -50,6 +52,9 @@ CRPS_DISAGREES = (
     "and this is said rather than hidden")
 
 SITE_FILE_LIMIT = 100_000
+
+# SPEC 11.34. The second file, read only by How we checked.
+DETAILS_FILE_LIMIT = 150_000
 
 COLOURS = {GOOD: "green", ROUGH: "amber", THIN: "grey"}
 
@@ -370,6 +375,9 @@ def site_summary(result: dict, record: dict) -> dict:
         "rules": record["rules"],
         "shows_by_label": {name: shows_for(name)
                            for name in (GOOD, ROUGH, THIN)},
+        # SPEC 6.7's own table, so the report card's key cannot invent a
+        # colour for a label no group carries today.
+        "label_colours": {name: COLOURS[name] for name in (GOOD, ROUGH, THIN)},
         "regions": record["regions"], "leads": record["leads"],
         "thresholds_mm": record["thresholds_mm"],
         "counts": record["counts"],
@@ -378,6 +386,150 @@ def site_summary(result: dict, record: dict) -> dict:
             "ratio": result["frequency_check"]["ratio"],
             "all_india": india},
         "groups": groups,
+    }
+
+
+
+# ----------------------------------- SPEC 11.34: what How we checked reads
+#
+# The page needs more than a label: the decomposition, the sensitivities, the
+# maps, the blocks and the exclusion tally. All of it is already in
+# results/verification.json, which is 1.6 MB and must not be sent to a
+# browser. This is the same numbers, written once as columns and rows instead
+# of 300 repeated objects.
+#
+# It holds no number verification.json does not. A test derives the whole file
+# again from verification.json and compares it field by field.
+
+SCORED_COLUMNS = (
+    "variant", "region", "lead_day", "threshold_mm", "cases", "dates",
+    "event_dates", "base_rate", "bs", "reference_bs", "bss", "bss_lo",
+    "bss_hi", "bss_halfwidth", "cases_with_flat_reference",
+    "resamples_discarded", "reliability", "resolution", "uncertainty",
+    "brier", "residual")
+BLOCK_COLUMNS = ("region", "lead_day", "threshold_mm", "block", "cases", "bss")
+CELL_COLUMNS = ("cases", "base_rate", "bss")
+CRPS_COLUMNS = (
+    "variant", "region", "lead_day", "cases", "dates", "crps_fair", "crps_plain",
+    "baseline_crps_fair", "baseline_crps_plain", "crpss_fair", "crpss_plain",
+    "crpss_lo", "crpss_hi")
+
+
+def whole(threshold: float) -> str:
+    """1.0 -> "1". The key of a lead-and-threshold map, kept short."""
+    return str(int(threshold)) if float(threshold).is_integer() \
+        else str(threshold)
+
+
+def scored_rows(result: dict) -> list[list]:
+    """Every group every variant was scored on, with its decomposition."""
+    rows = []
+    for group in result["groups_scored"]:
+        parts = group.get("decomposition") or {}
+        row = []
+        for column in SCORED_COLUMNS:
+            if column in ("reliability", "resolution", "uncertainty",
+                          "brier", "residual"):
+                row.append(parts.get(column))
+            else:
+                row.append(group.get(column))
+        rows.append(row)
+    return rows
+
+
+def block_rows(result: dict) -> list[list]:
+    """Skill in each 30-day block, for the variant the labels come from."""
+    order = {(block["from"], block["to"]): n
+             for n, block in enumerate(result["date_blocks"])}
+    rows = []
+    for row in result["skill_by_date_block"]:
+        if row["variant"] != "all51":
+            continue
+        rows.append([row["region"], row["lead_day"], row["threshold_mm"],
+                     order[(row["from"], row["to"])], row["cases"],
+                     row["bss"]])
+    return rows
+
+
+def two_degree(result: dict) -> dict:
+    """The 2-degree map, as a list of cells and one row each per picture.
+
+    Written this way because the same 109 cells carry fifteen pictures --
+    five lead days by three thresholds -- and writing the latitude, the
+    longitude and the square count fifteen times over is 100 KB of repetition
+    for a file that has 150 KB to live in.
+    """
+    cells, seen = [], {}
+    for row in result["two_degree"]:
+        at = (row["lat"], row["lon"])
+        if at not in seen:
+            seen[at] = len(cells)
+            cells.append([row["lat"], row["lon"], row["squares"],
+                          bool(row["enough_squares"])])
+    pictures: dict[str, list] = {}
+    for row in result["two_degree"]:
+        key = f"{row['lead_day']}_{whole(row['threshold_mm'])}"
+        here = pictures.setdefault(key, [None] * len(cells))
+        here[seen[(row["lat"], row["lon"])]] = [
+            row["cases"], row["base_rate"], row["bss"]]
+    return {"cells": cells, "cell_columns": ["lat", "lon", "squares",
+                                             "enough_squares"],
+            "minimum_squares": BLOCK_MIN_SQUARES,
+            "columns": list(CELL_COLUMNS), "pictures": pictures}
+
+
+def site_details(result: dict, meta: dict, record: dict) -> dict:
+    """The second file, for the one page that argues with the method."""
+    crps = result["crps"]
+    return {
+        "spec_section": "11.34",
+        "built_from": "results/verification.json",
+        "period": result["period"],
+        "wording": result["wording"],
+        "note_small_reference_groups": result["note_small_reference_groups"],
+        "crps_compared": result["crps_compared"],
+        "crps_note": result["crps_note"],
+        "not_computed": result["not_computed"],
+        "meta": {
+            "spec_sha256": meta["spec_sha256"],
+            "spec_sha256_note": meta["spec_sha256_note"],
+            "git_commit": meta["git_commit"],
+            "generated_utc": meta["generated_utc"],
+            "imerg": meta["imerg"],
+            "inputs": meta["inputs"],
+        },
+        "rules": record["rules"],
+        "regions": result["regions"],
+        "leads": result["leads"],
+        "thresholds_mm": result["thresholds_mm"],
+        "published_thresholds_mm": result["published_thresholds_mm"],
+        "variants": result["variants"],
+        "buckets": result["buckets"],
+        "bucket_floor": result["bucket_floor"],
+        "bootstrap": result["bootstrap"],
+        "reference": result["reference"],
+        "dates": result["dates"],
+        "date_blocks": result["date_blocks"],
+        "squares": result["squares"],
+        "cases": result["cases"],
+        "scored": {"columns": list(SCORED_COLUMNS),
+                   "rows": scored_rows(result)},
+        "by_date_block": {"variant": "all51",
+                          "columns": list(BLOCK_COLUMNS),
+                          "rows": block_rows(result)},
+        "two_degree": two_degree(result),
+        "crps": {
+            "baseline": crps["baseline"],
+            "minimum_days": crps["minimum_days"],
+            "out_of_sample": crps["out_of_sample"],
+            "forms": crps["forms"],
+            "skill_uses": crps["skill_uses"],
+            "columns": list(CRPS_COLUMNS),
+            "rows": [[row[column] for column in CRPS_COLUMNS]
+                     for row in crps["rows"]],
+            "disagreement": crps["disagreement"],
+        },
+        "sensitivity_changes": record["sensitivity_changes"],
     }
 
 
@@ -402,6 +554,15 @@ def main() -> None:
         raise SystemExit(
             f"{SITE_FILE.name} is {size} bytes, over the {SITE_FILE_LIMIT} "
             "the site is allowed")
+
+    meta = json.loads(VERIFICATION_META.read_text(encoding="utf-8"))
+    details = site_details(result, meta, record)
+    details_text = json.dumps(details, separators=(",", ":")) + "\n"
+    details_size = len(details_text.encode())
+    if details_size > DETAILS_FILE_LIMIT:
+        raise SystemExit(
+            f"{DETAILS_FILE.name} is {details_size} bytes, over the "
+            f"{DETAILS_FILE_LIMIT} the site is allowed")
     if args.no_write:
         print("  --no-write: nothing written")
         return
@@ -411,6 +572,9 @@ def main() -> None:
     SITE_FILE.write_bytes(site_text.encode())
     print(f"  wrote {SITE_FILE.name}, {size} bytes of the "
           f"{SITE_FILE_LIMIT} allowed")
+    DETAILS_FILE.write_bytes(details_text.encode())
+    print(f"  wrote {DETAILS_FILE.name}, {details_size} bytes of the "
+          f"{DETAILS_FILE_LIMIT} allowed")
 
 
 if __name__ == "__main__":

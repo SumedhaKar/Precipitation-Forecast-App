@@ -1450,7 +1450,13 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
     # And the row is laid out so that it cannot overflow however wide the
     # words turn out to be.
     assert ".days .radios button { flex: 1 1 0;" in styles
-    assert "overflow-x: auto" not in styles
+    # Nothing in the map page's own rules may scroll sideways. The report
+    # card's label grid may (SPEC 11.34): it is a table of 5 columns on a
+    # document page, and scrolling it is better than shrinking the words.
+    shell = styles.split("/* --------------------------------- the three "
+                         "pages, SPEC 11.34 */")[0]
+    assert "overflow-x: auto" not in shell
+    assert styles.count("overflow-x: auto") == 1
 
 
 # ----------------- SPEC 11.30: the land around India, the names in the
@@ -2101,3 +2107,1032 @@ def test_the_map_pans_when_a_square_is_chosen_and_not_otherwise():
     inview = INVIEW.read_text("utf-8")
     assert "export const EDGE = 40;" in inview
     assert "export const EASE_MS = 600;" in inview
+
+
+# ------------------------- SPEC 11.33: the trust label in the place panel
+#
+# The record is frozen (tag results-v1) and the page must say exactly what is
+# in it. So the expectations below are written out again from
+# results/site_summary.json rather than imported from web/src/record.js: if
+# the page's wording and the file ever disagree, one of these fails.
+
+RECORD = ROOT / "results" / "site_summary.json"
+BUNDLED = ROOT / "web" / "src" / "summary.json"
+REGIONS = ROOT / "config" / "regions.json"
+MASK = ROOT / "config" / "india_mask.json"
+
+# The harness of 11.24 cannot be used here: it passes the arguments to every
+# call, and the summary is 94,000 bytes. This one reads the summary once and
+# puts it in front of every call, so 3,120 calls cost one copy.
+RECORD_HARNESS = """
+import { readFileSync } from 'node:fs';
+const [file, summaryFile, argsFile] = process.argv.slice(2);
+const mod = await import(file);
+const summary = JSON.parse(readFileSync(summaryFile, 'utf8'));
+const calls = JSON.parse(readFileSync(argsFile, 'utf8'));
+process.stdout.write(JSON.stringify(calls.map(
+  (call) => mod[call[0]](summary, ...call.slice(1)))));
+"""
+
+TOO_FEW = ("Too few past cases with this many runs agreeing to say how often "
+           "the satellite saw it.")
+
+# SPEC 11.33, the four checks said as what went wrong, in 6.2's order.
+MISSED = (
+    ("enough_data", "too few past cases"),
+    ("skill_above_zero",
+     "not clearly better than the usual rain for this place and month"),
+    ("range_narrow_enough", "too uncertain to tell"),
+    ("small_honesty_error",
+     "the counts were too confident: when many runs agreed, the satellite "
+     "saw it less often"),
+)
+SKILL_PASSED = "Better than the usual rain for this place and month, but "
+MEMBERS = 51
+COUNTS = list(range(MEMBERS + 1))
+
+
+@pytest.fixture()
+def record(tmp_path):
+    """Call record.js with one summary in front of every call."""
+    harness = tmp_path / "record.mjs"
+    harness.write_text(RECORD_HARNESS, encoding="utf-8")
+    args = tmp_path / "record-args.json"
+
+    def run(calls: list[list], summary: Path = BUNDLED) -> list:
+        args.write_text(json.dumps(calls), encoding="utf-8")
+        done = subprocess.run(
+            [node, str(harness),
+             (ROOT / "web" / "src" / "record.js").as_uri(),
+             str(summary), str(args)],
+            capture_output=True, text=True, check=False)
+        assert done.returncode == 0, f"node failed: {done.stderr}"
+        return json.loads(done.stdout)
+
+    return run
+
+
+def summary_file() -> dict:
+    return json.loads(RECORD.read_text(encoding="utf-8"))
+
+
+def bucket_of(group: dict, count: int) -> dict | None:
+    """The counted bucket holding this count. Only counted ones are here."""
+    for bucket in group["buckets"]:
+        if bucket["k_from"] <= count <= bucket["k_to"]:
+            return bucket
+    return None
+
+
+def expected_past(group: dict, count: int) -> str:
+    """The sentence of SPEC 11.33, written out again."""
+    bucket = bucket_of(group, count)
+    if bucket is None:
+        return TOO_FEW
+    low, high = bucket["k_from"], bucket["k_to"]
+    if low == high == 0:
+        many = f"none of the {MEMBERS} runs"
+    elif low == high == MEMBERS:
+        many = f"all {MEMBERS} runs"
+    elif low == high:
+        many = f"{low} of {MEMBERS} runs"
+    else:
+        many = f"{low} to {high} of {MEMBERS} runs"
+    times = bucket["times_in_10"]
+    if times <= 0:
+        often = "fewer than 1 time in 10"
+    elif times >= 10:
+        often = "nearly every time"
+    else:
+        often = f"about {times} {'time' if times == 1 else 'times'} in 10"
+    threshold = group["threshold_mm"]
+    amount = int(threshold) if float(threshold).is_integer() else threshold
+    return (f"In May to November 2026, when {many} said {amount} mm or more "
+            f"in {group['region']} on day {group['lead_day']}, the satellite "
+            f"saw it {often}.")
+
+
+def expected_why(group: dict) -> str:
+    """The one line under the chip, SPEC 11.33, written out again."""
+    missed = [words for key, words in MISSED
+              if not group["conditions"][key]["pass"]]
+    if not missed:
+        return "All four checks passed."
+    joined = missed[0] if len(missed) == 1         else f"{', '.join(missed[:-1])}, and {missed[-1]}"
+    if group["conditions"]["skill_above_zero"]["pass"]:
+        return f"{SKILL_PASSED}{joined}."
+    return joined[0].upper() + joined[1:] + "."
+
+
+def every_group_and_count() -> list[list]:
+    groups = summary_file()["groups"]
+    return [["trustFor", group["region"], group["lead_day"],
+             group["threshold_mm"], count, MEMBERS]
+            for group in groups for count in COUNTS]
+
+
+def strings_in(value) -> list[str]:
+    """Every string anywhere in an answer, for the wording checks."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in strings_in(item)]
+    if isinstance(value, list):
+        return [text for item in value for text in strings_in(item)]
+    return []
+
+
+@needs_node
+def test_every_square_gets_the_region_config_gives_it(exports):
+    """SPEC 11.33. api/place answers from config/regions.json and nothing else.
+
+    All 15,609 squares of the India box, not a sample: the 4,613 inside India
+    get their own region, and every other square gets null, because there is
+    no record to show for the sea.
+    """
+    rows = json.loads(REGIONS.read_text(encoding="utf-8"))
+    names = rows["codes"]
+    grid = rows["region_rows"]
+    points = [[38.0 - 0.25 * i, 68.0 + 0.25 * j]
+              for i in range(129) for j in range(121)]
+    assert len(points) == 15609
+
+    got = exports(ROOT / "api" / "place.mjs", "regionOf", points)
+    india = 0
+    for (lat, lon), answer in zip(points, got):
+        i = round((38.0 - lat) / 0.25)
+        j = round((lon - 68.0) / 0.25)
+        code = int(grid[i][j])
+        if code == 0:
+            assert answer is None, (lat, lon, answer)
+        else:
+            assert answer == {"code": code, "region": names[str(code)]}, \
+                (lat, lon, answer)
+            india += 1
+    assert india == 4613, india
+
+    # And those 4,613 are exactly the squares the site publishes (SPEC 3.5),
+    # so no square the page can show has no label to show with it.
+    mask = json.loads(MASK.read_text(encoding="utf-8"))["india_rows"]
+    for i, row in enumerate(mask):
+        for j, here in enumerate(row):
+            assert (here == "1") == (grid[i][j] != "0"), (i, j)
+
+
+@needs_node
+def test_the_twelve_places_of_five_four_land_in_their_own_region(exports):
+    """The place tests config/regions.json was built against, through the API.
+
+    build_regions.py checks them when it writes the file. This checks the
+    function the website actually asks, which is a different program reading
+    the same file.
+    """
+    places = json.loads(REGIONS.read_text(encoding="utf-8"))["place_tests"]
+    assert len(places) == 12
+    points = [[place["lat"], place["lon"]] for place in places.values()]
+    got = exports(ROOT / "api" / "place.mjs", "regionOf", points)
+    for (name, place), answer in zip(places.items(), got):
+        assert answer is not None, name
+        assert answer["region"] == place["region"], (name, answer)
+
+
+@needs_node
+def test_the_api_answers_with_the_square_s_region(store, harness, exports):
+    """Every square the store holds comes back with its region beside it."""
+    squares = india_squares(store)
+    got = exports(ROOT / "api" / "place.mjs", "regionOf",
+                  [[lat, lon] for lat, lon in squares])
+    for (lat, lon), region in zip(squares, got):
+        answer = call(harness, "place", f"?lat={lat}&lon={lon}",
+                      store["base"])["json"]
+        assert "region" in answer["square"], answer["square"]
+        if region is None:
+            # This fixture's grid sits in the far north west, outside India
+            # on the real mask, so the honest answer is no region at all.
+            assert answer["square"]["region"] is None
+            assert answer["square"]["region_code"] is None
+        else:
+            assert answer["square"]["region"] == region["region"]
+            assert answer["square"]["region_code"] == region["code"]
+
+
+@needs_node
+def test_the_label_and_the_sentence_are_the_record_for_every_count(record):
+    """SPEC 11.33, all 60 groups at all 52 counts: 3,120 answers checked.
+
+    The label, its colour, the past-frequency sentence and the four condition
+    lines all have to be what results/site_summary.json says, because the page
+    is not allowed to work any of them out for itself.
+    """
+    groups = summary_file()["groups"]
+    rules = summary_file()["rules"]
+    calls = every_group_and_count()
+    answers = record(calls)
+    assert len(answers) == 60 * 52 == len(calls)
+
+    seen_too_few = 0
+    for (group, count), got in zip(
+            [(group, count) for group in groups for count in COUNTS],
+            answers):
+        where = (group["region"], group["lead_day"], group["threshold_mm"],
+                 count)
+        assert got["label"] == group["label"], where
+        assert got["colour"] == group["colour"], where
+        assert got["past"] == expected_past(group, count), where
+        if got["past"] == TOO_FEW:
+            seen_too_few += 1
+
+        names = [line["name"] for line in got["conditions"]]
+        assert names == [
+            "Enough past cases",
+            "Better than the usual rain for this place and month",
+            "A narrow enough range",
+            "Counts that matched what happened"], where
+        assert got["label"] != "Good track record" or "but" not in got["why"]
+        passed = [line["pass"] for line in got["conditions"]]
+        assert passed == [group["conditions"][key]["pass"] for key in (
+            "enough_data", "skill_above_zero", "range_narrow_enough",
+            "small_honesty_error")], where
+
+        data = group["conditions"]["enough_data"]
+        assert f"{data['dates']} start dates" in got["conditions"][0]["got"]
+        assert f"{data['event_dates']} of them" in got["conditions"][0]["got"]
+        assert str(rules["min_dates"]) in got["conditions"][0]["rule"]
+        assert f"{group['bss']:.2f}" in got["conditions"][1]["got"] \
+            or f"{group['bss']:.2f}".lstrip("-") in got["conditions"][1]["got"]
+        worst = group["conditions"]["small_honesty_error"]["worst_error"]
+        assert f"{worst:.2f}" in got["conditions"][3]["got"], where
+
+        # The line under the chip names the checks that were not passed,
+        # and the half that was passed where there is one.
+        assert got["why"] == expected_why(group), where
+
+    assert seen_too_few > 0, "no group has an uncounted band, so the floor " \
+        "of 6.4 was never exercised"
+
+
+@needs_node
+def test_the_sentence_is_withheld_exactly_where_the_bucket_is_not_counted(
+        record):
+    """SPEC 6.4's floor governs what is said out loud, not only what is tested.
+
+    Seven of the 60 groups -- all of them 50 mm -- have no counted band above
+    some count, because fifty millimetres in a day from 30 or more agreeing
+    runs did not happen a hundred times in six months. Those counts get the
+    plain line and no number at all.
+    """
+    groups = summary_file()["groups"]
+    answers = record(every_group_and_count())
+    thin = 0
+    for (group, count), got in zip(
+            [(group, count) for group in groups for count in COUNTS],
+            answers):
+        counted = bucket_of(group, count) is not None
+        assert (got["past"] != TOO_FEW) == counted, (group["region"], count)
+        if not counted:
+            thin += 1
+            assert "times in 10" not in got["past"]
+            assert "about" not in got["past"]
+    assert thin > 100, thin
+
+
+@needs_node
+def test_no_share_of_ten_appears_until_a_label_is_green(record, tmp_path):
+    """SPEC 6.7. A percentage is earned by the record, not printed by default.
+
+    No group is green today, so nothing on the site may read as a share of
+    ten. The rule for the day one is green is tested against a made-up green
+    group, so it is already right then.
+    """
+    answers = record(every_group_and_count())
+    for got in answers:
+        assert got["percent"] is None, got["label"]
+        for text in strings_in(got):
+            assert "%" not in text, text
+            assert "percent" not in text.lower(), text
+
+    # The same file with one group made green, and nothing else touched.
+    doctored = summary_file()
+    green = doctored["groups"][0]
+    green["label"] = "Good track record"
+    green["colour"] = "green"
+    for condition in green["conditions"].values():
+        condition["pass"] = True
+    path = tmp_path / "green.json"
+    path.write_text(json.dumps(doctored), encoding="utf-8")
+
+    got = record([["trustFor", green["region"], green["lead_day"],
+                   green["threshold_mm"], count, MEMBERS]
+                  for count in (0, 20, 26, 51)], summary=path)
+    assert [answer["percent"] for answer in got] == [
+        "about 0 in 10", "about 4 in 10", "about 5 in 10", "about 10 in 10"]
+    assert got[1]["why"] == "All four checks passed."
+    for answer in got:
+        assert "%" not in json.dumps(answer)
+
+
+@needs_node
+def test_the_trust_wording_never_says_dry_or_likely(record):
+    """SPEC 11.20's forbidden list, over everything the label can say.
+
+    The sentence under the counts was held to this from the first day. The
+    track record says more, so it has more ways to slip: "risk", "likely",
+    "chance", a percentage. Every string of all 3,120 answers is checked,
+    which is the labels, the lines, the four conditions and the notes.
+    """
+    answers = record(every_group_and_count())
+    checked = 0
+    for got in answers:
+        for text in strings_in(got):
+            low = text.lower()
+            for word in FORBIDDEN:
+                if word == "certain":
+                    # SPEC 11.33. The ban is on the claim "certain". "too
+                    # uncertain to tell" is the opposite of that claim -- a
+                    # confession that the range is too wide to say anything --
+                    # so the whole word is what is forbidden, not the letters.
+                    assert not re.search(r"certain", low), text
+                    continue
+                assert word not in low, f"{word} appears in: {text}"
+            checked += 1
+    assert checked > 10000, checked
+
+    # And the one thing it must always say rather than "it rained" (SPEC 5.9).
+    said = [got["past"] for got in answers if got["past"] != TOO_FEW]
+    assert len(said) > 2000
+    for sentence in said:
+        assert "the satellite saw it" in sentence
+        assert "it rained" not in sentence
+        assert sentence.startswith("In May to November 2026, when ")
+
+
+@needs_node
+def test_the_two_ends_of_the_rounded_share_are_said_in_words(
+        record, exports, tmp_path):
+    """SPEC 11.33. 0 is not never and 10 is not always.
+
+    A band rounded to 0 times in 10 holds hundreds of cases in which it did
+    happen -- 1.2 in 100 in the real record's driest band -- and "about 0
+    times in 10" reads as a promise that it never happens. 10 reads as a
+    promise that it always does. Both ends say what the rounding is.
+    """
+    ends = exports(ROOT / "web" / "src" / "record.js", "howOften",
+                   [[{"times_in_10": times}] for times in (0, 1, 2, 9, 10)])
+    assert ends == ["fewer than 1 time in 10", "about 1 time in 10",
+                    "about 2 times in 10", "about 9 times in 10",
+                    "nearly every time"]
+
+    # The real record reaches 0 but never 10, so the top end is driven with a
+    # band moved there by hand, and the whole sentence checked around it.
+    groups = summary_file()["groups"]
+    low = [expected_past(group, count) for group in groups for count in COUNTS]
+    assert sum("fewer than 1 time in 10" in said for said in low) > 100
+    assert not any("nearly every time" in said for said in low)
+
+    doctored = summary_file()
+    group = doctored["groups"][0]
+    group["buckets"][-1]["times_in_10"] = 10
+    path = tmp_path / "high.json"
+    path.write_text(json.dumps(doctored), encoding="utf-8")
+    got = record([["trustFor", group["region"], group["lead_day"],
+                   group["threshold_mm"], 51, MEMBERS]], summary=path)
+    assert got[0]["past"].endswith("the satellite saw it nearly every time.")
+    assert "about 10" not in got[0]["past"]
+
+
+@needs_node
+def test_the_line_under_the_chip_says_both_halves_when_there_are_two(record):
+    """SPEC 11.33. A group that beat the usual rain and is still amber.
+
+    Twenty of the sixty did: their skill range is wholly above 0 and they fail
+    only on the honesty check. Saying only what went wrong would describe a
+    worse record than the one we measured, so the line says both. The other
+    forty did not beat it, and their line names only the failed checks.
+    """
+    groups = summary_file()["groups"]
+    answers = record([["trustFor", group["region"], group["lead_day"],
+                       group["threshold_mm"], 25, MEMBERS]
+                      for group in groups])
+    both, failed_only = 0, 0
+    for group, got in zip(groups, answers):
+        where = (group["region"], group["lead_day"], group["threshold_mm"])
+        assert got["why"] == expected_why(group), where
+        if group["conditions"]["skill_above_zero"]["pass"]:
+            both += 1
+            assert got["why"].startswith(
+                "Better than the usual rain for this place and month, but "
+                "the counts were too confident:"), where
+            assert "not clearly better" not in got["why"], where
+        else:
+            failed_only += 1
+            assert got["why"].startswith(
+                "Not clearly better than the usual rain"), where
+            assert ", but " not in got["why"], where
+        assert got["why"].endswith("."), where
+    assert (both, failed_only) == (20, 40), (both, failed_only)
+
+    # Every line is built from the four fixed phrases and nothing else.
+    for group, got in zip(groups, answers):
+        for key, words in MISSED:
+            said = words in got["why"]
+            missed = not group["conditions"][key]["pass"]
+            if key != "skill_above_zero":
+                assert said == missed, (group["region"], key)
+
+
+@needs_node
+def test_a_run_with_other_than_fifty_one_members_is_given_no_sentence(record):
+    """SPEC 11.33. The bands are counts out of 51 (SPEC 2.1).
+
+    If a run ever publishes a different number of members, "36 to 40 of 51
+    runs" is no longer the question this forecast answers, and the honest
+    thing is to say nothing rather than something close.
+    """
+    group = summary_file()["groups"][0]
+    args = [group["region"], group["lead_day"], group["threshold_mm"]]
+    got = record([["trustFor", *args, 38, members]
+                  for members in (51, 50, 20, 0)])
+    assert got[0]["past"].startswith("In May to November 2026")
+    for answer in got[1:3]:
+        assert answer["past"] is None, answer["past"]
+    assert got[3] is not None and got[3]["past"] is None
+
+
+def test_the_site_reads_one_file_and_it_is_the_frozen_one():
+    """SPEC 11.33. One copy in the build, and never the big files."""
+    assert BUNDLED.read_bytes() == RECORD.read_bytes()
+    assert len(BUNDLED.read_bytes()) < 100_000
+
+    src = ROOT / "web" / "src"
+
+    def importers(name: str) -> list[str]:
+        # sorted, because glob's order is the filesystem's and this test
+        # has to say the same thing on Windows and on the CI runner.
+        return sorted(path.name for path in src.glob("*.js*")
+                      if f"from './{name}'" in path.read_text(
+                          encoding="utf-8"))
+
+    # SPEC 11.34. The summary is in the bundle already, so the report card
+    # reads it directly; the 126 KB of working is imported by How we checked
+    # and by nothing else, which is what keeps it in that page's own chunk.
+    assert importers("summary.json") == [
+        "HowWeChecked.jsx", "ReportCard.jsx", "ssr.jsx", "trust.js"]
+    assert importers("details.json") == ["HowWeChecked.jsx"]
+    assert BUNDLED_DETAILS.read_bytes() == DETAILS.read_bytes()
+
+    # And in the built site: the working is in a chunk of its own, not in
+    # the entry every reader downloads.
+    dist = ROOT / "web" / "dist" / "assets"
+    if dist.exists():
+        mark = json.loads(
+            DETAILS.read_text(encoding="utf-8"))["meta"]["spec_sha256"]
+        carry = sorted(path.name for path in dist.glob("*.js")
+                       if mark in path.read_text(encoding="utf-8",
+                                                 errors="ignore"))
+        assert carry == ["HowWeChecked-" + carry[0].split("-", 1)[1]], carry
+    # The two big result files are named in a comment and imported nowhere:
+    # the whole of the record the browser is sent is summary.json.
+    loaded = sorted({name for path in src.glob("*.js*")
+                     for name in re.findall(r"from '\./([\w./]+\.json)'",
+                                            path.read_text(encoding="utf-8"))})
+    assert loaded == ["details.json", "geo/india.geo.json",
+                      "geo/land.geo.json", "geo/states.geo.json",
+                      "summary.json", "towns.json", "units.json"], loaded
+
+    # record.js is the thinking and has no imports, so node can drive it
+    # against the real file, which is what the tests above do.
+    source = (src / "record.js").read_text(encoding="utf-8")
+    assert "\nimport " not in source
+    assert "require(" not in source
+
+
+def test_the_panel_shows_the_chip_the_sentence_and_the_expander():
+    """SPEC 11.33, in the page's own structure."""
+    panel = PANEL.read_text(encoding="utf-8")
+
+    # The region is the API's, not the page's: the panel names the file in a
+    # comment and never reads a square out of it.
+    assert "const region = place.square.region;" in panel
+    assert "region_rows" not in panel
+    assert "import" not in panel.split("const region = place.square.region;")[0]        .split("const THRESHOLDS")[1]
+
+    # A chip on every threshold row, and one for the chosen day and
+    # threshold with its line and its expander.
+    assert panel.count("<Chip trust={trust} small />") == 1
+    assert "<Chip trust={trust} />" in panel
+    assert "<summary>Why this label?</summary>" in panel
+    assert "<TrustBlock place={place} day={chosen} threshold={threshold} />" \
+        in panel
+    # The sentence sits under the chosen count and nowhere else.
+    assert panel.count('className="pastline"') == 1
+    assert "{chosen && trust && trust.past ? (" in panel
+
+    # Nothing in the panel decides a label or a frequency.
+    for word in ("Good track record", "Treat as a rough guide",
+                 "Not enough past data", "times in 10", "bss", "Math.round"):
+        assert word not in panel, word
+
+    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
+    # The sentence is the same size as the count it is under, wide and narrow.
+    row = css.split("\n.countrow {")[1].split("}")[0]
+    past = css.split("\n.pastline {")[1].split("}")[0]
+    assert "font-size: 0.88rem;" in row and "font-size: 0.88rem;" in past
+    narrow = css.split("  .countrow { grid-template-columns:")[1]
+    assert "font-size: 0.84rem; }" in narrow.split("\n")[0]
+    assert ".pastline { font-size: 0.84rem; }" in narrow
+    # Three chips, three colours, each one a word as well as a colour.
+    for colour in ("green", "amber", "grey"):
+        assert f".chip.{colour} {{" in css
+
+
+# ------------- SPEC 11.34: the report card and How we checked
+#
+# Two kinds of check. The pages' own functions are driven against the two
+# files, as the panel's are; and both pages are rendered to HTML by React's
+# own server renderer, for every choice a reader can make, so what is checked
+# is the page itself rather than a description of it.
+
+DETAILS = ROOT / "results" / "site_details.json"
+BUNDLED_DETAILS = ROOT / "web" / "src" / "details.json"
+VERIFICATION = ROOT / "results" / "verification.json"
+DETAILS_LIMIT = 150_000
+
+PAGES_HARNESS = """
+import { readFileSync } from 'node:fs';
+const [file, summaryFile, detailsFile, argsFile] = process.argv.slice(2);
+const mod = await import(file);
+const summary = JSON.parse(readFileSync(summaryFile, 'utf8'));
+const details = JSON.parse(readFileSync(detailsFile, 'utf8'));
+const files = { summary, details };
+const calls = JSON.parse(readFileSync(argsFile, 'utf8'));
+process.stdout.write(JSON.stringify(calls.map(
+  (call) => mod[call[0]](files[call[1]], ...call.slice(2)))));
+"""
+
+
+@pytest.fixture()
+def pages(tmp_path):
+    """Call web/src/pages.js with one of the two files in front of it."""
+    harness = tmp_path / "pages.mjs"
+    harness.write_text(PAGES_HARNESS, encoding="utf-8")
+    args = tmp_path / "pages-args.json"
+
+    def run(calls: list[list]) -> list:
+        args.write_text(json.dumps(calls), encoding="utf-8")
+        done = subprocess.run(
+            [node, str(harness),
+             (ROOT / "web" / "src" / "pages.js").as_uri(),
+             str(BUNDLED), str(BUNDLED_DETAILS), str(args)],
+            capture_output=True, text=True, check=False)
+        assert done.returncode == 0, f"node failed: {done.stderr}"
+        return json.loads(done.stdout)
+
+    return run
+
+
+@pytest.fixture(scope="module")
+def rendered():
+    """Both pages as HTML, built by vite and rendered by react-dom/server.
+
+    The build goes under web/node_modules so that node resolves react and
+    react-dom from where they are installed; it is a test artefact and is
+    never part of what `npm run build` emits.
+    """
+    web = ROOT / "web"
+    if node is None or not (web / "node_modules" / "vite").exists():
+        pytest.skip("node and the web dependencies are needed to render")
+    out = web / "node_modules" / ".ssr-test"
+    vite = web / "node_modules" / ".bin" / (
+        "vite.cmd" if os.name == "nt" else "vite")
+    done = subprocess.run(
+        [str(vite), "build", "--ssr", "src/ssr.jsx", "--outDir",
+         "node_modules/.ssr-test", "--logLevel", "error"],
+        capture_output=True, text=True, check=False, cwd=web, shell=False)
+    assert done.returncode == 0, f"vite failed: {done.stdout}\n{done.stderr}"
+
+    script = """
+const mod = await import(process.argv[2]);
+process.stdout.write(JSON.stringify({
+  pages: mod.pages(),
+  choices: mod.everyChoice(),
+}));
+"""
+    runner = out / "run-pages.mjs"
+    runner.write_text(script, encoding="utf-8")
+    done = subprocess.run(
+        [node, str(runner), (out / "ssr.js").as_uri()],
+        capture_output=True, text=True, check=False, cwd=web)
+    assert done.returncode == 0, f"node failed: {done.stderr}"
+    return json.loads(done.stdout)
+
+
+def words_of(html: str) -> str:
+    """The text a reader sees, with the tags and the entities taken out."""
+    text = re.sub(r"<[^>]+>", " ", html)
+    for entity, plain in (("&amp;", "&"), ("&quot;", '"'), ("&#x27;", "'"),
+                          ("&lt;", "<"), ("&gt;", ">"), ("&nbsp;", " ")):
+        text = text.replace(entity, plain)
+    return re.sub(r"\s+", " ", text)
+
+
+def details_file() -> dict:
+    return json.loads(DETAILS.read_text(encoding="utf-8"))
+
+
+def verification() -> dict:
+    return json.loads(VERIFICATION.read_text(encoding="utf-8"))
+
+
+def test_the_details_file_holds_what_the_verification_holds():
+    """SPEC 11.34. Derived again here, and compared row by row.
+
+    The page must not be able to show a score the verification did not
+    produce, so this walks results/verification.json and asks the derived
+    file for the same numbers, rather than trusting the deriving code.
+    """
+    result = verification()
+    details = details_file()
+    assert BUNDLED_DETAILS.read_bytes() == DETAILS.read_bytes()
+    assert len(DETAILS.read_bytes()) < DETAILS_LIMIT
+
+    # Every group every variant was scored on, with its decomposition.
+    scored = {(row["variant"], row["region"], row["lead_day"],
+               row["threshold_mm"]): row for row in result["groups_scored"]}
+    assert len(scored) == 300
+    columns = details["scored"]["columns"]
+    seen = 0
+    for row in details["scored"]["rows"]:
+        got = dict(zip(columns, row))
+        want = scored[(got["variant"], got["region"], got["lead_day"],
+                       got["threshold_mm"])]
+        parts = want["decomposition"]
+        for name in ("cases", "dates", "event_dates", "base_rate", "bs",
+                     "reference_bs", "bss", "bss_lo", "bss_hi",
+                     "bss_halfwidth", "cases_with_flat_reference",
+                     "resamples_discarded"):
+            assert got[name] == want[name], (name, got["region"])
+        for name in ("reliability", "resolution", "uncertainty", "brier",
+                     "residual"):
+            assert got[name] == parts[name], (name, got["region"])
+        seen += 1
+    assert seen == 300
+
+    # Skill by date block, for the variant the labels come from.
+    blocks = [row for row in result["skill_by_date_block"]
+              if row["variant"] == "all51"]
+    assert len(blocks) == 360
+    columns = details["by_date_block"]["columns"]
+    for row, want in zip(details["by_date_block"]["rows"], blocks):
+        got = dict(zip(columns, row))
+        assert (got["region"], got["lead_day"], got["threshold_mm"]) == (
+            want["region"], want["lead_day"], want["threshold_mm"])
+        assert got["cases"] == want["cases"] and got["bss"] == want["bss"]
+        block = details["date_blocks"][got["block"]]
+        assert (block["from"], block["to"]) == (want["from"], want["to"])
+
+    # The 2-degree map: the same 1,635 rows, written as cells and pictures.
+    cells = {(cell[0], cell[1]): at for at, cell
+             in enumerate(details["two_degree"]["cells"])}
+    assert len(cells) == 109
+    for want in result["two_degree"]:
+        key = f"{want['lead_day']}_{int(want['threshold_mm'])}"
+        at = cells[(want["lat"], want["lon"])]
+        got = details["two_degree"]["pictures"][key][at]
+        assert got == [want["cases"], want["base_rate"], want["bss"]], want
+        cell = details["two_degree"]["cells"][at]
+        assert cell[2] == want["squares"]
+        assert cell[3] == want["enough_squares"]
+    assert sum(len(one) for one in
+               details["two_degree"]["pictures"].values()) == 15 * 109
+
+    # CRPS, and everything that is carried over whole.
+    columns = details["crps"]["columns"]
+    for row, want in zip(details["crps"]["rows"], result["crps"]["rows"]):
+        got = dict(zip(columns, row))
+        for name in columns:
+            assert got[name] == want[name], name
+    assert details["crps"]["disagreement"] == result["crps"]["disagreement"]
+    for name in ("period", "wording", "note_small_reference_groups",
+                 "crps_note", "crps_compared", "not_computed", "regions",
+                 "leads", "thresholds_mm", "published_thresholds_mm",
+                 "variants", "buckets", "bucket_floor", "bootstrap",
+                 "reference", "dates", "date_blocks", "squares", "cases"):
+        assert details[name] == result[name], name
+
+    meta = json.loads(
+        (ROOT / "results" / "verification_meta.json").read_text("utf-8"))
+    for name in ("spec_sha256", "git_commit", "imerg", "inputs"):
+        assert details["meta"][name] == meta[name], name
+
+
+@needs_node
+def test_every_chip_in_the_grid_is_the_label_the_record_gives(pages,
+                                                              rendered):
+    """All 60 cells of the four grids, and the key above them."""
+    summary = summary_file()
+    grids = pages([["gridFor", "summary", region]
+                   for region in summary["regions"]])
+    html = rendered["pages"]["report_card"]
+    seen = 0
+    for region, grid in zip(summary["regions"], grids):
+        assert [row["threshold"] for row in grid] == summary["thresholds_mm"]
+        for row in grid:
+            assert [cell["lead"] for cell in row["cells"]] == summary["leads"]
+            for cell in row["cells"]:
+                group = next(
+                    one for one in summary["groups"]
+                    if one["region"] == region
+                    and one["lead_day"] == cell["lead"]
+                    and one["threshold_mm"] == row["threshold"])
+                assert cell["label"] == group["label"]
+                assert cell["colour"] == group["colour"]
+                assert cell["short"] == {
+                    "Good track record": "Good",
+                    "Treat as a rough guide": "Rough guide",
+                    "Not enough past data": "Too few"}[group["label"]]
+                # And the page carries the full label where a reader who
+                # cannot see the colour will find it.
+                shown = (f'aria-label="{region}, day {cell["lead"]}, '
+                         f'{row["threshold"]} mm: {group["label"]}"')
+                assert shown.replace("&", "&amp;") in html
+                seen += 1
+    assert seen == 60
+    for label in ("Good track record", "Treat as a rough guide",
+                  "Not enough past data"):
+        assert label in html, label
+
+
+@needs_node
+def test_every_point_and_whisker_is_its_group_s_own(pages, rendered):
+    """The twelve plots: five points each, with the file's own range."""
+    summary = summary_file()
+    want = [(region, threshold) for region in summary["regions"]
+            for threshold in summary["thresholds_mm"]]
+    got = pages([["skillSeries", "summary", region, threshold]
+                 for region, threshold in want])
+    assert len(got) == 12
+    for (region, threshold), series in zip(want, got):
+        assert [point["lead"] for point in series] == summary["leads"]
+        for point in series:
+            group = next(
+                one for one in summary["groups"]
+                if one["region"] == region and one["lead_day"] == point["lead"]
+                and one["threshold_mm"] == threshold)
+            assert point["bss"] == group["bss"]
+            assert point["lo"] == group["bss_lo"]
+            assert point["hi"] == group["bss_hi"]
+            assert point["above"] == group[
+                "conditions"]["skill_above_zero"]["pass"]
+            assert point["above"] == (point["lo"] > 0)
+
+    # Twelve plots on the page, each with five dots and five bars.
+    html = rendered["pages"]["report_card"]
+    assert html.count("<figure class=\"plot\"") == 12
+    assert html.count("<circle") == 60
+
+
+@needs_node
+def test_every_band_row_is_a_counted_band_with_the_panel_s_sentence(pages):
+    """The pickable table, for all 60 choices, against the file.
+
+    The sentence is the place panel's own function, so a band cannot read one
+    way on the forecast page and another way here.
+    """
+    summary = summary_file()
+    want = [(group["region"], group["lead_day"], group["threshold_mm"])
+            for group in summary["groups"]]
+    got = pages([["bandRows", "summary", region, lead, threshold]
+                 for region, lead, threshold in want])
+    rows_seen = 0
+    for (region, lead, threshold), rows in zip(want, got):
+        group = next(one for one in summary["groups"]
+                     if one["region"] == region and one["lead_day"] == lead
+                     and one["threshold_mm"] == threshold)
+        assert len(rows) == len(group["buckets"])
+        for row, bucket in zip(rows, group["buckets"]):
+            assert (row["k_from"], row["k_to"]) == (
+                bucket["k_from"], bucket["k_to"])
+            assert row["cases"] == bucket["cases"]
+            assert row["times_in_10"] == bucket["times_in_10"]
+            assert row["sentence"] == expected_past(group, bucket["k_from"])
+            assert row["often"] in row["sentence"]
+            rows_seen += 1
+    assert rows_seen == sum(len(g["buckets"]) for g in summary["groups"])
+
+
+@needs_node
+def test_the_frequency_and_crps_sentences_carry_the_file_s_figures(pages):
+    """Both one-sentence summaries, for every choice, from the file."""
+    summary = summary_file()
+    india = summary["frequency_check"]["all_india"]
+    want = [(row["lead_day"], row["threshold_mm"]) for row in india]
+    said = pages([["frequencySentence", "summary", lead, threshold]
+                  for lead, threshold in want])
+    for row, got in zip(india, said):
+        assert got["row"] == row
+        assert f"{row['ratio']:.2f} times as often" in got["sentence"]
+        assert f"{row['mean_forecast']:.3f} against " \
+               f"{row['observed']:.3f}" in got["sentence"]
+        assert f"day {row['lead_day']}" in got["sentence"]
+        assert ("more often" if row["ratio"] >= 1 else "less often") \
+            in got["sentence"]
+
+    crps = summary["crps"]
+    said = pages([["crpsSentence", "summary", row["region"], row["lead_day"]]
+                  for row in crps])
+    assert len(said) == 20
+    for row, got in zip(crps, said):
+        assert got["row"] == row
+        assert f"{row['crpss_fair']:.3f}" in got["sentence"]
+        assert f"from {row['crpss_lo']:.3f} to {row['crpss_hi']:.3f}" \
+            in got["sentence"]
+        assert summary["crps_baseline"] in got["sentence"]
+        beat = "beat that baseline" in got["sentence"]
+        assert beat == (row["crpss_lo"] > 0), row
+
+
+@needs_node
+def test_the_decomposition_shown_adds_up(pages):
+    """SPEC 5.3, for every group of every variant: REL - RES + UNC = BS."""
+    details = details_file()
+    rows = [dict(zip(details["scored"]["columns"], row))
+            for row in details["scored"]["rows"]]
+    got = pages([["decomposition", "details", row["variant"], row["region"],
+                  row["lead_day"], row["threshold_mm"]] for row in rows])
+    assert len(got) == 300
+    # The identity is exact in float64 and is asserted to 1e-12 while the
+    # scores are computed (tests/test_verify.py). What is published is
+    # rounded to six decimals, so what a reader adds up can differ from the
+    # printed Brier score by half of the last digit, and does in 102 of the
+    # 300 groups. More than that would mean the parts are not the parts.
+    off = 0
+    for want, parts in zip(rows, got):
+        assert parts["brier"] == want["brier"] == want["bs"]
+        assert parts["sum"] == pytest.approx(want["brier"], abs=1.5e-6)
+        assert parts["gap"] <= 1.5e-6
+        if parts["gap"] > 5e-7:
+            off += 1
+        assert parts["bss"] == want["bss"]
+        assert parts["cases"] == want["cases"]
+    # Measured: 102 of the 300, and the worst gap is 1.0e-6, which is one
+    # unit in the last published digit. A gap bigger than that would mean
+    # the parts are not the parts.
+    assert off == 102, off
+
+
+@needs_node
+def test_the_maps_draw_one_rectangle_per_cell(pages, rendered):
+    """Fifteen pictures over the same 109 cells, and nothing invented."""
+    details = details_file()
+    want = [(lead, threshold) for lead in details["leads"]
+            for threshold in details["published_thresholds_mm"]]
+    got = pages([["mapCells", "details", lead, int(threshold)]
+                 for lead, threshold in want])
+    assert len(got) == 15
+    for (lead, threshold), cells in zip(want, got):
+        assert len(cells) == 109
+        for cell in cells:
+            source = next(
+                row for row in verification()["two_degree"]
+                if row["lat"] == cell["lat"] and row["lon"] == cell["lon"]
+                and row["lead_day"] == lead
+                and row["threshold_mm"] == threshold)
+            assert cell["bss"] == source["bss"]
+            assert cell["base_rate"] == source["base_rate"]
+            assert cell["enough"] == source["enough_squares"]
+
+    # Two maps on the page, 109 rectangles each. One cell -- 36 N 76 E, in
+    # the Karakoram -- never saw 10 mm in six months, so it has a base rate
+    # of 0 and no skill at all, and it is drawn white and says "no number"
+    # rather than being left out.
+    html = rendered["pages"]["how_we_checked"]
+    assert html.count("<rect") == 218
+    blank = [cell for cell in pages(
+        [["mapCells", "details", 1, 10]])[0] if cell["bss"] is None]
+    assert len(blank) == 1 and (blank[0]["lat"], blank[0]["lon"]) == (36.0,
+                                                                     76.0)
+    assert html.count('fill="#ffffff"') == len(blank)
+    assert "no number" in html
+
+
+@needs_node
+def test_the_period_sentence_is_on_both_pages(rendered):
+    """SPEC 5.11: everything that shows the record shows the period."""
+    period = summary_file()["period"]
+    assert len(period) > 150
+    for name in ("report_card", "how_we_checked"):
+        assert period in words_of(rendered["pages"][name]), name
+
+
+@needs_node
+def test_no_percentage_appears_on_either_page(rendered):
+    """SPEC 6.7 and 11.33. No label is green, so nothing may read as one."""
+    for name, html in rendered["pages"].items():
+        if name == "nav":
+            continue
+        assert "%" not in html, name
+        assert "percent" not in html.lower(), name
+    for html in rendered["choices"]:
+        assert "%" not in html
+        assert "percent" not in html.lower()
+    assert len(rendered["choices"]) == 159
+
+
+@needs_node
+def test_the_forbidden_words_hold_on_both_pages(rendered):
+    """SPEC 11.20's list, over every word either page can put on a screen."""
+    seen = []
+    for name in ("report_card", "how_we_checked"):
+        seen.append(words_of(rendered["pages"][name]))
+    seen.extend(words_of(html) for html in rendered["choices"])
+    for text in seen:
+        low = text.lower()
+        for word in FORBIDDEN:
+            if word == "certain":
+                assert not re.search(r"\bcertain\b", low), text[:200]
+                continue
+            if word == "warn":
+                # "Not an official warning" is the footer's, and it is the
+                # one warning word this site is required to say.
+                assert "warn" not in low.replace("official warning", ""), \
+                    text[:200]
+                continue
+            assert word not in low, f"{word} in: {text[:200]}"
+    # And the wording that must be there.
+    both = " ".join(seen)
+    assert "satellite" in both
+    assert "it rained" not in both
+
+
+@needs_node
+def test_the_menu_is_three_real_links(rendered):
+    """SPEC 11.34: three paths, and the one being read marked in words."""
+    navs = rendered["pages"]["nav"]
+    assert sorted(navs) == ["/", "/how-we-checked", "/report-card"]
+    for path, html in navs.items():
+        for other in navs:
+            assert f'href="{other}"' in html, (path, other)
+        assert html.count('aria-current="page"') == 1
+        assert html.count("(you are here)") == 1
+        here = html.split('aria-current="page"')[0]
+        assert here.rstrip().endswith(f'class="navlink here"') or \
+            f'href="{path}"' in here.split("<a")[-1]
+    assert "Forecast" in navs["/"]
+    assert "Report card" in navs["/report-card"]
+    assert "How we checked" in navs["/how-we-checked"]
+
+
+def test_the_rewrite_sends_the_pages_and_only_the_pages_to_one_file():
+    """SPEC 11.34. Three paths, one index.html, and two things left alone.
+
+    A catch-all that swallows /assets/ as well turns a missing or renamed
+    chunk into index.html with a 200: a <script src> then gets HTML back and
+    the browser reports a syntax error instead of the 404 that would say what
+    is really wrong. Measured on the preview deployment of e18781b, 13
+    November 2026: /assets/does-not-exist.js answered 200 with the forecast
+    page in it.
+    """
+    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+    rewrites = config["rewrites"]
+    assert len(rewrites) == 1
+    assert rewrites[0]["destination"] == "/index.html"
+    pattern = re.compile("^" + rewrites[0]["source"] + "$")
+
+    # The pages, and anything else that is not a file: these are the site.
+    for path in ("/", "/report-card", "/how-we-checked", "/anything",
+                 "/deep/er/still"):
+        assert pattern.match(path), path
+
+    # The two functions, and every asset: Vercel answers these from the
+    # filesystem, and where there is no such file it answers 404.
+    for path in ("/api/place", "/api/health", "/assets/index-Dji49BPm.js",
+                 "/assets/does-not-exist.js", "/assets/nothing/here.css"):
+        assert not pattern.match(path), path
+
+    assert config["functions"]["api/*.mjs"]["includeFiles"] == (
+        "config/{store,regions}.json")
+
+    # Every same-origin thing the built page points at is under /assets/ or
+    # under /api/ -- the two the rule above leaves alone. Nothing the page
+    # loads or links to on this origin depends on the rewrite.
+    dist = ROOT / "web" / "dist" / "index.html"
+    if dist.exists():
+        links = re.findall('(?:src|href)="(/[^"]+)"',
+                           dist.read_text(encoding="utf-8"))
+        assert links, "the built page asks for nothing at all"
+        assert any(link.endswith(".js") for link in links)
+        for link in links:
+            assert link.startswith(("/assets/", "/api/")), link
+            assert not pattern.match(link), link
+
+
+def test_with_no_script_the_page_links_to_the_files_themselves():
+    """SPEC 11.34. Both new paths serve this file; it must not be empty."""
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    noscript = html.split("<noscript>")[1].split("</noscript>")[0]
+    for name in ("site_summary.json", "site_details.json",
+                 "verification.json", "labels.json",
+                 "verification_meta.json", "SPEC.md"):
+        assert name in noscript, name
+    assert "/api/place?lat=28.5" in noscript
+    assert "/api/health" in noscript

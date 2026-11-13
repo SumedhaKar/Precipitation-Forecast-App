@@ -41,6 +41,55 @@ function storeBase() {
   return null;
 }
 
+// SPEC 11.33. The square's IMD region (SPEC 5.4), from config/regions.json,
+// which is the one place that assignment lives. `vercel.json` includes the
+// file in the function bundle; read once and kept, because it does not
+// change between requests.
+//
+// The page is not given the grid. A label belongs to a region, and a page
+// that worked the region out for itself could show one region's record under
+// another region's square.
+let regionFile;
+function regions() {
+  if (regionFile !== undefined) return regionFile;
+  regionFile = null;
+  const candidates = [
+    new URL('../config/regions.json', import.meta.url),
+    new URL('config/regions.json', `file://${process.cwd()}/`),
+  ];
+  for (const candidate of candidates) {
+    try {
+      const file = JSON.parse(readFileSync(candidate, 'utf8'));
+      if (Array.isArray(file.region_rows) && file.codes) {
+        regionFile = file;
+        break;
+      }
+    } catch {
+      // Try the next one.
+    }
+  }
+  return regionFile;
+}
+
+/**
+ * The IMD region of the square a point falls in, or null.
+ *
+ * Null is the honest answer for the sea and for everything outside India: the
+ * grid holds a 0 there and there is no record to show. Every one of the 4,613
+ * squares the site publishes has a region, which a test checks square by
+ * square against the India mask.
+ */
+export function regionOf(lat, lon) {
+  const file = regions();
+  if (!file || !Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  const { i, j } = snap(lat, lon);
+  const row = file.region_rows[i];
+  if (typeof row !== 'string' || j < 0 || j >= row.length) return null;
+  const code = Number(row[j]);
+  if (!code) return null;
+  return { code, region: file.codes[String(code)] };
+}
+
 function json(body, status, maxAge) {
   return new Response(JSON.stringify(body, null, 1), {
     status,
@@ -352,6 +401,7 @@ export default {
       }, 404, MAX_AGE);
     }
 
+    const here = regionOf(square.lat, square.lon);
     const runTime = Date.parse(manifest.run_time_utc);
     const ageHours = Number.isNaN(runTime) ? null : (now - runTime) / 3_600_000;
 
@@ -372,6 +422,10 @@ export default {
         i: square.i,
         j: square.j,
         tile: tileName(square.lat, square.lon),
+        // SPEC 11.33, for the square that is answered for, which is the one
+        // moved to when the chosen square is sea.
+        region: here ? here.region : null,
+        region_code: here ? here.code : null,
         asked: { lat, lon },
         moved,
       },

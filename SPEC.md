@@ -4953,6 +4953,295 @@ motion, and changes the zoom nowhere.
 
 ---
 
+### 11.33 The trust label in the place panel
+
+The track record is frozen (6.8, tag `results-v1`). This is the first thing
+the site does with it: beside every count, what happened the last time the
+model said something like this.
+
+**The one file the page reads.** `results/site_summary.json`, and nothing
+else. It is copied byte for byte to `web/src/summary.json`, so the bundle
+carries one copy and the build reads nothing outside `web/`; a test fails if
+the two files differ by a byte. `verification.json` and `labels.json` are
+never read by the site.
+
+**The region comes from the API.** A label belongs to a region, a lead day and
+a threshold, so the page must know which of the four IMD regions (5.4) a
+square is in. `api/place` answers it, as `square.region` and
+`square.region_code`, reading `config/regions.json` -- the one place that
+assignment lives. The page keeps no second copy of it. Every square the site
+can answer for has a region: the 4,613 squares of the India mask (3.5) and the
+4,613 squares `config/regions.json` assigns are the same squares.
+
+`includeFiles` in `vercel.json` widens to `config/{store,regions}.json` for
+it. 11.23 dropped `nearest_city` rather than widen it for a city name; a
+region is not decoration. It is the key a label is filed under, and if the
+page worked it out for itself the site could show one region's record under
+another region's square.
+
+#### What the panel shows
+
+| where | what |
+|---|---|
+| under the counts | the chip for the chosen day and threshold -- green, amber or grey, the label in words -- and one plain line saying why it is that colour |
+| on each of the three threshold rows | that row's own small chip, because the three thresholds are three different track records and often three different labels |
+| under the chosen count, at the same size as the count | the past-frequency sentence below |
+| behind "Why this label?" | the four conditions of 6.2 in plain words with their numbers, the 6.5 luck sentence where it applies, the CRPS note where the two scores disagree, and the period sentence |
+
+#### The one line under the chip
+
+It names what went wrong, in these words and no others:
+
+| check not passed | words |
+|---|---|
+| enough past cases | too few past cases |
+| better than the usual rain | not clearly better than the usual rain for this place and month |
+| a narrow enough range | too uncertain to tell |
+| counts that matched what happened | the counts were too confident: when many runs agreed, the satellite saw it less often |
+
+Joined in 6.2's order, the last two with "and", and ended with a full stop.
+**Where the group did beat the usual rain and is amber all the same, the line
+says both halves**, because leaving the good half out describes a worse record
+than the one we measured:
+
+> Better than the usual rain for this place and month, but the counts were too
+> confident: when many runs agreed, the satellite saw it less often.
+
+Where that check was not passed either, only the failed checks are named. All
+four passed reads "All four checks passed."
+
+"too uncertain to tell" is the one place the word "certain" appears on this
+site, inside its opposite. The forbidden list of 11.20 bans the claim
+"certain"; a confession that the range is too wide to tell is the opposite of
+that claim, so the test matches the whole word.
+
+#### The past-frequency sentence
+
+The count's reliability bucket (5.11) for that region, lead day and threshold,
+said as one sentence:
+
+> In May to November 2026, when 36 to 40 of 51 runs said 10 mm or more in
+> Northwest India on day 1, the satellite saw it about 5 times in 10.
+
+| the two ends | 0 reads as never and 10 reads as always, which a rounded band did not earn. 0 is said as **"fewer than 1 time in 10"** and 10 as **"nearly every time"** |
+
+| | |
+|---|---|
+| the bucket | the counted bucket holding this count. `k = 0` and `k = 51` have their own, and read "when none of the 51 runs said" and "when all 51 runs said" |
+| the number | the bucket's `times_in_10`, which the verification rounded. The page never rounds a frequency itself |
+| one time | "about 1 time in 10", not "1 times" |
+| not a counted bucket | "Too few past cases with this many runs agreeing to say how often the satellite saw it." The floor of 6.4 -- 100 cases from 10 start dates -- governs what we say out loud as well as what we test |
+| the satellite, always | "the satellite saw it", never "it rained" and never "came true". 5.9: the satellite is an estimate, and the strongest thing that can be said is that the forecast agreed with it. 6.7's shorthand "came true about N times in 10" names the same quantity; the page says it in full |
+| a run with any other number of members | nothing is said. The bands are counts out of 51 (2.1), and a count out of some other number is not the same question |
+
+#### Percentages
+
+A percentage is shown only beside a **Good track record**, as "about N in 10"
+with N = ten times the count divided by 51, rounded to a whole number: never
+a decimal and never a percent sign. **No group is green today**, so no such line
+appears anywhere on the site. The rule is written and tested against a made-up
+green group, so that it is already right the day a real one appears, and the
+test that no percentage appears anywhere runs against the real record.
+
+#### Why this label?
+
+A `<details>` under the chip, shut until it is opened. In it: each of the four
+conditions of 6.2, in plain words, with the number it got and the number the
+rule asks for, marked passed or not; the 6.5 sentence where the group's skill
+is above 0 but could be luck; the period sentence of 5.11; and, where the
+group is flagged (6.9 rule 3), that Brier and CRPS point different ways here,
+said as two different yardsticks rather than as a contradiction -- one asks
+whether the right number of runs crossed a line, the other asks how close the
+whole spread of runs was to the millimetres that fell.
+
+Nothing in the panel recomputes a label, a skill score or a frequency. Every
+number in it was read from `summary.json`, and a test drives the page's own
+functions over all 60 groups and every count from 0 to 51 and compares them
+with that file.
+
+#### Tests
+
+Twelve. Most of them drive `web/src/record.js`, which has no imports so `node`
+can run it against the real file, over all 60 groups at all 52 counts -- 3,120
+answers, each one compared with `results/site_summary.json`:
+
+| | |
+|---|---|
+| the label, the colour, the sentence and the four conditions | are the record's, for every group and every count |
+| the sentence | is withheld exactly where the band is not counted, and nowhere else |
+| a share of ten | appears for no group of the real record, and a made-up green one gets "about 4 in 10" |
+| the forbidden words of 11.20 | hold over every string the label can put on the page, and every sentence says "the satellite saw it" |
+| a run with other than 51 members | gets no sentence at all |
+| the two ends | 0 is "fewer than 1 time in 10" and 10 is "nearly every time"; the real record reaches 0 in 79 bands and 10 in none, so the top end is driven with a band moved there by hand |
+| the one line under the chip | says both halves for the 20 groups that beat the usual rain and are amber all the same, and only the failed checks for the other 40 |
+| `api/place` | gives all 15,609 squares of the box the region `config/regions.json` gives them, which for 4,613 is one of the four and for the rest is none, and those 4,613 are the India mask of 3.5 square for square |
+| the twelve place tests of 5.4 | answer through the function the site asks |
+| a whole request | carries `region` and `region_code` for the square it answers for, agreeing with that function |
+| `web/src/summary.json` | is `results/site_summary.json` byte for byte, and the only `.json` the page imports besides the towns, the units and the outlines |
+| the panel | puts the sentence under the chosen count only, carries a chip on every row, and decides no label, frequency or colour of its own |
+
+Eight sabotages, eight caught: "it rained" for "the satellite saw it", a count
+with no counted band borrowing the nearest one, a share of ten without a green
+label, the page rounding a frequency itself, the line naming the checks it
+passed rather than the ones it did not, the region read one row further north,
+the sentence shown on every threshold row, and one digit changed in the
+bundled copy of the record.
+
+---
+
+### 11.34 The report card and How we checked
+
+Two pages, for two readers. The report card answers "should I believe this?"
+in a minute. How we checked answers "how do you know?" and expects to be
+argued with.
+
+#### Three real paths
+
+| | |
+|---|---|
+| the paths | `/`, `/report-card`, `/how-we-checked`. Real paths, not hashes and not a query: they can be linked to, bookmarked and sent to a reviewer |
+| the rewrite | `vercel.json` sends everything that is not `/api/...` or `/assets/...` to `/index.html`, after the filesystem. One HTML file, three pages |
+| the menu | plain `<a href>` links at the top of every page, so a middle click opens a tab and the keyboard reaches them with no handler of ours. A left click with no modifier is intercepted and becomes `history.pushState`, which is what makes it a single page application rather than three downloads; `popstate` takes the reader back |
+| the current page | `aria-current="page"`, and marked in the text as well as the colour |
+| on a phone | the three sit in one row above the title and stay there; nothing is hidden behind a hamburger, because three links do not need a menu |
+
+#### What each page reads
+
+| page | file | how |
+|---|---|---|
+| forecast | `web/src/summary.json` | already in the bundle (11.33) |
+| report card | the same file | nothing new is downloaded |
+| How we checked | `web/src/details.json` | inside that page's own chunk, so a reader who never opens it never downloads it |
+
+`results/site_details.json` is written by `pipeline/labels.py` from the frozen
+`results/verification.json`, holds no number that file does not, and stays
+under **150,000 bytes** by a check that stops the build. A test derives it
+again from `verification.json` and compares it field by field, so the page
+cannot show a score the verification did not produce. It is copied byte for
+byte to `web/src/details.json`, as the summary is.
+
+#### The report card
+
+In this order, because a reader who stops after two things should still have
+the two that matter:
+
+1. **The period sentence**, first and whole.
+2. **One plain headline.** Today: all 60 groups read "Treat as a rough
+   guide", and why -- the counts were too confident in every one of them, and
+   20 of the 60 did beat the usual rain for their place and month.
+3. **The grid**: 4 regions x 5 days x 3 thresholds, one chip each. The chips
+   use the labels' short forms -- **Good**, **Rough guide**, **Too few** --
+   with the full label as each cell's accessible name and a key above the
+   grid giving all three in full, because sixty chips reading "Treat as a
+   rough guide" is a wall, not a grid.
+4. **Skill against lead day**, per region and threshold: a small SVG of five
+   points with their 95% ranges and the zero line drawn across. Headed in
+   words, "better than the usual rain for this place and month", never "BSS".
+5. **A pickable table**: region, day and threshold chosen by the reader, then
+   every counted band -- "when 36 to 40 of 51 runs said 10 mm or more, the
+   satellite saw it about 5 times in 10", the same sentence the panel says,
+   from the same function. Bands that are not counted are not in the table.
+6. **The frequency check**, one sentence, for the chosen day and threshold
+   over all India.
+7. **CRPS**, one sentence, with the different yardstick said plainly.
+
+#### How we checked
+
+The method as written, with the numbers beside it: what a case is and how it
+is paired (5.1); IMERG Late as a satellite estimate and never ground truth
+(5.9); the area-weighted remap (3.3) and the 90% completeness rule (3.4); the
+hindsight reference, with the note that a November square has only six to ten
+days behind it so the skill is if anything understated (5.11); the Brier skill
+score pooled per reference group; the bootstrap over whole dates with its
+seed; the reliability bands; and that every rule was fixed before any result,
+with the commit and the SHA256 of `SPEC.md` printed on the page.
+
+Then, each from `site_details.json`: the exact decomposition for a group the
+reader picks, with `REL - RES + UNC = BS` shown adding up; 51 members against
+50; the 8 mm and 12 mm and inland-only sensitivities, with the fact that no
+label moved; the 2-degree base-rate and skill maps as light SVG grids, one
+rectangle per cell; skill by 30-day block; CRPS with its baseline and the 25
+disagreements explained as two yardsticks; the exclusion tally; the limits,
+including SPEC 5.10's sub-cell offset and the two Tier 2 checks that were not
+computed; and links to the repository, `SPEC.md`, all four result files and
+the nine hand checks.
+
+#### Rules both pages keep
+
+| | |
+|---|---|
+| every number | comes from `summary.json` or `details.json` and is printed as it was written there. Nothing is recomputed on the page, and the test drives both pages' own functions against the files |
+| the period sentence | is on both pages, whole, as 5.11 requires of everything that shows the record |
+| no percentage | anywhere, until a label is green (6.7, 11.33) |
+| the forbidden words of 11.20 | hold over every sentence either page can produce |
+| with JavaScript off | both paths serve the same `index.html`, whose `<noscript>` links to the result files themselves and to the specification, so a reader with no script is sent to the numbers rather than to an empty page |
+| no chart library | the SVGs are written out as rectangles, lines and text. A library for twelve line charts and two grids would be 40 KB to draw 200 rectangles |
+
+#### Tests
+
+Thirteen. Two kinds, because two things can go wrong: a page can read the
+file wrongly, and a page can be written wrongly.
+
+`web/src/pages.js` is driven by `node` against the two real files, as
+`record.js` is. And **both pages are rendered to HTML by React's own server
+renderer** -- `vite build --ssr` over `web/src/ssr.jsx`, which is a test entry
+nothing on the site imports -- for **every choice a reader can make**: 159
+renders covering all 60 region-day-threshold choices of both pickable
+sections, all 20 of the sensitivity table and all 15 of the maps. So the
+forbidden words and the no-percentage rule are checked on the words that
+reach a screen, not on a description of them.
+
+| | |
+|---|---|
+| `site_details.json` | derived again from `results/verification.json` in the test and compared field by field; under 150,000 bytes; `web/src/details.json` equal to it byte for byte |
+| every chip in the grid | is the label `site_summary.json` gives that region, day and threshold, all 60 |
+| every point and whisker | in the twelve skill plots is the `bss`, `bss_lo` and `bss_hi` of its group |
+| every row of the pickable table | is a counted band of that group, in order, with the panel's own sentence |
+| the frequency and CRPS sentences | carry the file's own figures and no others |
+| the decomposition shown | adds up to the Brier score it was taken from |
+| the two maps | draw one rectangle per 2-degree cell and nothing for a cell with too few squares |
+| the period sentence | appears on both pages |
+| no percentage | appears on either page, for any choice a reader can make |
+| the forbidden words | hold over every string either page can produce |
+| the menu | is three real links to the three paths, with `aria-current` on the one being read |
+| `vercel.json` | rewrites everything but `/api/` and `/assets/` to `/index.html`, and nothing the built page loads depends on the rewrite |
+| `<noscript>` | links to all five result files and to `SPEC.md` |
+
+Eleven sabotages, eleven caught: a score in the details file that is not the
+verification's, a short label the page invented, the whiskers upside down,
+"came true" for "the satellite saw it", the frequency ratio turned over, a
+menu that forgets which page is open, a rewrite that swallows `/api` too, a
+`<noscript>` with the files taken out, a percentage printed beside a band, a
+decomposition that adds the resolution instead of subtracting it, and a map
+that quietly leaves out the cells with too few squares.
+
+#### Found on the preview, and fixed: a missing asset answered 200
+
+The first catch-all excluded only `/api/`, so **`/assets/does-not-exist.js`
+came back as `index.html` with a 200** -- measured on the preview of `e18781b`
+on 13 November 2026. A `<script src>` for a renamed or half-deployed chunk
+would then be handed HTML and the browser would report a syntax error, which
+says nothing about what is actually wrong. `/assets/` is excluded as well now,
+so Vercel answers it from the filesystem and a missing file is a 404. A test
+drives the rule over both lists, and over every same-origin link in the built
+page.
+
+#### Two things found while building, and kept
+
+**The decomposition does not quite add up on the page, and says so.** The
+identity holds exactly in float64 and the run stops if it does not (5.11 rule
+23), but what is published is rounded to six decimals, and in **102 of the
+300** scored groups the three rounded parts differ from the rounded Brier
+score by one in the last digit. The page shows the sum and says why it can
+differ, rather than hiding the rounding.
+
+**One 2-degree cell has no skill at all.** 36 N 76 E, in the Karakoram, never
+reached 10 mm on any day of the six months, so its base rate is 0 and there is
+no skill to compute. It is drawn white and reads "no number" rather than being
+left out of the map.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:

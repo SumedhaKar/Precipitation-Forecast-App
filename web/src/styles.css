@@ -612,6 +612,89 @@ header {
   vertical-align: -1px;
 }
 
+/* ------------------------------------------- the trust label, SPEC 11.33 */
+
+/* The three labels of SPEC 6.7, as words on a colour. The colour is never the
+   only carrier: the label is written out every time it appears. Each pair was
+   measured -- green 6.82, amber 7.48, grey 7.35 -- so the words clear WCAG AA
+   at this size with room to spare. The chip backgrounds are near enough white
+   to need a border of their own to read as chips at all. */
+.chip {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.chip.green { background: #e3f3e4; color: #1b5e20; border-color: #9ccc9f; }
+.chip.amber { background: #fff4e5; color: #7a4100; border-color: #e8c795; }
+.chip.grey { background: #e7ebee; color: #3e4c59; border-color: #c6ced6; }
+
+/* On a threshold row the chip takes a line of its own: three labels across
+   three rows at 380 pixels would otherwise be three columns of one word. */
+.chip.tiny {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+}
+
+/* SPEC 11.33: the same size as the count above it. A record that has to be
+   read in smaller type than the number it qualifies is a footnote, and this
+   is not a footnote. */
+.pastline {
+  margin: 0.3rem 0 0.1rem;
+  padding: 0.3rem 0.5rem 0.35rem;
+  font-size: 0.88rem;
+  background: var(--page);
+  border-left: 3px solid var(--rule);
+  border-radius: 0 6px 6px 0;
+}
+
+.aboutten { color: var(--quiet); }
+
+.trust { margin: 0.5rem 0 0.2rem; }
+
+.trustline {
+  margin: 0 0 0.35rem;
+  font-size: 0.84rem;
+  color: var(--quiet);
+}
+
+.trustline .chip { margin-right: 0.3rem; vertical-align: 1px; }
+
+.whylabel { font-size: 0.82rem; color: var(--quiet); }
+.whylabel summary { cursor: pointer; color: #0b4f8a; }
+.whylabel[open] summary { margin-bottom: 0.4rem; }
+
+.conds {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.conds li {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0.6rem;
+  border-left: 3px solid var(--rule);
+}
+
+.conds li.met { border-left-color: #9ccc9f; }
+.conds li.no { border-left-color: #e8c795; }
+.condname { color: var(--ink); }
+.condrule { color: var(--faint); }
+
+.trustnotes { margin: 0; }
+.trustnotes dt { color: var(--ink); }
+.trustnotes dd { margin: 0 0 0.4rem; }
+
 /* -------------------------------------------------------- the day strip */
 
 .strip { margin-top: 1rem; }
@@ -808,6 +891,7 @@ footer p { max-width: 70ch; }
   .legend-foot { display: none; }
 
   .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
+  .pastline { font-size: 0.84rem; }
 }
 
 /* ------------------------------------------- phone: the map is the hero */
@@ -859,6 +943,171 @@ footer p { max-width: 70ch; }
 
   .mapwrap { flex: 0 0 55vh; min-height: 55vh; }
   .shell.open .mapwrap { flex-basis: 28vh; min-height: 28vh; }
+}
+
+/* --------------------------------- the three pages, SPEC 11.34 */
+
+.topnav { margin: 0.2rem 0 0; }
+
+.topnav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+}
+
+.navlink {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--card);
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: #0b4f8a;
+}
+
+.navlink:hover { background: var(--page); }
+
+/* The page being read is marked in the text as well as in the colour. */
+.navlink.here {
+  background: var(--picked);
+  border-color: var(--picked);
+  color: #ffffff;
+}
+
+.navlink.here .small { color: #d8e4ef; }
+
+/* The two document pages. A column of text, not a map that fills the
+   window, so they scroll like any other page. */
+.doc {
+  max-width: 54rem;
+  margin: 0 auto;
+  padding: 0.8rem 1rem 2rem;
+}
+
+.dochead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0 0 0.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.docback { margin: 0; font-weight: 600; }
+.docback a { text-decoration: none; }
+
+.page h1 { font-size: 1.5rem; margin: 1rem 0 0.6rem; }
+.page h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+.page h3 { font-size: 0.95rem; margin: 1rem 0 0.4rem; }
+.page p { max-width: 42rem; }
+
+.period {
+  font-size: 0.95rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--page);
+  border-left: 3px solid var(--picked);
+  border-radius: 0 6px 6px 0;
+}
+
+.lead { font-size: 1.05rem; }
+
+.cardsec {
+  margin: 1.6rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.chipkey {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.4rem;
+  padding: 0;
+}
+
+.gridwrap { margin: 0.8rem 0; overflow-x: auto; }
+
+.labelgrid, .plain, .bands {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.labelgrid th, .labelgrid td,
+.plain th, .plain td,
+.bands th, .bands td {
+  border: 1px solid var(--rule);
+  padding: 0.25rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.plain td, .bands td { font-variant-numeric: tabular-nums; }
+.labelgrid thead th, .plain thead th, .bands thead th {
+  background: var(--page);
+  font-weight: 600;
+}
+
+.pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.8rem;
+}
+
+.pickers label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.78rem;
+  color: var(--quiet);
+  gap: 0.15rem;
+}
+
+.pickers select {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.plots { display: flex; flex-wrap: wrap; gap: 0.8rem; }
+.plotrow { margin: 0.8rem 0; }
+
+.plot {
+  margin: 0;
+  flex: 1 1 15rem;
+  max-width: 20rem;
+}
+
+.plot figcaption { font-size: 0.85rem; font-weight: 600; }
+.plot svg { width: 100%; height: auto; background: var(--card); }
+.plotfoot { font-size: 0.75rem; color: var(--quiet); margin: 0.2rem 0 0; }
+
+.limits, .files { padding-left: 1.1rem; font-size: 0.9rem; }
+.limits li, .files li { margin-bottom: 0.5rem; }
+
+.fixedrules code {
+  font-size: 0.72rem;
+  word-break: break-all;
+  background: var(--page);
+  padding: 0.05rem 0.2rem;
+  border-radius: 4px;
+}
+
+@media (max-width: 560px) {
+  .doc { padding: 0.6rem 0.7rem 1.5rem; }
+  .page h1 { font-size: 1.25rem; }
+  .plot { flex-basis: 100%; max-width: none; }
+  .labelgrid, .plain, .bands { font-size: 0.8rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
