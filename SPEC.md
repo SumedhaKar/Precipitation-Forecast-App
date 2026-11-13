@@ -1771,7 +1771,7 @@ grows.
 Rule 10 has a consequence, and it is stated on **How we checked** in these
 words:
 
-> Some reference groups are small -- a square in November has only five to ten
+> Some reference groups are small -- a square in November has only six to ten
 > days behind it -- and a small group's own average fits its own days closely,
 > which makes it harder to beat. Where that happens our skill is if anything
 > understated.

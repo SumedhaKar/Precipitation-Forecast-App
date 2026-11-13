@@ -95,7 +95,7 @@ PERIOD = (
 
 # SPEC 5.11 rule 10, the sentence How we checked has to carry.
 SMALL_GROUPS_NOTE = (
-    "Some reference groups are small -- a square in November has only five "
+    "Some reference groups are small -- a square in November has only six "
     "to ten days behind it -- and a small group's own average fits its own "
     "days closely, which makes it harder to beat. Where that happens our "
     "skill is if anything understated."
@@ -833,6 +833,8 @@ def main() -> None:
     parser.add_argument("--dates", help="comma-separated run dates")
     parser.add_argument("--no-write", action="store_true",
                         help="compute and report, write nothing")
+    parser.add_argument("--out", type=Path,
+                        help="write somewhere else, for a hand check")
     args = parser.parse_args()
 
     mask = load_mask()
@@ -858,13 +860,17 @@ def main() -> None:
     if args.no_write:
         print("  --no-write: nothing written")
         return
-    RESULTS.mkdir(exist_ok=True)
+    out = args.out or OUT
+    out.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(round_floats(result), indent=1) + "\n"
-    OUT.write_bytes(text.encode())
+    out.write_bytes(text.encode())
+    print(f"  wrote {out.name}, {len(text.encode()) / 1e6:.2f} MB")
+    if args.out:
+        # A hand check asking for one bucket does not touch the record.
+        return
     meta_text = json.dumps(round_floats(meta_record(setup, result)),
                            indent=1) + "\n"
     META.write_bytes(meta_text.encode())
-    print(f"  wrote {OUT.name}, {len(text.encode()) / 1e6:.2f} MB")
     print(f"  wrote {META.name}, {len(meta_text.encode())} bytes")
 
 
