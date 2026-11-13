@@ -344,7 +344,6 @@ header {
   color: var(--ink);
 }
 
-.legend-foot { margin: 0; font-size: 0.7rem; color: var(--quiet); }
 
 /* SPEC 11.37: the legend carries this line at desktop width and the
    panel carries it on a phone, where the legend has no room; never
@@ -557,6 +556,32 @@ header {
   line-height: 1.35;
   color: var(--ink);
 }
+
+/* ------------------------------------- the amount buttons, SPEC 11.38 */
+
+/* Two lines on one button: this site's own nickname for the amount, and
+   the millimetres it means. The nickname is never on its own. */
+.amounts .radios button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  line-height: 1.2;
+}
+
+.amounts .nickname { font-weight: 600; }
+.amounts .mmtag { font-size: 0.8em; color: var(--quiet); }
+.amounts .radios button.on .mmtag { color: inherit; }
+
+/* The nicknames again, in How to read this map, with what they are not. */
+.nicknames {
+  margin: 0 0 0.6rem;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+  color: var(--quiet);
+}
+
+.nicknames li { margin-bottom: 0.3rem; }
 
 /* ------------------------------------------- the welcome card, SPEC 11.38 */
 
@@ -1197,7 +1222,6 @@ footer p { max-width: 70ch; }
      spans the bar on a phone, where there is no room beside the buttons. */
   .legend { flex: 1 1 100%; }
   .legend-rows li { flex: 1 1 0; min-width: 0; }
-  .legend-foot { display: none; }
 
   .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
   .pastline { font-size: 0.84rem; }

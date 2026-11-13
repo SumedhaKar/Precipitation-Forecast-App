@@ -16,7 +16,7 @@
 
 /** The browser has no geolocation at all, or the page is not on https. */
 export const NO_LOCATION = 'This browser will not give a location here. '
-  + 'Search for a town, or type a latitude and longitude.';
+  + 'Search for a city, or type a latitude and longitude.';
 
 /**
  * One line for a GeolocationPositionError code.
@@ -28,22 +28,34 @@ export const NO_LOCATION = 'This browser will not give a location here. '
 export function locationProblem(code) {
   if (code === 1) {
     return 'Location permission was not given, which is fine: search for a '
-      + 'town instead.';
+      + 'city instead.';
   }
   if (code === 2) {
-    return 'This device could not work out where it is. Search for a town, '
+    return 'This device could not work out where it is. Search for a city, '
       + 'or type a latitude and longitude.';
   }
   if (code === 3) {
     return 'Finding your location took too long, so it was given up on. '
-      + 'Search for a town instead.';
+      + 'Search for a city instead.';
   }
   return NO_LOCATION;
 }
 
-/** The square is outside the forecast's own box, wherever it came from. */
-export const OUTSIDE = 'That is outside the forecast area, which covers 6 to '
-  + '38 degrees north and 68 to 98 degrees east.';
+/**
+ * A tap that landed on nothing this site forecasts. SPEC 11.38.
+ *
+ * It used to be a red error box reading "That is outside the forecast area,
+ * which covers 6 to 38 degrees north and 68 to 98 degrees east" -- a
+ * refusal, in the colour of a fault, written in the coordinates of a box
+ * nobody can see, for a reader whose finger slipped onto the sea or onto
+ * Nepal. Nothing went wrong. It is a plain line and it says what to do.
+ */
+export const OUTSIDE = "That's outside India. Tap the map over India or "
+  + 'find a city.';
+
+/** The forecast's own box, where a reader asked what the limits are. */
+export const THE_BOX = 'The forecast covers 6 to 38 degrees north and 68 to '
+  + '98 degrees east, and only the squares inside India.';
 
 /**
  * One line for the map failing to start, by cause.
@@ -60,5 +72,5 @@ export function mapProblem(cause) {
     chunk: 'The map\'s code did not finish loading.',
   }[cause] || 'The map could not be drawn.';
   return `${why} Everything the map shows is also in words and numbers: `
-    + 'search for a town below, or type a latitude and longitude.';
+    + 'search for a city below, or type a latitude and longitude.';
 }

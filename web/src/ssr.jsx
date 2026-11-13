@@ -20,10 +20,13 @@ import HowWeChecked, {
   Blocks, Decomposition, Maps, Sensitivities,
 } from './HowWeChecked';
 import TopNav from './TopNav';
-import Panel, { summaryLine } from './Panel';
+import Panel, { Welcome, summaryLine } from './Panel';
+import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
+import Legend from './Legend';
+import { Footer, RunLine, StaleBanner } from './App';
+import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
-import { NO_LOCATION, OUTSIDE, locationProblem, mapProblem }
-  from './messages';
+import { NO_LOCATION, locationProblem, mapProblem } from './messages';
 import { PICK_A_PLACE } from './record';
 
 /** Both pages as HTML, and the menu as it is drawn on each path. */
@@ -119,7 +122,9 @@ export function forecastWords(answers) {
       <Panel notice={{ where: islandGroup(lat, lon), note: island.note }}
         day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
   });
-  [OUTSIDE, NO_LOCATION, mapProblem('webgl2'), mapProblem('maplibre'),
+  // SPEC 11.38: OUTSIDE is not here. A tap on the sea is a notice now, and
+  // it is rendered as one above.
+  [NO_LOCATION, mapProblem('webgl2'), mapProblem('maplibre'),
     mapProblem('chunk'), mapProblem(), locationProblem(1),
     locationProblem(2), locationProblem(3), locationProblem(9)]
     .forEach((said) => {
@@ -127,6 +132,48 @@ export function forecastWords(answers) {
         <Panel error={{ said, detail: said }} day={1} threshold={10}
           onDay={nothing} onThreshold={nothing} />));
     });
+
+  // SPEC 11.38. Everything outside the panel that the forecast page draws:
+  // the welcome card, both control groups for every day and every amount,
+  // the legend for all three amounts, the header's lines and the footer.
+  // Before this the sweep covered the panel and the bar alone, which is
+  // not where most of a first-time reader's words are.
+  const days = answers.length ? answers[0].days : [];
+  const run = answers.length ? answers[0].run : null;
+  out.push(renderToStaticMarkup(
+    <Welcome where="map" onFind={nothing} onHowTo={nothing} />));
+  out.push(renderToStaticMarkup(
+    <Welcome where="panel" onFind={nothing} onHowTo={nothing} />));
+  // Every day chosen, and with the reader's own date on each of the five,
+  // so "Today" and "Tomorrow" are both rendered and both swept.
+  days.forEach((entry) => {
+    days.forEach((today) => {
+      out.push(renderToStaticMarkup(
+        <DayChoice days={days} day={entry.lead_day} onDay={nothing}
+          today={String(today.from_ist).slice(0, 10)} />));
+    });
+  });
+  [1, 10, 50].forEach((threshold) => {
+    out.push(renderToStaticMarkup(
+      <ThresholdChoice threshold={threshold} onThreshold={nothing} />));
+    out.push(renderToStaticMarkup(<Legend threshold={threshold} />));
+  });
+  out.push(renderToStaticMarkup(
+    <Search onTown={nothing} onPoint={nothing} busy={false} shown=""
+      askFocus={0} />));
+  out.push(renderToStaticMarkup(
+    <MyLocation onLocation={nothing} snapTo={nothing} from={null} />));
+  out.push(renderToStaticMarkup(<Footer />));
+  if (run) {
+    out.push(renderToStaticMarkup(<RunLine run={run} />));
+    const old = { ...run, age_hours: 41, stale: true,
+      run_time_utc: '2026-01-01T00:00:00+00:00' };
+    out.push(renderToStaticMarkup(<StaleBanner run={old} />));
+  }
+  // The calm line for a tap on the sea or on a neighbour's land.
+  out.push(renderToStaticMarkup(
+    <Panel notice={{ where: null, note: OUTSIDE, why: THE_BOX }}
+      day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
 
   // The bar of 11.37: both labels the handle can carry, the button, and
   // every line a chosen square can put in it.

@@ -30,7 +30,7 @@ import { countKey } from './palette';
 import { inBox, snap, squareText } from './snap';
 import { nameOfSquare } from './places';
 import { notFoundNote } from './islands';
-import { OUTSIDE, mapProblem } from './messages';
+import { OUTSIDE, THE_BOX, mapProblem } from './messages';
 import { keepAnswer } from './answers';
 
 // SPEC 11.16: MapLibre is 295 KB gzipped, so it is a chunk of its own and
@@ -91,9 +91,9 @@ export function StaleBanner({ run }) {
   if (!staleNow(run)) return null;
   return (
     <p className="stale" role="status">
-      <strong>This forecast is {run.age_hours} hours old.</strong>{' '}
-      A newer model run has not been published. Nothing here has been updated
-      since {istText(run.run_time_ist)} IST.
+      <strong>This forecast is {run.age_hours} hours old;</strong>{' '}
+      a newer one has not arrived yet. Nothing here has been updated since{' '}
+      {istText(run.run_time_ist)} IST.
     </p>
   );
 }
@@ -102,7 +102,7 @@ export function RunLine({ run }) {
   if (!run) return null;
   return (
     <p className="run">
-      Model run <strong>{istText(run.run_time_ist)} IST</strong> (00 UTC).
+      Run of <strong>{istText(run.run_time_ist)} IST</strong> (00 UTC).
       {run.publish_time_ist
         ? ` Published ${istText(run.publish_time_ist)} IST.`
         : null}
@@ -114,19 +114,20 @@ export function RunLine({ run }) {
 export function Footer() {
   return (
     <footer>
+      {/* SPEC 11.38: the same words as the chip in the header, so the one
+          caveat a reader must not miss is one sentence and not two. The
+          two document pages have no chip of their own, so it stays here. */}
       <p className="warning">
-        <strong>Not an official warning.</strong> For warnings and advisories,
-        see the{' '}
-        <a href="https://mausam.imd.gov.in/">
-          India Meteorological Department
-        </a>
-        .
+        <strong>Not an official warning.</strong> For alerts, see{' '}
+        <a href="https://mausam.imd.gov.in/">IMD</a>
+        , the India Meteorological Department.
       </p>
       {/* SPEC 11.28: ECMWF's licence asks for attribution wherever the data
           is shown, so one line of it is outside the details and visible
           whatever the reader does. The full three-paragraph form is inside. */}
       <p className="credit">
-        Forecast: ECMWF AIFS ENS, CC BY 4.0.{' '}
+        Model data from ECMWF (AIFS ENS), CC BY 4.0. Checked against NASA
+        satellite rain estimates.{' '}
         <a
           href="#credits"
           onClick={() => {
@@ -141,14 +142,14 @@ export function Footer() {
       <details id="credits">
         <summary>Credits and licences</summary>
         <p>
-          Forecast: ECMWF AIFS ENS open data, 51 members, the 00 UTC run.
+          Forecast: ECMWF AIFS ENS open data, 51 runs, the 00 UTC run.
           Copyright &copy; 2026 European Centre for Medium-Range Weather
           Forecasts (ECMWF). This data is published under a Creative Commons
           Attribution 4.0 International (CC BY 4.0). ECMWF does not accept any
           liability whatsoever for any error or omission in the data, their
           availability, or for any loss or damage arising from their use.
           Source: <a href="https://www.ecmwf.int">www.ecmwf.int</a>. Modified:
-          daily totals and member counts computed from AIFS ENS open data.
+          daily totals and counts of runs computed from AIFS ENS open data.
         </p>
         <p>
           Observations, used for the track record and not shown on this page:
@@ -158,8 +159,9 @@ export function Footer() {
         </p>
         <p>
           Outlines: Natural Earth 1:10m, India point-of-view edition, public
-          domain, the same geometry the forecast squares were cut with. Towns:
-          Natural Earth 1:10m populated places, public domain. Map rendering:
+          domain, the same geometry the forecast squares were cut with.
+          Cities: Natural Earth 1:10m populated places, public domain. Map
+          rendering:
           MapLibre GL JS 6.17.0, BSD-3-Clause. No basemap, so nothing on the
           map comes from anywhere else.
         </p>
@@ -323,6 +325,14 @@ export default function App({ nav, onGo }) {
         // api/place answers with that group's own sentence.
         if (body.island_group) {
           setNotice({ where: body.island_group, note: body.error });
+        } else if (String(body.error || '')
+          .startsWith('outside the forecast area')) {
+          // SPEC 11.38. The sea, or a neighbour's land. Nothing went
+          // wrong, so it is the calm line and not a red box, and the name
+          // of the place the reader has just left goes out of the search
+          // box with it.
+          setShown('');
+          setNotice({ where: null, note: OUTSIDE, why: body.detail || null });
         } else {
           setPlaceError({
             said: body.error
@@ -367,10 +377,12 @@ export default function App({ nav, onGo }) {
    */
   const show = useCallback((lat, lon, how, label) => {
     if (!inBox(lat, lon)) {
+      // SPEC 11.38, as above: outside the box is the same calm line.
       setPlace(null);
       setSquare(null);
-      setNotice(null);
-      setPlaceError({ said: OUTSIDE, detail: null });
+      setPlaceError(null);
+      setShown('');
+      setNotice({ where: null, note: OUTSIDE, why: THE_BOX });
       return;
     }
     const here = snap(lat, lon);
@@ -485,9 +497,8 @@ export default function App({ nav, onGo }) {
             screen. The footer still carries it; this is the copy a reader
             cannot miss. */}
         <p className="headwarn">
-          <strong>Not an official warning.</strong>{' '}
-          <a href="https://mausam.imd.gov.in/">India Meteorological
-            Department</a>
+          <strong>Not an official warning.</strong> For alerts, see{' '}
+          <a href="https://mausam.imd.gov.in/">IMD</a>
         </p>
       </header>
 
@@ -547,7 +558,7 @@ export default function App({ nav, onGo }) {
             <p className="loading">
               {countsError
                 ? `The forecast could not be read: ${countsError}`
-                : 'Reading the forecast…'}
+                : 'Reading the 51 runs…'}
             </p>
           ) : null}
           {/* SPEC 11.38. The phone's copy, over the map. The stylesheet

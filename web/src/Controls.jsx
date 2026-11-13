@@ -7,34 +7,27 @@ import { useEffect, useRef, useState } from 'react';
 import { parseLatLon, squareText } from './snap';
 import { findTowns, nearTowns, townLabel } from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
+import { dayButton, dayName, istToday } from './days';
 
 const THRESHOLDS = [1, 10, 50];
 
 /**
- * "Fri 13 Nov" -> "Fri 13". SPEC 11.29.
+ * The day buttons. SPEC 11.38.
  *
- * The month is dropped from the buttons, and from them only. Five buttons
- * reading "Fri 13 Nov" are 418 pixels wide on a 390 pixel phone, so the row
- * scrolled sideways and the last two days were off the edge of a screen with
- * no hint that they were there. The full window, with the month and the
- * times and IST on it, is the line underneath, and api/place repeats it for
- * the chosen day in the panel, so nothing is only in the short form.
+ * A control asks a question, so the label is one. The buttons are named
+ * from the reader's own IST date rather than from a lead day, which is why
+ * `days.js` exists: lead day 1 runs 5:30 am to 5:30 am, so naming it
+ * "Tomorrow" would be wrong for the hour and a half before 5:30 every
+ * morning.
  *
- * Five days never span two months in a way this could confuse: within a
- * five-day run the dates are consecutive, so "Sat 31" then "Sun 1" is as
- * clear as the date line below it.
+ * The line under them is the one thing about these five days a reader has
+ * to be told once and never again: where a day starts and ends.
  */
-export function dayTab(short, lead) {
-  const words = String(short || '').trim().split(/\s+/);
-  if (words.length < 2) return short || `Day ${lead}`;
-  return `${words[0]} ${words[1]}`;
-}
-
-export function DayChoice({ days, day, onDay }) {
-  const chosen = days.find((entry) => entry.lead_day === day) || days[0];
+export function DayChoice({ days, day, onDay, today }) {
+  const now = today || istToday();
   return (
     <div className="group days">
-      <span className="grouplabel" id="daylabel">Day</span>
+      <span className="grouplabel" id="daylabel">Which day?</span>
       <div className="radios" role="radiogroup" aria-labelledby="daylabel">
         {days.map((entry) => (
           <button
@@ -43,41 +36,65 @@ export function DayChoice({ days, day, onDay }) {
             role="radio"
             aria-checked={entry.lead_day === day}
             className={entry.lead_day === day ? 'on' : ''}
-            aria-label={entry.label ? `${entry.label} IST` : undefined}
+            aria-label={`${dayName(entry.from_ist, now, entry.short_ist)}`
+              + (entry.label ? `, ${entry.label} IST` : '')}
             onClick={() => onDay(entry.lead_day)}
           >
-            {dayTab(entry.short_ist, entry.lead_day)}
+            {dayButton(entry.from_ist, now, entry.short_ist)}
           </button>
         ))}
       </div>
-      {/* SPEC 11.28: every clock time on this page carries IST. The label
-          itself comes from the manifest and holds no timezone, so the page
-          adds it rather than reformatting a published string. */}
-      <p className="window">{chosen ? `${chosen.label} IST` : null}</p>
+      <p className="window">
+        Each day runs from 5:30 am to 5:30 am the next morning (IST).
+      </p>
     </div>
   );
 }
 
+/**
+ * The three amounts, with this site's own nicknames. SPEC 11.38.
+ *
+ * The nicknames are written down in the specification and are nobody
+ * else's categories -- in particular they are not IMD's, whose "heavy
+ * rain" names a band this site does not measure. Two of them had to give
+ * way to the forbidden-word list of 11.20: "a wet day" and "very heavy"
+ * are the natural English and both words are banned, so the buttons read
+ * "A rainy day" and "A lot of rain".
+ *
+ * The millimetres are on the button beside the nickname, always, so the
+ * nickname is never the only thing a reader is given.
+ */
+export const AMOUNTS = [
+  { mm: 1, nickname: 'Some rain' },
+  { mm: 10, nickname: 'A rainy day' },
+  { mm: 50, nickname: 'A lot of rain' },
+];
+
 export function ThresholdChoice({ threshold, onThreshold }) {
   return (
-    <div className="group">
-      <span className="grouplabel" id="amountlabel">
-        At least this much rain in the day
-      </span>
+    <div className="group amounts">
+      <span className="grouplabel" id="amountlabel">How much rain?</span>
       <div className="radios" role="radiogroup" aria-labelledby="amountlabel">
-        {THRESHOLDS.map((amount) => (
+        {AMOUNTS.map((amount) => (
           <button
-            key={amount}
+            key={amount.mm}
             type="button"
             role="radio"
-            aria-checked={amount === threshold}
-            className={amount === threshold ? 'on' : ''}
-            onClick={() => onThreshold(amount)}
+            aria-checked={amount.mm === threshold}
+            className={amount.mm === threshold ? 'on' : ''}
+            aria-label={`${amount.nickname}, ${amount.mm} mm or more`}
+            onClick={() => onThreshold(amount.mm)}
           >
-            {amount} mm
+            <span className="nickname">{amount.nickname}</span>
+            <span className="mmtag">{amount.mm} mm+</span>
           </button>
         ))}
       </div>
+      {/* The only scale a reader needs, and the one thing that makes 10 mm
+          mean anything to somebody who has never read a rain figure. */}
+      <p className="window">
+        10 mm of rain is water 1 cm deep if none of it ran away.
+      </p>
     </div>
   );
 }
@@ -156,14 +173,14 @@ export function Search({ onTown, onPoint, busy, shown, askFocus }) {
 
   return (
     <form className="search" onSubmit={submit} role="search">
-      <label htmlFor="place">A town, or a latitude and longitude</label>
+      <label htmlFor="place">A city, or a latitude and longitude</label>
       <div className="searchrow">
         <input
           id="place"
           ref={box}
           type="text"
           autoComplete="off"
-          placeholder="Search a town, or type lat, lon"
+          placeholder="Search a city, or type lat, lon"
           value={value}
           onFocus={() => { if (!typing) setText(''); }}
           onChange={(event) => {

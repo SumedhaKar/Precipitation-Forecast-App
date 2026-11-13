@@ -1533,6 +1533,185 @@ def test_each_page_has_its_own_tab_title():
 
 
 
+# ------------------- SPEC 11.38: a tap on nothing is not the reader's fault
+
+@needs_node
+def test_a_tap_outside_india_is_a_calm_line_and_not_an_error(forecast_words):
+    """SPEC 11.38. It read "That is outside the forecast area, which covers
+    6 to 38 degrees north and 68 to 98 degrees east" -- in a red box, in
+    the coordinates of a box nobody can see, to a reader whose finger
+    slipped onto the sea or onto Nepal. Nothing went wrong."""
+    calm = "That's outside India. Tap the map over India or find a city."
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or calm not in words_of(html):
+            continue
+        # The plain box, never the red one.
+        assert 'class="notice"' in html, html[:200]
+        assert 'class="error"' not in html, html[:200]
+        # And the limits are still said, quietly, for whoever wants them.
+        assert "6 to 38 degrees north" in words_of(html)
+        seen += 1
+    assert seen >= 1, "the calm line was never rendered"
+
+
+def test_the_outside_line_clears_the_box_and_takes_the_calm_route():
+    """SPEC 11.38, in the page that routes it."""
+    app = APP.read_text("utf-8")
+    assert "setNotice({ where: null, note: OUTSIDE, why: THE_BOX })" in app
+    assert ("setNotice({ where: null, note: OUTSIDE, why: body.detail "
+            "|| null })" in app)
+    # The name of the place the reader has just left goes out of the search
+    # box with it, by both routes.
+    assert app.count("setShown('')") == 2, app.count("setShown('')")
+    # And no red box is raised for it any more.
+    assert "setPlaceError({ said: OUTSIDE" not in app
+
+
+# ------------------------- SPEC 11.38: the legend, and the colours it names
+
+@needs_node
+def test_the_legend_names_both_ends_and_both_other_colours(forecast_words):
+    """SPEC 11.38. "None" and "All 51", the white, and the beige.
+
+    The beige had no entry at all. A reader who tapped Nepal got a red
+    error about a colour the page had never named, which is the page
+    blaming the reader for its own omission.
+    """
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="legend' not in html:
+            continue
+        text = words_of(html)
+        assert "Runs bringing" in text and "out of 51" in text
+        assert "None" in text and "All 51" in text
+        assert "White: no forecast for this spot" in text
+        assert ("Land outside India, which this site does not forecast"
+                in text)
+        # The counts in between are still the counts.
+        for band in ("1-10", "11-20", "21-30", "31-40", "41-50"):
+            assert band in text, band
+        # And no band word of 11.38 is drawn beside a colour.
+        for word in ("a few", "some", "about half", "most", "almost all"):
+            assert word not in text.lower(), (word, text)
+        seen += 1
+    assert seen >= 3, seen
+
+
+@needs_node
+def test_the_amount_buttons_carry_the_nickname_and_the_millimetres(
+        forecast_words):
+    """SPEC 11.38. The nickname is never the only thing on the button."""
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="group amounts"' not in html:
+            continue
+        text = words_of(html)
+        assert "How much rain?" in text
+        for nickname, mm in (("Some rain", 1), ("A rainy day", 10),
+                             ("A lot of rain", 50)):
+            assert nickname in text, nickname
+            assert f"{mm} mm+" in text, mm
+        assert ("10 mm of rain is water 1 cm deep if none of it ran away."
+                in text)
+        seen += 1
+    assert seen >= 3, seen
+
+
+def test_the_nicknames_are_ours_and_are_written_down():
+    """SPEC 11.38. Two of them had to give way to the forbidden list.
+
+    "A wet day" and "very heavy" are the natural English for 10 mm and
+    50 mm, and "wet" and "heavy" are both on 11.20's list -- "heavy rain"
+    is IMD's own class name for a band this site does not measure, so a
+    page that borrowed it would be claiming a warning it has not issued.
+    """
+    controls = CONTROLS.read_text("utf-8")
+    spec = (ROOT / "SPEC.md").read_text("utf-8")
+    section = spec.split("### 11.38")[1].split("## The hand checks")[0]
+
+    for nickname in ("Some rain", "A rainy day", "A lot of rain"):
+        assert f"'{nickname}'" in controls or f'"{nickname}"' in controls, (
+            nickname)
+        assert nickname in section, nickname
+    # The words they replaced are on 11.20's list, and the word sweep over
+    # every rendered state is what keeps them off the screen; here it is
+    # enough that the specification says why these three were chosen.
+    for banned in ("wet", "heavy"):
+        assert banned in section.lower(), banned
+    # The page says they are ours, where it says them.
+    panel = PANEL.read_text("utf-8")
+    assert "not an official category" in panel.lower()
+
+
+# ---------------------------- SPEC 11.38: what the day buttons are called
+
+DAYS_JS = ROOT / "web" / "src" / "days.js"
+
+
+@needs_node
+def test_a_day_is_named_from_the_readers_own_date(exports):
+    """SPEC 11.38. "Today" and "Tomorrow" come from the dates, not the lead.
+
+    Lead day 1 runs 5:30 am to 5:30 am IST, so a reader opening the page at
+    4 am is inside the previous day's lead day 1. Naming the buttons by
+    their lead day would print "Tomorrow" over today's forecast for an hour
+    and a half every morning, which is the one thing these two words must
+    never do.
+    """
+    first = "2026-11-14T05:30:00+05:30"
+    short = "Sat 14 Nov"
+
+    # The reader's date equal to the first day's, one before, two before.
+    assert exports(DAYS_JS, "dayName",
+                   [[first, "2026-11-14", short]])[0] == "Today"
+    assert exports(DAYS_JS, "dayName",
+                   [[first, "2026-11-13", short]])[0] == "Tomorrow"
+    assert exports(DAYS_JS, "dayName",
+                   [[first, "2026-11-12", short]])[0] == short
+    # And a day already past is its date, never "Today".
+    assert exports(DAYS_JS, "dayName",
+                   [[first, "2026-11-15", short]])[0] == short
+
+    # Across a month end and a year end, where string arithmetic breaks.
+    assert exports(DAYS_JS, "dayName",
+                   [["2026-12-01T05:30:00+05:30", "2026-11-30",
+                     "Tue 1 Dec"]])[0] == "Tomorrow"
+    assert exports(DAYS_JS, "dayName",
+                   [["2027-01-01T05:30:00+05:30", "2026-12-31",
+                     "Fri 1 Jan"]])[0] == "Tomorrow"
+
+    # Nothing is invented: with no usable date the published label stands.
+    for bad in [["", "2026-11-14", short], [None, "2026-11-14", short],
+                [first, "not a date", short], [first, None, short]]:
+        assert exports(DAYS_JS, "dayName", [bad])[0] == short, bad
+
+
+@needs_node
+def test_the_five_buttons_are_short_enough_for_a_phone(exports):
+    """SPEC 11.29 and 11.38. "Today", "Tomorrow", then "Sat 14"."""
+    days = [f"2026-11-{14 + n:02d}T05:30:00+05:30" for n in range(5)]
+    shorts = ["Sat 14 Nov", "Sun 15 Nov", "Mon 16 Nov", "Tue 17 Nov",
+              "Wed 18 Nov"]
+    got = exports(DAYS_JS, "dayButton",
+                  [[day, "2026-11-14", short]
+                   for day, short in zip(days, shorts)])
+    assert got == ["Today", "Tomorrow", "Mon 16", "Tue 17", "Wed 18"]
+    # The month is dropped from the buttons and from them only.
+    for button in got:
+        assert "Nov" not in button, button
+
+
+@needs_node
+def test_the_readers_own_date_is_ist_and_needs_no_timezone_database(exports):
+    """SPEC 11.38. A fixed +05:30, as api/health's own labels are."""
+    # 2026-11-13 18:29 UTC is still 13 November in IST; one minute later it
+    # is the 14th. Both sides of the boundary, in milliseconds.
+    before = exports(DAYS_JS, "istToday", [[1794594540000]])[0]
+    after = exports(DAYS_JS, "istToday", [[1794594600000]])[0]
+    assert (before, after) == ("2026-11-13", "2026-11-14"), (before, after)
+
+
 # ------------------------------- SPEC 11.38: the headline and its band words
 
 RECORD_JS = ROOT / "web" / "src" / "record.js"
@@ -1658,9 +1837,12 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
     controls = CONTROLS.read_text("utf-8")
     styles = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
 
-    assert "export function dayTab(" in controls
-    assert "{dayTab(entry.short_ist, entry.lead_day)}" in controls
-    assert "`${chosen.label} IST`" in controls
+    # SPEC 11.38 renamed it: the short form is `dayButton`, in days.js,
+    # and it names the day from the reader's own IST date rather than from
+    # a lead day.
+    assert "{dayButton(entry.from_ist, now, entry.short_ist)}" in controls
+    assert "export function dayButton(" in (
+        ROOT / "web" / "src" / "days.js").read_text("utf-8")
     # And the row is laid out so that it cannot overflow however wide the
     # words turn out to be.
     assert ".days .radios button { flex: 1 1 0;" in styles
@@ -4783,13 +4965,23 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
     every = " ".join(words_of(html) for html in forecast_words)
     for must in ("of 51 runs", "How to read this map", "It is not a "
                  "probability.", "Lakshadweep", "Tap the map to pick a place",
-                 "Hide the details", "outside the forecast area",
-                 "no WebGL 2",
+                 "Hide the details", "no WebGL 2",
+                 # SPEC 11.38: a tap on the sea or on a neighbour's land is
+                 # a calm line now, not a red box about a coordinate box.
+                 "That's outside India. Tap the map over India or find a "
+                 "city.",
                  # SPEC 11.38: the new blocks, so a sweep that stopped
                  # rendering them could not pass quietly.
                  "Will it rain where you are in the next 5 days?",
                  "The next five days", "The 51 runs, one dot each",
                  "A count of runs, not a promise of rain.",
                  "For the curious: the numbers behind this",
-                 "When the runs said this before in"):
+                 "When the runs said this before in",
+                 "Which day?", "How much rain?", "A rainy day",
+                 "A lot of rain", "Runs bringing", "All 51",
+                 "Land outside India, which this site does not forecast",
+                 "Today", "Tomorrow",
+                 "10 mm of rain is water 1 cm deep if none of it ran away.",
+                 "Each day runs from 5:30 am to 5:30 am the next morning "
+                 "(IST)."):
         assert must in every, must

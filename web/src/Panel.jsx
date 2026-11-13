@@ -18,6 +18,7 @@ import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
 import { plainClick } from './TopNav';
+import { AMOUNTS } from './Controls';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -488,8 +489,8 @@ export function HowToRead() {
         <li>
           <strong>The colour is a count.</strong> The model is run 51 times
           from slightly different starting points, and a square&apos;s colour
-          is how many of those 51 runs give at least the chosen amount of rain
-          in the chosen day. Darker is more runs.
+          is how many of those 51 runs bring at least the chosen amount of
+          rain in the chosen day. Darker is more runs.
         </li>
         <li>
           <strong>It is not a probability.</strong> {notProbability()} Nothing
@@ -500,11 +501,28 @@ export function HowToRead() {
       {/* SPEC 11.37. On a phone the legend has no room for this line, so it
           is here instead, where the rest of the reading of the map is. The
           legend still carries it at desktop width. */}
+      {/* SPEC 11.37. On a phone the legend has no room for these, so they
+          are here, where the rest of the reading of the map is. */}
       <p className="whitehere">
         <span className="swatch" aria-hidden="true" />
-        White: inside India but not forecast at this grid size
+        White: no forecast for this spot
       </p>
-      <p className="prompt">Click a square or search a town.</p>
+      <p className="whitehere around">
+        <span className="swatch" aria-hidden="true" />
+        Land outside India, which this site does not forecast
+      </p>
+      {/* SPEC 11.38. The three amounts and this site's own nicknames for
+          them, written down here and in the specification and nowhere
+          else. They are not anybody's official categories. */}
+      <ul className="nicknames">
+        {AMOUNTS.map((amount) => (
+          <li key={amount.mm}>
+            <strong>{amount.nickname}</strong>: {amount.mm} mm or more in the
+            day. Our own words, not an official category.
+          </li>
+        ))}
+      </ul>
+      <p className="prompt">Tap a square or search a city.</p>
     </div>
   );
 }
@@ -565,6 +583,7 @@ export default function Panel({
         <div className="notice" role="status">
           {notice.where ? <h2>{notice.where}</h2> : null}
           <p>{notice.note}</p>
+          {notice.why ? <p className="small">{notice.why}</p> : null}
         </div>
         <HowToRead />
       </div>
@@ -586,11 +605,13 @@ export default function Panel({
       <div className="panel-body">
         {square ? (
           <p className="loadingsquare" role="status">
-            Loading {squareText(square.lat, square.lon)}…
+            Reading the 51 runs for this square…{' '}
+            <span className="small">{squareText(square.lat, square.lon)}</span>
           </p>
         ) : null}
-        {!square && busy ? <p className="small">Reading the forecast…</p>
-          : null}
+        {!square && busy ? (
+          <p className="small">Reading the 51 runs…</p>
+        ) : null}
         {!square && !busy ? (
           <>
             <Welcome where="panel" onFind={onFind} onHowTo={onHowTo} />
