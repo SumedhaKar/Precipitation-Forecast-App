@@ -3,7 +3,9 @@
 India precipitation forecast website.
 
 Status: sections 1-4 drafted and revised 12 November 2026, with all five open
-questions resolved. Sections 5 and 6 decided 12 November 2026. Sections 7-12 to
+questions resolved. Sections 5 and 6 decided 12 November 2026, with the decisions the
+code needed added 13 November 2026 as 5.11 and 6.9, before any
+verification output existed. Sections 7-12 to
 be drafted before any verification results are produced.
 
 Every claim marked **[verified]** was checked against a real download or the
@@ -1728,6 +1730,113 @@ Read without any pipeline code, from the real files (HC-ALIGN parts 5 and 6):
 - It is re-measured whenever the archive grows materially, and this section
   is updated with the new figures rather than kept as a one-off.
 
+### 5.11 Decisions fixed 13 November 2026, before any result
+
+Section 5 left these to the code. They are settled here, **before
+`pipeline/verify.py` existed and before any real score was produced**, and
+nothing below was chosen after seeing a number.
+
+#### Cases and pairing
+
+| # | Rule |
+|---|---|
+| 1 | The forecast side is **recomputed** from `data/india/ecmwf/<date>.npz` with the same daily-total and threshold code `pipeline/ecmwf_process.py` uses. Pile A was never published, so there are no stored counts to read |
+| 2 | A case exists only when the IMERG file for `R + n` is present. Absent IMERG dates exclude those cases under their own reason and are listed |
+| 3 | `verify` re-reads `complete_fraction` and asserts `rain` is NaN exactly where the fraction is below 0.90. Two expressions of one rule, so a silent change upstream is caught |
+| 4 | The observed side uses the same "greater than or equal to" of 4.2, on the remapped value, with no epsilon. The event is the same event on both sides |
+
+Measured 13 November 2026: Pile A holds 177 dates, 20260513 to 20261105, with
+no gaps; Pile B holds 181 dates, 20260514 to 20261110, with no gaps. The last
+run date's day 5 is 20261110, so **every one of the 885 run-lead pairs has its
+IMERG date**. Rule 2 exists because that stops being true the moment Pile A
+grows.
+
+#### Exclusions
+
+| # | Rule |
+|---|---|
+| 5 | A run date is usable when its `.npz` and its done record both exist. Anything else is listed by date with its reason |
+| 6 | Coastal squares (3.5) are **in** the headline numbers -- they are India squares -- and everything is rerun inland-only as a sensitivity. A label that changes between the two is disclosed next to it |
+| 7 | `possible = dates x 5 x 4,613 x 3`, and `used + excluded == possible` is asserted, with `excluded` split by reason. An identity is the only proof that nothing was dropped quietly |
+
+#### The reference
+
+| # | Rule |
+|---|---|
+| 8 | A reference group whose observed rate is 0 or 1 keeps its cases; they add 0 to the reference Brier sum. A **group** whose reference sum is 0 has no skill number at all: it is reported as undefined and labelled "Not enough past data", because `1 - x/0` is not a number and a reference that was never wrong is nothing to beat |
+| 9 | Plain in-sample: a case is inside its own reference group, with no leave-one-out. 5.3 wants the best constant forecast for exactly those cases |
+| 10 | No minimum size for a reference group. The distribution of group sizes and the smallest one are published |
+| 11 | The month key is the calendar month, 1 to 12, not year and month. The sample is one year, so the two are identical |
+
+Rule 10 has a consequence, and it is stated on **How we checked** in these
+words:
+
+> Some reference groups are small -- a square in November has only five to ten
+> days behind it -- and a small group's own average fits its own days closely,
+> which makes it harder to beat. Where that happens our skill is if anything
+> understated.
+
+#### The bootstrap
+
+| # | Rule |
+|---|---|
+| 12 | The seed is `numpy.random.default_rng(20261112)`, the date sections 5 and 6 were fixed. It is recorded in `verification_meta.json`, and a seed declared before results cannot be shopped for |
+| 13 | **One** set of 1000 date draws, from the full Pile A date list, reused for every group and every sensitivity. A drawn date that contributes nothing to a group adds zeros. This makes ranges comparable across groups and across 8, 10 and 12 mm |
+| 14 | `numpy.percentile(..., method="linear")`. The half-width of 6.2 is `(p97.5 - p2.5) / 2` |
+| 15 | A resample whose reference sum is 0 is discarded and counted. If more than 1% are discarded the group is "Not enough past data", because a percentile over undefined values is not a range |
+| 16 | Condition 2 of 6.2 is strict (**above** 0); condition 3 is not (**0.10 or less**) |
+| 17 | BSS carries a 95% range and decides labels. BS carries one too and is shown only |
+
+#### Reliability buckets
+
+The ten middle buckets of 5.6 land on exactly five counts each, because
+`k/51 < 0.1` is `k <= 5`, `k/51 < 0.2` is `k <= 10`, and so on to the top:
+
+| Bucket | `k` |
+|---|---|
+| none | 0 |
+| the ten middle buckets | 1-5, 6-10, 11-15, 16-20, 21-25, 26-30, 31-35, 36-40, 41-45, 46-50 |
+| all | 51 |
+
+Twelve buckets, published as that table of `k` rather than as edges, so no
+floating-point tie decides which bucket a case is in.
+
+| # | Rule |
+|---|---|
+| 18 | A bucket's "mean forecast" is the mean of its own cases' `k/51`, never the midpoint of the bucket |
+| 19 | A bucket belongs to one region x lead day x threshold group, the same group as the label. A bucket with no cases is drawn as a gap with a count of 0 |
+| 20 | A group with **no counted bucket** under 6.4 **fails** condition 4 and cannot be green. "Every counted bucket is within 0.10" is otherwise true of no evidence at all, which is the easiest way for a wrong label to get through |
+
+#### Sensitivity and Tier 2
+
+| # | Rule |
+|---|---|
+| 21 | 8 mm and 12 mm rebuild everything, reference and buckets included, on the same date draws. Scoring them against a 10 mm reference would mix two yardsticks |
+| 22 | The 50-member card counts out of 50 over members 1 to 50 and rebuilds reference and buckets on `k/50`, where the first middle bucket holds `k` 1-4 and the other nine hold five each. It is a second card, never pooled with the first |
+| 23 | The decomposition is Murphy's, `REL - RES + UNC = BS`, over the 52 exact `k/51` bins, with uncertainty from the group's own base rate. The identity is asserted to 1e-12 in float64 and **fails the run** if it does not hold |
+| 24 | "Block" means two different things and they are named apart. `base_rate_2deg` and `skill_2deg` are spatial, floored to 2 degrees over the India box; `skill_by_date_block` is temporal, over consecutive runs of 30 start dates, so five of 30 and a last of 27, which is labelled short. A 2-degree block holding fewer than 20 India squares is drawn grey with its count, never hidden |
+| 25 | The CRPS baseline is the observed daily totals **at that square over the 30 days ending the day before the run date**, needing at least 20 valid days; cases without them are excluded and counted. It is out-of-sample and is labelled as such, beside the Brier reference of 5.3, which is not |
+| 26 | Both the plain empirical CRPS and the fair, ensemble-size-corrected CRPS are reported. The plain one is biased by ensemble size, which would otherwise confound the 51-versus-50 comparison with a real difference |
+
+#### What is written, and where
+
+| # | Rule |
+|---|---|
+| 27 | `results/` is committed, holds `verification.json`, `labels.json` and `verification_meta.json`, and stays under about 5 MB in total, with its size reported. The per-case table is never written there; it belongs in `data/` |
+| 28 | The SHA256 of 6.8 is taken over the file read as bytes with CRLF normalised to LF, which are the committed bytes. The working copy on this machine is CRLF, and a hash of it would never match anywhere else |
+| 29 | `verification_meta.json` adds to the list in 6.8: the seed, the number of resamples, the percentile method, the IMERG date range, the SHA256 of the admin-1 file and of `config/india_mask.json`, the git commit, the UTC time of the run, and the exclusion tally by reason |
+| 30 | Region assignment is built once into **`config/regions.json`** and committed, exactly as `config/india_mask.json` is. The Natural Earth admin-1 file lives in `data/raw/`, which is never committed, so nothing may be rebuilt from it at test time |
+| 31 | Two passes over the archive: one to build the reference, one to build the per-date rows. All accumulation in float64 and every number rounded to 6 decimal places on write, so two runs give byte-identical files |
+
+#### The period, on everything
+
+This sentence appears on every label, every score, every diagram and in both
+JSON files:
+
+> Track record from ECMWF AIFS ENS 00 UTC runs of 13 May to 5 November 2026,
+> checked against NASA IMERG Late V07C for 14 May to 10 November 2026. 177
+> runs over six months, most of them monsoon, so it says little about winter.
+
 ---
 
 ## 6. Trust labels
@@ -1771,6 +1880,14 @@ All three:
 | Distinct start dates on which the event was **observed** at least once | at least **20** |
 
 The third condition is the one that actually binds.
+
+**What "the event was observed" counts, exactly.** Within the group's own
+usable cases: a start date counts towards the third condition when at least
+one case of that group, from that date, had an observed value of 1. The
+threshold is the group's own threshold. There is no separate notion of a
+"heavy rain day" anywhere in this specification -- the event is always "the
+square-average daily total reached this group's threshold" (5.1) -- so
+nothing here rests on an undefined word.
 
 The case count is deliberately the weakest of the three. With about 4,613
 India squares and 177 dates, even a small region reaches tens of thousands of
@@ -1875,6 +1992,14 @@ figures:
 If `SPEC.md` changes after results are published, the hash no longer matches
 and that is visible. The point is that nobody, including me, can quietly move
 a threshold after seeing which side of it the answer fell.
+
+### 6.9 Decisions fixed 13 November 2026, before any result
+
+| # | Rule |
+|---|---|
+| 1 | All **60** groups -- 4 regions x 5 lead days x 3 thresholds -- appear in `results/labels.json`, each with its label, the outcome of all four conditions of 6.2 and the numbers behind them. A group with nothing to say reads "Not enough past data"; it is never simply absent |
+| 2 | When CRPS has not been computed, `crps_compared` is `false` and the site says nothing about CRPS at all. A check that did not run is never implied |
+| 3 | CRPS has no threshold, so "if CRPS disagrees" (6.1) means this: at one region and lead day, one of CRPSS and BSS has its 95% range above 0 and the other does not. It is disclosed beside the label; the label still follows Brier |
 
 ---
 
