@@ -536,13 +536,20 @@ header {
   border-radius: 6px;
 }
 
-.sentence {
-  font-size: 1rem;
-  margin: 0.5rem 0 0.7rem;
+/* ------------------------------------------------ the headline, SPEC 11.38 */
+
+/* The one sentence the bar and the top of the panel both carry. Bigger than
+   the body text and in the page's full ink, because it is the answer and
+   everything under it is the working. */
+.headline {
+  margin: 0.4rem 0 0.7rem;
   padding: 0.5rem 0.6rem;
   background: var(--page);
   border-left: 3px solid var(--picked);
   border-radius: 0 6px 6px 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--ink);
 }
 
 /* ------------------------------------------- the welcome card, SPEC 11.38 */

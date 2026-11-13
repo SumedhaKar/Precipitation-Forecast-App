@@ -1445,6 +1445,119 @@ def test_each_page_has_its_own_tab_title():
 
 
 
+# ------------------------------- SPEC 11.38: the headline and its band words
+
+RECORD_JS = ROOT / "web" / "src" / "record.js"
+
+# The table of SPEC 11.38, written out again here rather than imported, so
+# the test is a second statement of the rule and not a copy of the code.
+BAND_WORDS = (
+    (0, 0, "none"),
+    (1, 10, "a few"),
+    (11, 20, "some"),
+    (21, 30, "about half"),
+    (31, 45, "most"),
+    (46, 50, "almost all"),
+    (51, 51, "all"),
+)
+
+
+def expected_band(count: int) -> str | None:
+    for low, high, word in BAND_WORDS:
+        if low <= count <= high:
+            return word
+    return None
+
+
+@needs_node
+def test_every_band_boundary_is_the_word_the_spec_says(exports):
+    """SPEC 11.38. All 52 counts, and both sides of all six boundaries.
+
+    An off-by-one here is the page saying "most" where the record says
+    "about half", which is the one thing a band word could get wrong that a
+    reader could not catch.
+    """
+    counts = list(range(0, 52))
+    got = exports(RECORD_JS, "bandWord", [[count, 51] for count in counts])
+    for count, word in zip(counts, got):
+        assert word == expected_band(count), (count, word)
+
+    # Both sides of every boundary, named, so a failure says which edge.
+    for low, high, word in BAND_WORDS:
+        assert got[low] == word, (low, got[low])
+        assert got[high] == word, (high, got[high])
+        if low:
+            assert got[low - 1] != word, (low - 1, word)
+
+    # Anything that is not a count of runs is not a band.
+    for bad in ([-1, 51], [52, 51], [1.5, 51], ["7", 51], [None, 51]):
+        assert exports(RECORD_JS, "bandWord", [bad])[0] is None, bad
+
+
+@needs_node
+def test_the_headline_is_the_same_shape_every_time(exports):
+    """SPEC 11.38: place, day, band, amount, count, in that order."""
+    calls = [
+        ["Srinagar", "Sat 14 Nov", 7, 51, 10],
+        ["near Nagpur", "Today", 0, 51, 50],
+        ["this area", "Tomorrow", 51, 51, 1],
+        ["Kolkata", "Mon 16 Nov", 31, 51, 10],
+    ]
+    wanted = [
+        "Srinagar, Sat 14 Nov: a few of the 51 runs bring 10 mm or more "
+        "(7 of 51).",
+        "near Nagpur, Today: none of the 51 runs bring 50 mm or more "
+        "(0 of 51).",
+        "this area, Tomorrow: all of the 51 runs bring 1 mm or more "
+        "(51 of 51).",
+        "Kolkata, Mon 16 Nov: most of the 51 runs bring 10 mm or more "
+        "(31 of 51).",
+    ]
+    assert exports(RECORD_JS, "headline", calls) == wanted
+
+    # Nothing to say is said as nothing, never as a sentence with a hole.
+    for bad in ([None, "Today", 7, 51, 10], ["Pune", None, 7, 51, 10],
+                ["Pune", "Today", None, 51, 10],
+                ["Pune", "Today", 99, 51, 10]):
+        assert exports(RECORD_JS, "headline", [bad])[0] is None, bad
+
+
+@needs_node
+def test_the_headline_never_says_a_forbidden_word(exports):
+    """SPEC 11.20's list, over every count and every amount it can carry."""
+    calls = [["Thiruvananthapuram", "Sat 14 Nov", count, 51, threshold]
+             for count in range(0, 52)
+             for threshold in (1, 10, 50)]
+    for said in exports(RECORD_JS, "headline", calls):
+        low = said.lower()
+        for word in FORBIDDEN:
+            assert word not in low, f"{word} appears in: {said}"
+        assert said.endswith(")."), said
+        # The band word and the count are both there, always.
+        assert " of 51)" in said and " of the 51 runs bring " in said, said
+
+
+def test_the_band_words_are_never_drawn_on_the_legend():
+    """SPEC 11.38. A word on the colour key would be a claim about a square.
+
+    The bands describe the runs. On the legend, beside a colour, the same
+    word would read as a name for what that colour means on the ground,
+    which is a forecast this site does not make.
+    """
+    legend = (ROOT / "web" / "src" / "Legend.jsx").read_text("utf-8")
+    palette = PALETTE.read_text("utf-8")
+    record_js = RECORD_JS.read_text("utf-8")
+
+    assert "BANDS" in record_js and "bandWord" in record_js
+    # The legend does not have the table to draw from. What the rendered
+    # legend actually says is checked in the word sweep, which reads the
+    # drawn text rather than the source and so cannot be fooled by a
+    # comment that happens to use one of the words.
+    for name in ("bandWord", "BANDS", "headline"):
+        assert name not in legend, name
+        assert name not in palette, name
+
+
 def test_the_day_buttons_are_short_and_the_window_is_not():
     """SPEC 11.29. "Fri 13" on the button, the whole window under it.
 

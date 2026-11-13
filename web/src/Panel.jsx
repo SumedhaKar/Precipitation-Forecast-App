@@ -16,7 +16,7 @@ import { squareText } from './snap';
 import { nameOfSquare } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
-import { PICK_A_PLACE, barLine } from './record';
+import { PICK_A_PLACE, headline } from './record';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -49,18 +49,38 @@ function summarise(values) {
    because a number under the wrong place name is the worst thing this page
    could do (SPEC 11.30). */
 export function summaryLine(place, square, day, threshold) {
-  if (!place || !place.square || !place.days) return PICK_A_PLACE;
-  if (square && !sameSquare(place.square.asked, square)) return PICK_A_PLACE;
+  if (square && place && place.square
+    && !sameSquare(place.square.asked, square)) return PICK_A_PLACE;
+  return headlineFor(place, day, threshold) || PICK_A_PLACE;
+}
+
+/**
+ * The headline for the chosen day and amount, or null. SPEC 11.38.
+ *
+ * One function for the bar and for the top of the panel, so the two cannot
+ * say different things about the same square. Pure, and exported, so a test
+ * can drive it against a real answer.
+ */
+export function headlineFor(place, day, threshold) {
+  if (!place || !place.square || !place.days) return null;
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
   const k = THRESHOLDS.indexOf(threshold);
   const entry = chosen && chosen.counts_by_threshold
     && chosen.counts_by_threshold[k];
-  if (!entry) return PICK_A_PLACE;
+  if (!entry) return null;
   const where = place.square;
   const name = nameOfSquare(where.lat, where.lon)
     || squareText(where.lat, where.lon);
-  return barLine(name, entry.count, place.members, threshold);
+  return headline(name, chosen.short_ist, entry.count, place.members,
+    threshold);
+}
+
+/** The headline, at the top of the panel, under the place name. */
+export function Headline({ place, day, threshold }) {
+  const said = headlineFor(place, day, threshold);
+  if (!said) return null;
+  return <p className="headline">{said}</p>;
 }
 
 export function PlaceLine({ place, from }) {
@@ -109,7 +129,8 @@ export function DayStrip({ place, day, threshold, onDay }) {
                 className={chosen ? 'cell chosen' : 'cell'}
                 style={{ background: colourOf(count), color: inkOf(count) }}
                 aria-pressed={chosen}
-                aria-label={`${entry.short_ist} IST. ${entry.sentence}`}
+                aria-label={`${entry.short_ist} IST: ${count} of `
+                  + `${place.members} runs bring ${threshold} mm or more`}
                 onClick={() => onDay(entry.lead_day)}
               >
                 <span className="cellday">{entry.short_ist}</span>
@@ -127,10 +148,13 @@ export function DayStrip({ place, day, threshold, onDay }) {
   );
 }
 
-export function DaySentence({ day }) {
-  if (!day || !day.sentence) return null;
-  return <p className="sentence">{day.sentence}</p>;
-}
+/* SPEC 11.38. The day sentence of 11.20 used to be here, under the place
+   name. It says "model runs", it is pinned word for word by its own test,
+   and the page now has one name for the 51 -- so it is taken off the page
+   rather than reworded. `api/place` still computes it and still publishes
+   it, so 11.20 is unchanged for anyone reading the API; what a reader is
+   given is the headline above, which says the same thing in the page's own
+   language and carries the band word with it. */
 
 /**
  * The trust label for one region, lead day and threshold. SPEC 11.33.
@@ -501,7 +525,7 @@ export default function Panel({
   return (
     <div className="panel-body">
       <PlaceLine place={place} from={from} />
-      <DaySentence day={chosen} />
+      <Headline place={place} day={day} threshold={threshold} />
       <Counts
         place={place}
         day={chosen}

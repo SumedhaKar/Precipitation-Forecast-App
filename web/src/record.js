@@ -130,6 +130,53 @@ export function barLine(where, count, members, threshold) {
   return `${where}: ${count} of ${members} runs reach ${threshold} mm`;
 }
 
+/**
+ * The band words. SPEC 11.38.
+ *
+ * `from` and `to` are inclusive counts of runs, not shares: the bands are
+ * read off the number of runs and nothing is divided by anything, so no
+ * reading of this is a probability. Three reviews called the page too
+ * textual; a reader who cannot hold "38 of 51" in their head can hold
+ * "most", and the count is beside it either way.
+ *
+ * The words describe the runs and never the weather. "A few of the 51 runs
+ * bring 10 mm" is a statement about a model. "Rain is unlikely" is a
+ * forecast, and this site does not make one -- which is also why "likely"
+ * and "unlikely" are on the forbidden list of 11.20 and these are not.
+ */
+export const BANDS = [
+  { from: 0, to: 0, word: 'none' },
+  { from: 1, to: 10, word: 'a few' },
+  { from: 11, to: 20, word: 'some' },
+  { from: 21, to: 30, word: 'about half' },
+  { from: 31, to: 45, word: 'most' },
+  { from: 46, to: 50, word: 'almost all' },
+  { from: 51, to: 51, word: 'all' },
+];
+
+/** The band word for a count of runs, or null for anything not a count. */
+export function bandWord(count, members = RECORD_MEMBERS) {
+  if (!Number.isInteger(count) || count < 0 || count > members) return null;
+  const band = BANDS.find(
+    (entry) => count >= entry.from && count <= entry.to);
+  return band ? band.word : null;
+}
+
+/**
+ * The one sentence the bar and the top of the panel both carry.
+ *
+ * SPEC 11.38, and the same shape every time: where, when, the band, the
+ * amount, the count. Both the word and the number are always there, in that
+ * order, because the word on its own would be a claim the count has not
+ * made and the count on its own is what the reviews were about.
+ */
+export function headline(where, when, count, members, threshold) {
+  const word = bandWord(count, members);
+  if (!where || !when || word === null) return null;
+  return `${where}, ${when}: ${word} of the ${members} runs bring `
+    + `${threshold} mm or more (${count} of ${members}).`;
+}
+
 export function howOften(bucket) {
   const times = bucket.times_in_10;
   if (times <= 0) return 'fewer than 1 time in 10';
