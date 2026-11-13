@@ -1456,7 +1456,16 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
     shell = styles.split("/* --------------------------------- the three "
                          "pages, SPEC 11.34 */")[0]
     assert "overflow-x: auto" not in shell
-    assert styles.count("overflow-x: auto") == 1
+    # Everything that may scroll sideways is on the two document pages, and
+    # each one says in the stylesheet what it is: the wrapper around the
+    # 60-label grid at full width (11.34), and the sentence tables under 560
+    # pixels, whose columns come out as wide as the machine's font makes
+    # them (11.36). The label grid itself may not scroll at any width.
+    document = styles[len(shell):]
+    assert document.count("overflow-x: auto") == styles.count(
+        "overflow-x: auto") == 2
+    assert ".gridwrap { margin: 0.8rem 0; overflow-x: auto; }" in document
+    assert ".plain, .bands {" in document
 
 
 # ----------------- SPEC 11.30: the land around India, the names in the
@@ -3367,6 +3376,20 @@ try {
           && last.bottom <= window.innerHeight + 1;
         seen.open.lastLine = last;
       }
+      // The columns of a table come out as wide as the text in them, and
+      // how wide that is depends on the font the machine happens to have.
+      // Measured again with every letter half a pixel wider, which stands
+      // in for a machine with other fonts -- the test runner is one -- and
+      // which no font substitution can quietly undo.
+      const wide = document.createElement('style');
+      wide.textContent = '*{letter-spacing:0.5px !important}';
+      document.head.appendChild(wide);
+      await new Promise((go) => requestAnimationFrame(go));
+      seen.wideFontScrollWidth = document.documentElement.scrollWidth;
+      seen.wideFontGridOverflow = [
+        ...document.querySelectorAll('.gridwrap')]
+        .filter((e) => e.scrollWidth > e.clientWidth + 1).length;
+      wide.remove();
       return seen;
     })()`);
   }
@@ -3460,6 +3483,10 @@ def test_neither_document_page_is_cut_off_at_390_by_664(viewport):
         page = viewport[path]
         assert page["docScrollWidth"] <= 390, path
         assert page["bodyScrollWidth"] <= 390, path
+        # And with a font wider than this machine's, which is what another
+        # machine is: a table may scroll inside itself, the page may not.
+        assert page["wideFontScrollWidth"] <= 390, (
+            path, page["wideFontScrollWidth"])
 
 
 @needs_node
@@ -3476,6 +3503,10 @@ def test_the_report_card_grid_fits_a_390_pixel_screen(viewport):
         assert head["fits"], head
     assert [h["text"] for h in page["rowHeads"][:3]] == ["1 mm", "10 mm",
                                                          "50 mm"]
+    # The 60-label grid is the one table that may not scroll sideways, at
+    # this machine's font or any other.
+    assert page["wideFontGridOverflow"] == 0
+    assert page["wideFontScrollWidth"] <= 390, page["wideFontScrollWidth"]
 
 
 def test_no_height_rule_uses_a_viewport_unit_without_a_dvh_line_after_it():

@@ -1172,6 +1172,20 @@ footer p { max-width: 70ch; }
   }
 
   .labelgrid .beat { margin-left: 0.1rem; }
+
+  /* SPEC 11.36. The other tables on these pages carry sentences, and how
+     wide their columns come out depends on the font the machine happens to
+     have: measured at 390 pixels, two of them push the whole page 14
+     pixels wider on a machine with no Segoe UI. A table may scroll inside
+     itself -- the 60-label grid may not, and does not -- but the page must
+     never shift sideways, because then every line of text moves. */
+  .plain, .bands {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .plain th, .plain td, .bands th, .bands td { overflow-wrap: anywhere; }
 }
 
 @media (prefers-reduced-motion: reduce) {
