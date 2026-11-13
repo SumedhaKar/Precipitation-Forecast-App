@@ -5226,6 +5226,23 @@ reach a screen, not on a description of them.
 | the period sentence | appears on both pages |
 | no percentage | appears on either page, for any choice a reader can make |
 | the forbidden words | hold over every string either page can produce |
+
+**And over the forecast page's own panel and bar, which they did not.** Until
+13 November 2026 the sweep covered only the two strings the panel *computes*
+-- the day sentence of 11.20 and the track-record answers of `record.js` --
+and never its written text, which is most of what a reader reads, nor the bar
+of 11.37. `ssr.jsx` now renders the panel from real `/api/place` answers in
+every state it has (an answer for all five days and all three thresholds,
+nothing chosen, waiting, a square still loading, both island notes and each
+of the ten failure lines) and the bar's three labels with it, and the same
+list and the same no-percentage rule are swept over the lot.
+
+The forecast page has **one** word the two document pages do not: it may say
+`probability`, in the two sentences that refuse the reading -- the heading
+"It is not a probability." and the sentence of 11.21 under it. The allowance
+is written as those sentences and not as the word, so it cannot spread: the
+count of the word over the whole sweep must equal the count of those two
+sentences. Inserting "certain" into How to read this map is caught.
 | the menu | is three real links to the three paths, with `aria-current` on the one being read |
 | `vercel.json` | rewrites everything but `/api/` and `/assets/` to `/index.html`, and nothing the built page loads depends on the rewrite |
 | `<noscript>` | links to all five result files and to `SPEC.md` |
@@ -5368,7 +5385,8 @@ signed mean, which would hide them -- and the count of squares more than 5
 runs apart. Then, in those words: "This shows the counting is right. It does
 not show the model is right; that is what the report card checks." ECMWF's
 own word for its figure cannot be used here, because it is one of the
-forbidden words of 11.20; "its own figure for 10 mm or more" is the wording,
+forbidden words of 11.20; "its own figure for 10 mm or more (the tpg10
+field)" is the wording, which names the field without using the word,
 with the point that it is not a count of runs said plainly beside it. This
 is on How we checked only, never on the forecast page and never on the
 report card.
