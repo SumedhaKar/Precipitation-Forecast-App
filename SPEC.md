@@ -4953,6 +4953,90 @@ motion, and changes the zoom nowhere.
 
 ---
 
+### 11.33 The trust label in the place panel
+
+The track record is frozen (6.8, tag `results-v1`). This is the first thing
+the site does with it: beside every count, what happened the last time the
+model said something like this.
+
+**The one file the page reads.** `results/site_summary.json`, and nothing
+else. It is copied byte for byte to `web/src/summary.json`, so the bundle
+carries one copy and the build reads nothing outside `web/`; a test fails if
+the two files differ by a byte. `verification.json` and `labels.json` are
+never read by the site.
+
+**The region comes from the API.** A label belongs to a region, a lead day and
+a threshold, so the page must know which of the four IMD regions (5.4) a
+square is in. `api/place` answers it, as `square.region` and
+`square.region_code`, reading `config/regions.json` -- the one place that
+assignment lives. The page keeps no second copy of it. Every square the site
+can answer for has a region: the 4,613 squares of the India mask (3.5) and the
+4,613 squares `config/regions.json` assigns are the same squares.
+
+#### What the panel shows
+
+| where | what |
+|---|---|
+| under the counts | the chip for the chosen day and threshold -- green, amber or grey, the label in words -- and one plain line saying why it is that colour |
+| on each of the three threshold rows | that row's own small chip, because the three thresholds are three different track records and often three different labels |
+| under the chosen count, at the same size as the count | the past-frequency sentence below |
+| behind "Why this label?" | the four conditions of 6.2 in plain words with their numbers, the 6.5 luck sentence where it applies, the CRPS note where the two scores disagree, and the period sentence |
+
+#### The past-frequency sentence
+
+The count's reliability bucket (5.11) for that region, lead day and threshold,
+said as one sentence:
+
+> In May to November 2026, when 36 to 40 of 51 runs said 10 mm or more in
+> Northwest India on day 1, the satellite saw it about 5 times in 10.
+
+| | |
+|---|---|
+| the bucket | the counted bucket holding this count. `k = 0` and `k = 51` have their own, and read "when none of the 51 runs said" and "when all 51 runs said" |
+| the number | the bucket's `times_in_10`, which the verification rounded. The page never rounds a frequency itself |
+| one time | "about 1 time in 10", not "1 times" |
+| not a counted bucket | "Too few past cases with this many runs agreeing to say how often it came true." The floor of 6.4 -- 100 cases from 10 start dates -- governs what we say out loud as well as what we test |
+| the satellite, always | "the satellite saw it", never "it rained". 5.9: the satellite is an estimate and the forecast agreed with it or did not. The one place "came true" survives is the line above, carried word for word from 6.7 |
+
+#### Percentages
+
+A percentage is shown only beside a **Good track record**, as "about N in 10"
+with N = ten times the count divided by 51, rounded to a whole number: never
+a decimal and never a percent sign. **No group is green today**, so no such line
+appears anywhere on the site. The rule is written and tested against a made-up
+green group, so that it is already right the day a real one appears, and the
+test that no percentage appears anywhere runs against the real record.
+
+#### Why this label?
+
+A `<details>` under the chip, shut until it is opened. In it: each of the four
+conditions of 6.2, in plain words, with the number it got and the number the
+rule asks for, marked passed or not; the 6.5 sentence where the group's skill
+is above 0 but could be luck; the period sentence of 5.11; and, where the
+group is flagged (6.9 rule 3), that Brier and CRPS point different ways here,
+said as two different yardsticks rather than as a contradiction -- one asks
+whether the right number of runs crossed a line, the other asks how close the
+whole spread of runs was to the millimetres that fell.
+
+Nothing in the panel recomputes a label, a skill score or a frequency. Every
+number in it was read from `summary.json`, and a test drives the page's own
+functions over all 60 groups and every count from 0 to 51 and compares them
+with that file.
+
+#### Tests
+
+Eight, over `web/src/record.js`, which has no imports so `node` can drive it:
+the chip and the sentence equal `site_summary.json` for all 60 groups at every
+count; the sentence is omitted exactly where the bucket is not counted; no
+percentage appears for any real group, and the made-up green one gets
+"about 4 in 10"; the forbidden-word list of 11.20 holds over every sentence
+the panel can produce; `api/place` gives every India square the region
+`config/regions.json` gives it, and no square outside India a region at all;
+the twelve place tests of 5.4 answer through the API; and `web/src/summary.json`
+is `results/site_summary.json` byte for byte.
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:
