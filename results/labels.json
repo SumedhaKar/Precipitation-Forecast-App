@@ -2,7 +2,7 @@
  "spec_section": "6",
  "period": "Track record from ECMWF AIFS ENS 00 UTC runs of 13 May to 5 November 2026, checked against NASA IMERG Late V07C for 14 May to 10 November 2026. 177 runs over six months, most of them monsoon, so it says little about winter.",
  "wording": "agreed with the satellite estimate, never correct (SPEC 5.9)",
- "crps_compared": false,
+ "crps_compared": true,
  "luck_wording": "slightly better than the usual rain for this place and month, but the difference could be luck",
  "rules": {
   "min_cases": 1000,
@@ -200,6 +200,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.410576,
+    "observed": 0.319617,
+    "ratio": 1.284587,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -366,6 +381,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.093431,
+    "observed": 0.086677,
+    "ratio": 1.077926,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -491,6 +521,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.004568,
+    "observed": 0.004871,
+    "ratio": 0.937888,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -656,6 +701,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.422127,
+    "observed": 0.31853,
+    "ratio": 1.325237,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -822,6 +882,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.101004,
+    "observed": 0.086662,
+    "ratio": 1.165497,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -947,6 +1022,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005053,
+    "observed": 0.004871,
+    "ratio": 1.037382,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1112,6 +1202,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.423838,
+    "observed": 0.317882,
+    "ratio": 1.333318,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1279,6 +1384,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.102889,
+    "observed": 0.086647,
+    "ratio": 1.187453,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1396,6 +1516,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005325,
+    "observed": 0.004871,
+    "ratio": 1.093327,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1561,6 +1696,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.427252,
+    "observed": 0.31769,
+    "ratio": 1.344869,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1728,6 +1878,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.103976,
+    "observed": 0.086643,
+    "ratio": 1.20005,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -1845,6 +2010,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005086,
+    "observed": 0.004871,
+    "ratio": 1.044246,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -2010,6 +2190,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.426456,
+    "observed": 0.317871,
+    "ratio": 1.341602,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -2169,6 +2364,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.104499,
+    "observed": 0.086643,
+    "ratio": 1.206094,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -2286,6 +2496,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005225,
+    "observed": 0.004871,
+    "ratio": 1.072764,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -2450,6 +2675,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.473909,
+    "observed": 0.428525,
+    "ratio": 1.105906,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -2616,6 +2856,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.176478,
+    "observed": 0.155801,
+    "ratio": 1.132713,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -2780,6 +3035,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.017999,
+    "observed": 0.013484,
+    "ratio": 1.334791,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -2944,6 +3214,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.484683,
+    "observed": 0.42756,
+    "ratio": 1.133603,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -3110,6 +3395,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.188363,
+    "observed": 0.15567,
+    "ratio": 1.210011,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -3267,6 +3567,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.018747,
+    "observed": 0.013481,
+    "ratio": 1.390633,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -3431,6 +3746,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.490285,
+    "observed": 0.426681,
+    "ratio": 1.149067,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -3597,6 +3927,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.187828,
+    "observed": 0.155554,
+    "ratio": 1.207475,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -3746,6 +4091,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.018402,
+    "observed": 0.013481,
+    "ratio": 1.365088,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -3910,6 +4270,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.491428,
+    "observed": 0.425323,
+    "ratio": 1.155424,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -4076,6 +4451,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.185695,
+    "observed": 0.155236,
+    "ratio": 1.196207,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -4209,6 +4599,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.017171,
+    "observed": 0.01347,
+    "ratio": 1.274815,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -4374,6 +4779,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.491994,
+    "observed": 0.424934,
+    "ratio": 1.157815,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -4540,6 +4960,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.184699,
+    "observed": 0.15521,
+    "ratio": 1.189993,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -4673,6 +5108,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015828,
+    "observed": 0.01347,
+    "ratio": 1.175131,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -4837,6 +5287,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.498582,
+    "observed": 0.463956,
+    "ratio": 1.074633,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -5003,6 +5468,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.116981,
+    "observed": 0.112282,
+    "ratio": 1.041849,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -5144,6 +5624,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.006107,
+    "observed": 0.006032,
+    "ratio": 1.01245,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -5308,6 +5803,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.501708,
+    "observed": 0.463448,
+    "ratio": 1.082555,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -5474,6 +5984,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.120221,
+    "observed": 0.111768,
+    "ratio": 1.075629,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -5607,6 +6132,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.006321,
+    "observed": 0.005946,
+    "ratio": 1.063062,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -5771,6 +6311,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.502049,
+    "observed": 0.462736,
+    "ratio": 1.084956,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -5937,6 +6492,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.117673,
+    "observed": 0.111504,
+    "ratio": 1.055325,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -6062,6 +6632,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005845,
+    "observed": 0.005946,
+    "ratio": 0.983001,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -6226,6 +6811,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.503432,
+    "observed": 0.461569,
+    "ratio": 1.090697,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -6393,6 +6993,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.117318,
+    "observed": 0.111116,
+    "ratio": 1.05582,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -6518,6 +7133,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005515,
+    "observed": 0.005946,
+    "ratio": 0.927373,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -6682,6 +7312,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.504166,
+    "observed": 0.459328,
+    "ratio": 1.097617,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -6849,6 +7494,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.120153,
+    "observed": 0.110193,
+    "ratio": 1.090391,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -6974,6 +7634,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005496,
+    "observed": 0.00592,
+    "ratio": 0.928403,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -7139,6 +7814,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.730636,
+    "observed": 0.631426,
+    "ratio": 1.157121,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -7305,6 +7995,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.328219,
+    "observed": 0.21996,
+    "ratio": 1.492177,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -7437,6 +8142,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.014433,
+    "observed": 0.009275,
+    "ratio": 1.556202,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -7602,6 +8322,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.739313,
+    "observed": 0.628635,
+    "ratio": 1.17606,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -7768,6 +8503,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.333537,
+    "observed": 0.219239,
+    "ratio": 1.521337,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -7900,6 +8650,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015036,
+    "observed": 0.009275,
+    "ratio": 1.62115,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8065,6 +8830,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.744071,
+    "observed": 0.62454,
+    "ratio": 1.191391,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8231,6 +9011,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.334817,
+    "observed": 0.217776,
+    "ratio": 1.537441,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8363,6 +9158,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015581,
+    "observed": 0.009259,
+    "ratio": 1.682709,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8528,6 +9338,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.746811,
+    "observed": 0.62244,
+    "ratio": 1.199812,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8694,6 +9519,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.334881,
+    "observed": 0.216699,
+    "ratio": 1.545377,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8818,6 +9658,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015349,
+    "observed": 0.009252,
+    "ratio": 1.658968,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -8983,6 +9838,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.748001,
+    "observed": 0.62109,
+    "ratio": 1.204337,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -9149,6 +10019,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.335917,
+    "observed": 0.21635,
+    "ratio": 1.552657,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -9273,6 +10158,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.016217,
+    "observed": 0.009252,
+    "ratio": 1.752877,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   }
  ],
@@ -24824,6 +25724,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.473909,
+    "observed": 0.428525,
+    "ratio": 1.105906,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -25150,6 +26065,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.176478,
+    "observed": 0.155801,
+    "ratio": 1.132713,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -25474,6 +26404,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.017999,
+    "observed": 0.013484,
+    "ratio": 1.334791,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.305675,
+    "crpss_lo": 0.267749,
+    "crpss_hi": 0.34116,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -25638,6 +26583,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.484683,
+    "observed": 0.42756,
+    "ratio": 1.133603,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -25964,6 +26924,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.188363,
+    "observed": 0.15567,
+    "ratio": 1.210011,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -26281,6 +27256,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.018747,
+    "observed": 0.013481,
+    "ratio": 1.390633,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.276994,
+    "crpss_lo": 0.232852,
+    "crpss_hi": 0.316641,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -26445,6 +27435,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.490285,
+    "observed": 0.426681,
+    "ratio": 1.149067,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -26771,6 +27776,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.187828,
+    "observed": 0.155554,
+    "ratio": 1.207475,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -27080,6 +28100,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.018402,
+    "observed": 0.013481,
+    "ratio": 1.365088,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.258504,
+    "crpss_lo": 0.214504,
+    "crpss_hi": 0.303719,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -27244,6 +28279,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.491428,
+    "observed": 0.425323,
+    "ratio": 1.155424,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -27570,6 +28620,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.185695,
+    "observed": 0.155236,
+    "ratio": 1.196207,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -27863,6 +28928,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.017171,
+    "observed": 0.01347,
+    "ratio": 1.274815,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.246489,
+    "crpss_lo": 0.202664,
+    "crpss_hi": 0.29115,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -28028,6 +29108,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.491994,
+    "observed": 0.424934,
+    "ratio": 1.157815,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -28354,6 +29449,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.184699,
+    "observed": 0.15521,
+    "ratio": 1.189993,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -28647,6 +29757,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015828,
+    "observed": 0.01347,
+    "ratio": 1.175131,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.217866,
+    "crpss_lo": 0.166575,
+    "crpss_hi": 0.268368,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -28812,6 +29937,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.730636,
+    "observed": 0.631426,
+    "ratio": 1.157121,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -29138,6 +30278,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.328219,
+    "observed": 0.21996,
+    "ratio": 1.492177,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -29430,6 +30585,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.014433,
+    "observed": 0.009275,
+    "ratio": 1.556202,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.02247,
+    "crpss_lo": -0.033551,
+    "crpss_hi": 0.084413,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -29595,6 +30765,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.739313,
+    "observed": 0.628635,
+    "ratio": 1.17606,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -29921,6 +31106,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.333537,
+    "observed": 0.219239,
+    "ratio": 1.521337,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -30213,6 +31413,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015036,
+    "observed": 0.009275,
+    "ratio": 1.62115,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.004322,
+    "crpss_lo": -0.063045,
+    "crpss_hi": 0.055838,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -30378,6 +31593,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.744071,
+    "observed": 0.62454,
+    "ratio": 1.191391,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -30704,6 +31934,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.334817,
+    "observed": 0.217776,
+    "ratio": 1.537441,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -30996,6 +32241,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015581,
+    "observed": 0.009259,
+    "ratio": 1.682709,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.018197,
+    "crpss_lo": -0.081953,
+    "crpss_hi": 0.040156,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -31161,6 +32421,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.746811,
+    "observed": 0.62244,
+    "ratio": 1.199812,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -31487,6 +32762,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.334881,
+    "observed": 0.216699,
+    "ratio": 1.545377,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -31771,6 +33061,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.015349,
+    "observed": 0.009252,
+    "ratio": 1.658968,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.039411,
+    "crpss_lo": -0.103188,
+    "crpss_hi": 0.022168,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -31936,6 +33241,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.748001,
+    "observed": 0.62109,
+    "ratio": 1.204337,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -32262,6 +33582,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.335917,
+    "observed": 0.21635,
+    "ratio": 1.552657,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -32546,6 +33881,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.016217,
+    "observed": 0.009252,
+    "ratio": 1.752877,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": -0.059522,
+    "crpss_lo": -0.120948,
+    "crpss_hi": 0.003507,
+    "brier_above_zero": false,
+    "crps_above_zero": false,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -32711,6 +34061,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.410576,
+    "observed": 0.319617,
+    "ratio": 1.284587,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -33037,6 +34402,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.093431,
+    "observed": 0.086677,
+    "ratio": 1.077926,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -33322,6 +34702,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.004568,
+    "observed": 0.004871,
+    "ratio": 0.937888,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.153371,
+    "crpss_lo": 0.120854,
+    "crpss_hi": 0.186098,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -33487,6 +34882,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.422127,
+    "observed": 0.31853,
+    "ratio": 1.325237,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -33813,6 +35223,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.101004,
+    "observed": 0.086662,
+    "ratio": 1.165497,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -34098,6 +35523,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005053,
+    "observed": 0.004871,
+    "ratio": 1.037382,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.13327,
+    "crpss_lo": 0.092418,
+    "crpss_hi": 0.171114,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -34263,6 +35703,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.423838,
+    "observed": 0.317882,
+    "ratio": 1.333318,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -34591,6 +36046,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.102889,
+    "observed": 0.086647,
+    "ratio": 1.187453,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -34869,6 +36339,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005325,
+    "observed": 0.004871,
+    "ratio": 1.093327,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.117373,
+    "crpss_lo": 0.073846,
+    "crpss_hi": 0.157349,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -35034,6 +36519,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.427252,
+    "observed": 0.31769,
+    "ratio": 1.344869,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -35362,6 +36862,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.103976,
+    "observed": 0.086643,
+    "ratio": 1.20005,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -35632,6 +37147,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005086,
+    "observed": 0.004871,
+    "ratio": 1.044246,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.113977,
+    "crpss_lo": 0.071395,
+    "crpss_hi": 0.15903,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -35797,6 +37327,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.426456,
+    "observed": 0.317871,
+    "ratio": 1.341602,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -36117,6 +37662,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.104499,
+    "observed": 0.086643,
+    "ratio": 1.206094,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -36387,6 +37947,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005225,
+    "observed": 0.004871,
+    "ratio": 1.072764,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.102055,
+    "crpss_lo": 0.05901,
+    "crpss_hi": 0.149166,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -36551,6 +38126,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.498582,
+    "observed": 0.463956,
+    "ratio": 1.074633,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -36877,6 +38467,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.116981,
+    "observed": 0.112282,
+    "ratio": 1.041849,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -37178,6 +38783,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.006107,
+    "observed": 0.006032,
+    "ratio": 1.01245,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.223196,
+    "crpss_lo": 0.169456,
+    "crpss_hi": 0.27351,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -37342,6 +38962,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.501708,
+    "observed": 0.463448,
+    "ratio": 1.082555,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -37668,6 +39303,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.120221,
+    "observed": 0.111768,
+    "ratio": 1.075629,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -37961,6 +39611,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.006321,
+    "observed": 0.005946,
+    "ratio": 1.063062,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.210331,
+    "crpss_lo": 0.164495,
+    "crpss_hi": 0.256204,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -38125,6 +39790,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.502049,
+    "observed": 0.462736,
+    "ratio": 1.084956,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -38451,6 +40131,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.117673,
+    "observed": 0.111504,
+    "ratio": 1.055325,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -38736,6 +40431,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005845,
+    "observed": 0.005946,
+    "ratio": 0.983001,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.213154,
+    "crpss_lo": 0.171692,
+    "crpss_hi": 0.252364,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -38900,6 +40610,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.503432,
+    "observed": 0.461569,
+    "ratio": 1.090697,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -39228,6 +40953,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.117318,
+    "observed": 0.111116,
+    "ratio": 1.05582,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -39514,6 +41254,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005515,
+    "observed": 0.005946,
+    "ratio": 0.927373,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.189666,
+    "crpss_lo": 0.148412,
+    "crpss_hi": 0.230002,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -39678,6 +41433,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.504166,
+    "observed": 0.459328,
+    "ratio": 1.097617,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": true,
+    "crps_above_zero": true,
+    "disagrees": false,
+    "note": null
    }
   },
   {
@@ -40006,6 +41776,21 @@
     "12 mm": "Treat as a rough guide",
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.120153,
+    "observed": 0.110193,
+    "ratio": 1.090391,
+    "wording": "the model says this much rain more often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {
@@ -40292,6 +42077,21 @@
    "also": {
     "50 members": "Treat as a rough guide",
     "inland only": "Treat as a rough guide"
+   },
+   "frequency_check": {
+    "mean_forecast": 0.005496,
+    "observed": 0.00592,
+    "ratio": 0.928403,
+    "wording": "the model says this much rain less often than the satellite sees it"
+   },
+   "crps": {
+    "crpss_fair": 0.169568,
+    "crpss_lo": 0.126627,
+    "crpss_hi": 0.210632,
+    "brier_above_zero": false,
+    "crps_above_zero": true,
+    "disagrees": true,
+    "note": "the two scores point different ways here: one of them beats its baseline and the other does not. The label follows the Brier score, and this is said rather than hidden"
    }
   },
   {

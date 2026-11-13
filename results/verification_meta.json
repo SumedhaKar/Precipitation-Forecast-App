@@ -1,9 +1,9 @@
 {
  "spec_section": "6.8, with the additions of 5.11 rule 29",
- "generated_utc": "2026-11-13T07:45:11+00:00",
- "spec_sha256": "55cea87493ce0d1b673c9fb4fbec9512ae5a0f6a87a803d901c001d941e38915",
+ "generated_utc": "2026-11-13T08:08:57+00:00",
+ "spec_sha256": "e25da5f2534ca46158fbec29934978f8f0cea5aae4792a29427f3b0448dfd629",
  "spec_sha256_note": "over SPEC.md with CRLF normalised to LF, which are the committed bytes",
- "git_commit": "a5629a9fe79825d501a94d43b71666b711ed4d16",
+ "git_commit": "add7824735a7a7d6de29ba785acf1871a564ce8f",
  "pile_a": {
   "first": "20260513",
   "last": "20261105",
@@ -42,7 +42,17 @@
    "no_imerg_date": 0,
    "observation_incomplete": 0
   },
-  "excluded_total": 0
+  "excluded_total": 0,
+  "crps": {
+   "possible": 4082505,
+   "used": 3598140,
+   "excluded": {
+    "no_imerg_date": 0,
+    "observation_incomplete": 0,
+    "baseline_too_short": 484365
+   },
+   "excluded_total": 484365
+  }
  },
  "period": "Track record from ECMWF AIFS ENS 00 UTC runs of 13 May to 5 November 2026, checked against NASA IMERG Late V07C for 14 May to 10 November 2026. 177 runs over six months, most of them monsoon, so it says little about winter."
 }
