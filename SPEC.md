@@ -2375,6 +2375,24 @@ Why minute 17 and 47. GitHub documents that scheduled workflows can be
 delayed when load is high, and load clusters at the start of an hour, so
 `:00` and `:30` are the two worst minutes available.
 
+**Amended 13 November 2026: a second schedule, `23 12-22 * * *`.** Eleven
+more attempts, 12:23 to 22:23 UTC, hourly, on top of the twelve above.
+
+The reason is what happened on 12 November 2026: **not one of the twelve
+scheduled attempts ran at all.** The only run of the day started at 17:44
+UTC, nearly six hours after the window closed, and the publish of
+`20261112T00Z` that the site is serving came from it. The window was not too
+early or too late; it was simply skipped.
+
+GitHub documents that scheduled workflows may be delayed during periods of
+high load and that a run may be dropped entirely. A window five and a half
+hours wide can therefore be missed whole, and a forecast site that publishes
+nothing that day has no honest way to describe itself. Covering the day to
+22:23 UTC makes a single skipped hour harmless: the next attempt is an hour
+away, and once the run is published each remaining attempt costs one listing
+check and exits 0 (8.10). Nothing else changes -- the same job, the same
+concurrency group, the same token on the same two steps.
+
 ### 8.9 The token
 
 | Question | Answer |
