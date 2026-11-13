@@ -5484,6 +5484,167 @@ that follows; and the map's own canvas back to its full height after the
 panel closes. Plus, without a browser: the line's words, and the stylesheet
 read to show the desktop keeps its panel.
 
+### 11.38 The Time Machine
+
+Written on 13 November 2026, **before** anything had chosen a day. The rule
+below is committed on its own so that the order of the commits shows the rule
+came first and the days second. A page that picks its own best days after
+looking at them is an advertisement.
+
+The forecast page says what the model says about the next five days. The
+report card says how the model has done over 177 of them, in aggregate. There
+is nothing in between: no way for a reader to watch one particular day arrive,
+five days out, four, three, two, one, and then see what the satellite
+estimated. That is what this page is, and it is the only page on this site
+that shows a forecast beside the thing it was a forecast of.
+
+It shows **seven past days**, at the **10 mm** threshold only, and it includes
+days the forecast got wrong on purpose. Two of the seven are chosen *because*
+the model said rain and the satellite saw almost none.
+
+#### The seven days, chosen by a script and never by hand
+
+The day a reader picks is an **observed day** `D`: the 00 UTC to 00 UTC day
+the satellite estimate covers, which is 5:30 am to 5:30 am IST. Its five
+forecasts are the 00 UTC runs of `D - 1` to `D - 5`, under the lead-day rule
+already fixed in 3.7: lead day `n` of the run `n` days earlier is forecast
+steps `24n` to `24(n+1)`, which is exactly that day.
+
+**Eligible days.** `D` is eligible when all five of those runs are usable
+Pile A dates and `D` is a usable Pile B date. Pile A runs from 13 May to 5
+November 2026, so that window is **18 May to 6 November 2026** and neither
+end is a choice: the first eligible day is the first that has five runs
+behind it, the last is the last whose lead 1 run exists.
+
+**What is measured.** The same India squares as verification (the 4,613 of
+the mask), the same remap of IMERG onto them, and the same 90% completeness
+rule of 3.4. A square whose satellite value is missing is **counted in
+nothing**: not as rain, not as no rain. The forecast side is recomputed from
+the stored accumulations with `ecmwf_process.daily_totals`, which is what 5
+does, and the count is the number of the 51 members reaching 10 mm, with the
+same "greater than or equal to" rule as everywhere else.
+
+**The three lists**, each scored over the squares with a valid satellite
+value:
+
+| list | take | score: the number of squares where |
+|---|---|---|
+| wettest | 2 | the satellite estimated **10 mm or more** |
+| false alarms | 2 | **26 or more** of 51 runs reached 10 mm at **lead day 1**, and the satellite estimated **under 1 mm** |
+| surprises | 2 | **5 or fewer** of 51 runs reached 10 mm at **lead day 1**, and the satellite estimated **10 mm or more** |
+
+and then **one random day** from the eligible days none of the six took,
+drawn with `random.Random(20261112)` over the remaining dates in date order.
+The seed is 20261112, the date already written into 5.11 before any score
+existed, so it is not a seed that was shopped for either.
+
+**Lead day 1 and not the others** in the two error lists, because the
+one-day-ahead forecast is the one a reader would have acted on, and a false
+alarm five days out is not the same claim.
+
+**The order and the clashes.** The lists are taken in the order above:
+wettest, false alarms, surprises, random. Within a list the highest score
+wins and **a tie goes to the earlier date**. Every chosen day must be **at
+least 7 days** from every day already chosen, and a day already chosen
+cannot be chosen again; where either happens the next day on that list is
+taken instead. Seven days apart, because two days from one monsoon surge are
+one event seen twice, and the page would show the same map twice over.
+
+**Recorded.** Each of the seven carries its reason and its score in the data
+file, and the seven are written into this section once the script has run —
+in a later commit than this one, which is the point.
+
+#### The data file
+
+One new file, `web/src/time-machine.json`, written by
+`scripts/build_time_machine.py` from Pile A and Pile B. It is **under 1.5
+MB**, and it is loaded by the Time Machine page and by nothing else: the
+page imports it with Vite's `?url`, so it is emitted as a hashed asset under
+`assets/` and *fetched* when the page opens. No byte of it is in the
+forecast page's download.
+
+It holds, for each of the seven days:
+
+| | |
+|---|---|
+| the five count maps | lead 5, 4, 3, 2, 1: how many of the 51 runs reached 10 mm in that square |
+| the satellite map | the same squares, in **tenths of a millimetre** as a whole number, which is what the page prints |
+| no satellite value | the integer **-1**, which is a value of its own and is never shown as no rain |
+| the day's own record | its date, its IST window, its reason, its score, and the five run dates behind it |
+
+The counts and the satellite values are stored for the **4,613 India squares
+only**, in the mask's own row-major order, with the flat grid index of each
+square given once at the top of the file. The full 129 by 121 grid with 255
+outside India would be four times the size for nothing: the page expands it
+back to that grid, which is the layout the map already reads (8.4).
+
+It does not touch anything else. No file in `results/` is modified and the
+`results-v1` tag is not moved.
+
+#### The page
+
+A fourth entry in the top menu, **Time Machine**, at `/time-machine`, lazily
+loaded like the other two documents and a working URL on a direct load and
+on reload. The menu may wrap to a second line at 390 pixels; it may not
+scroll sideways at any width.
+
+| | |
+|---|---|
+| the day | one of the seven, picked from a list. Each shows its window — "5:30 am 22 Jul to 5:30 am 23 Jul IST" — and why it is there: "picked as a false alarm" |
+| the step | five steps, "5 days before" to "1 day before". The map is the forecast from that run, in the live map's colours and with the live map's classes, titled **"Forecast: N of 51 runs reach 10 mm"** |
+| **Reveal** | switches the same map to the satellite estimate, titled **"Satellite estimate"**, with a key of its own: under 1, 1 to under 10, 10 to under 50, 50 mm or more, in the four colours the panel's dots already use (4.3). It toggles back |
+| a square with no satellite value | drawn in its own fill and named in the key as "no satellite value". Never drawn as no rain, and never left as a hole with no explanation |
+| tapping the map | one plain line for that square: "5 days before, 12 of 51 runs said 10 mm here; 1 day before, 38 of 51. The satellite estimated 64 mm." Or, where there is none, "There is no satellite value for this square on that day." |
+
+The two ends — five days before and one day before — are named in that line
+whatever step the control is on, because the thing worth seeing is what
+changed between them, and a line that only described the step a reader was
+already looking at would say nothing they could not see.
+
+The page says, in its own words and above the map: that it shows 10 mm and
+nothing else; that the seven days were chosen by a fixed rule, written down
+before they were chosen; that days the forecast got wrong are in there on
+purpose; and it links to the report card for the whole record. Seven days are
+seven days. They are an illustration of the record, never the record.
+
+#### Wording
+
+It is **"the satellite estimate"** and never "what happened". IMERG is an
+estimate from space, with its own error, and 6 of CLAUDE.md is the standing
+rule that it is never ground truth. No percentage appears anywhere on the
+page, and the forbidden words of 11.20 are forbidden here too — which is why
+the reason for the two rainiest days reads "picked as a day with the most 10
+mm squares".
+
+#### The phone
+
+The lessons of 11.35 and 11.37, applied from the start rather than after a
+bug:
+
+| | |
+|---|---|
+| height | nothing on this page takes a height as a share of the whole screen. The map's height comes out of what is left after the controls, as on the forecast page |
+| 390 x 664 | the step control, the map and the tap line are all on the screen at once, with no scrolling |
+| sideways | nothing scrolls sideways at 390 pixels: not the menu, not the step control, not the day list |
+| type | no sentence under 15 pixels |
+| tap targets | every button at least 44 pixels tall |
+| resizing | the map is resized by the same `ResizeObserver` the forecast page uses, so opening the day list and closing it again leaves the canvas its full height |
+
+#### Tests
+
+| | |
+|---|---|
+| the rule | the selection script, run again over the data, reproduces the seven days in the file exactly — and a changed rule does not. A second seed is run through the same code and the test fails if it still agrees |
+| the counts | every count in the file is recounted from Pile A, through `daily_totals`, for every day, every lead and every square |
+| the satellite | every satellite value in the file equals the verification remap for that square, to the tenth of a millimetre, and every -1 is a square the 90% rule excludes — no more and no fewer |
+| reveal | the satellite estimate is not in the page's markup until Reveal is pressed |
+| the words | every state of the page — each of the seven days, each of the five steps, revealed and not, and the line for a tapped square with a value and without one — is rendered and swept for a percentage and for a forbidden word, and the sweep is shown to catch a "certain" inserted into it |
+| the URL | `/time-machine` loads on a cold navigation and survives a reload |
+| the download | the data file is not in the forecast page's chunk, and `/` does not fetch it |
+| the phone | 390 x 664 in a real browser: the step control, the map and the tap line all inside the viewport, nothing scrolling sideways, every sentence 15 pixels or more and every button 44 pixels or more |
+| everything else | the whole existing suite passes, and the three earlier pages are unchanged |
+
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
