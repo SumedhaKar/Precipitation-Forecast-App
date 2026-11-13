@@ -5089,6 +5089,117 @@ bundled copy of the record.
 
 ---
 
+### 11.34 The report card and How we checked
+
+Two pages, for two readers. The report card answers "should I believe this?"
+in a minute. How we checked answers "how do you know?" and expects to be
+argued with.
+
+#### Three real paths
+
+| | |
+|---|---|
+| the paths | `/`, `/report-card`, `/how-we-checked`. Real paths, not hashes and not a query: they can be linked to, bookmarked and sent to a reviewer |
+| the rewrite | `vercel.json` sends everything that is not `/api/...` to `/index.html`, after the filesystem, so the built assets and both functions are untouched. One HTML file, three pages |
+| the menu | plain `<a href>` links at the top of every page, so a middle click opens a tab and the keyboard reaches them with no handler of ours. A left click with no modifier is intercepted and becomes `history.pushState`, which is what makes it a single page application rather than three downloads; `popstate` takes the reader back |
+| the current page | `aria-current="page"`, and marked in the text as well as the colour |
+| on a phone | the three sit in one row above the title and stay there; nothing is hidden behind a hamburger, because three links do not need a menu |
+
+#### What each page reads
+
+| page | file | how |
+|---|---|---|
+| forecast | `web/src/summary.json` | already in the bundle (11.33) |
+| report card | the same file | nothing new is downloaded |
+| How we checked | `web/src/details.json` | inside that page's own chunk, so a reader who never opens it never downloads it |
+
+`results/site_details.json` is written by `pipeline/labels.py` from the frozen
+`results/verification.json`, holds no number that file does not, and stays
+under **150,000 bytes** by a check that stops the build. A test derives it
+again from `verification.json` and compares it field by field, so the page
+cannot show a score the verification did not produce. It is copied byte for
+byte to `web/src/details.json`, as the summary is.
+
+#### The report card
+
+In this order, because a reader who stops after two things should still have
+the two that matter:
+
+1. **The period sentence**, first and whole.
+2. **One plain headline.** Today: all 60 groups read "Treat as a rough
+   guide", and why -- the counts were too confident in every one of them, and
+   20 of the 60 did beat the usual rain for their place and month.
+3. **The grid**: 4 regions x 5 days x 3 thresholds, one chip each. The chips
+   use the labels' short forms -- **Good**, **Rough guide**, **Too few** --
+   with the full label as each cell's accessible name and a key above the
+   grid giving all three in full, because sixty chips reading "Treat as a
+   rough guide" is a wall, not a grid.
+4. **Skill against lead day**, per region and threshold: a small SVG of five
+   points with their 95% ranges and the zero line drawn across. Headed in
+   words, "better than the usual rain for this place and month", never "BSS".
+5. **A pickable table**: region, day and threshold chosen by the reader, then
+   every counted band -- "when 36 to 40 of 51 runs said 10 mm or more, the
+   satellite saw it about 5 times in 10", the same sentence the panel says,
+   from the same function. Bands that are not counted are not in the table.
+6. **The frequency check**, one sentence, for the chosen day and threshold
+   over all India.
+7. **CRPS**, one sentence, with the different yardstick said plainly.
+
+#### How we checked
+
+The method as written, with the numbers beside it: what a case is and how it
+is paired (5.1); IMERG Late as a satellite estimate and never ground truth
+(5.9); the area-weighted remap (3.3) and the 90% completeness rule (3.4); the
+hindsight reference, with the note that a November square has only six to ten
+days behind it so the skill is if anything understated (5.11); the Brier skill
+score pooled per reference group; the bootstrap over whole dates with its
+seed; the reliability bands; and that every rule was fixed before any result,
+with the commit and the SHA256 of `SPEC.md` printed on the page.
+
+Then, each from `site_details.json`: the exact decomposition for a group the
+reader picks, with `REL - RES + UNC = BS` shown adding up; 51 members against
+50; the 8 mm and 12 mm and inland-only sensitivities, with the fact that no
+label moved; the 2-degree base-rate and skill maps as light SVG grids, one
+rectangle per cell; skill by 30-day block; CRPS with its baseline and the 25
+disagreements explained as two yardsticks; the exclusion tally; the limits,
+including SPEC 5.10's sub-cell offset and the two Tier 2 checks that were not
+computed; and links to the repository, `SPEC.md`, all four result files and
+the nine hand checks.
+
+#### Rules both pages keep
+
+| | |
+|---|---|
+| every number | comes from `summary.json` or `details.json` and is printed as it was written there. Nothing is recomputed on the page, and the test drives both pages' own functions against the files |
+| the period sentence | is on both pages, whole, as 5.11 requires of everything that shows the record |
+| no percentage | anywhere, until a label is green (6.7, 11.33) |
+| the forbidden words of 11.20 | hold over every sentence either page can produce |
+| with JavaScript off | both paths serve the same `index.html`, whose `<noscript>` links to the result files themselves and to the specification, so a reader with no script is sent to the numbers rather than to an empty page |
+| no chart library | the SVGs are written out as rectangles, lines and text. A library for twelve line charts and two grids would be 40 KB to draw 200 rectangles |
+
+#### Tests
+
+Thirteen, over the pages' own modules, which have no imports so `node` drives
+them against the real files:
+
+| | |
+|---|---|
+| `site_details.json` | derived again from `results/verification.json` in the test and compared field by field; under 150,000 bytes; `web/src/details.json` equal to it byte for byte |
+| every chip in the grid | is the label `site_summary.json` gives that region, day and threshold, all 60 |
+| every point and whisker | in the twelve skill plots is the `bss`, `bss_lo` and `bss_hi` of its group |
+| every row of the pickable table | is a counted band of that group, in order, with the panel's own sentence |
+| the frequency and CRPS sentences | carry the file's own figures and no others |
+| the decomposition shown | adds up to the Brier score it was taken from |
+| the two maps | draw one rectangle per 2-degree cell and nothing for a cell with too few squares |
+| the period sentence | appears on both pages |
+| no percentage | appears on either page, for any choice a reader can make |
+| the forbidden words | hold over every string either page can produce |
+| the menu | is three real links to the three paths, with `aria-current` on the one being read |
+| `vercel.json` | rewrites everything but `/api/` to `/index.html` |
+| `<noscript>` | links to the result files and to `SPEC.md` |
+
+---
+
 ## Open questions
 
 All five open questions from the first draft were resolved on 12 November 2026:
