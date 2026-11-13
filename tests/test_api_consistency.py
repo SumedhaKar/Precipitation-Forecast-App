@@ -3082,20 +3082,48 @@ def test_the_menu_is_three_real_links(rendered):
     assert "How we checked" in navs["/how-we-checked"]
 
 
-def test_the_rewrite_sends_every_page_but_the_api_to_one_file():
-    """SPEC 11.34. Three paths, one index.html, and api/ untouched."""
+def test_the_rewrite_sends_the_pages_and_only_the_pages_to_one_file():
+    """SPEC 11.34. Three paths, one index.html, and two things left alone.
+
+    A catch-all that swallows /assets/ as well turns a missing or renamed
+    chunk into index.html with a 200: a <script src> then gets HTML back and
+    the browser reports a syntax error instead of the 404 that would say what
+    is really wrong. Measured on the preview deployment of e18781b, 13
+    November 2026: /assets/does-not-exist.js answered 200 with the forecast
+    page in it.
+    """
     config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     rewrites = config["rewrites"]
     assert len(rewrites) == 1
     assert rewrites[0]["destination"] == "/index.html"
-    pattern = re.compile(rewrites[0]["source"])
-    for path in ("/report-card", "/how-we-checked", "/anything"):
-        assert pattern.fullmatch(path.lstrip("/")) or pattern.match(path), path
-    for path in ("api/place", "api/health"):
-        assert not re.fullmatch(rewrites[0]["source"].replace("/(", "("),
-                                path), path
-    assert config["functions"]["api/*.mjs"]["includeFiles"] == \
-        "config/{store,regions}.json"
+    pattern = re.compile("^" + rewrites[0]["source"] + "$")
+
+    # The pages, and anything else that is not a file: these are the site.
+    for path in ("/", "/report-card", "/how-we-checked", "/anything",
+                 "/deep/er/still"):
+        assert pattern.match(path), path
+
+    # The two functions, and every asset: Vercel answers these from the
+    # filesystem, and where there is no such file it answers 404.
+    for path in ("/api/place", "/api/health", "/assets/index-Dji49BPm.js",
+                 "/assets/does-not-exist.js", "/assets/nothing/here.css"):
+        assert not pattern.match(path), path
+
+    assert config["functions"]["api/*.mjs"]["includeFiles"] == (
+        "config/{store,regions}.json")
+
+    # Every same-origin thing the built page points at is under /assets/ or
+    # under /api/ -- the two the rule above leaves alone. Nothing the page
+    # loads or links to on this origin depends on the rewrite.
+    dist = ROOT / "web" / "dist" / "index.html"
+    if dist.exists():
+        links = re.findall('(?:src|href)="(/[^"]+)"',
+                           dist.read_text(encoding="utf-8"))
+        assert links, "the built page asks for nothing at all"
+        assert any(link.endswith(".js") for link in links)
+        for link in links:
+            assert link.startswith(("/assets/", "/api/")), link
+            assert not pattern.match(link), link
 
 
 def test_with_no_script_the_page_links_to_the_files_themselves():

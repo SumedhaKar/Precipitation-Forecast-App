@@ -5100,7 +5100,7 @@ argued with.
 | | |
 |---|---|
 | the paths | `/`, `/report-card`, `/how-we-checked`. Real paths, not hashes and not a query: they can be linked to, bookmarked and sent to a reviewer |
-| the rewrite | `vercel.json` sends everything that is not `/api/...` to `/index.html`, after the filesystem, so the built assets and both functions are untouched. One HTML file, three pages |
+| the rewrite | `vercel.json` sends everything that is not `/api/...` or `/assets/...` to `/index.html`, after the filesystem. One HTML file, three pages |
 | the menu | plain `<a href>` links at the top of every page, so a middle click opens a tab and the keyboard reaches them with no handler of ours. A left click with no modifier is intercepted and becomes `history.pushState`, which is what makes it a single page application rather than three downloads; `popstate` takes the reader back |
 | the current page | `aria-current="page"`, and marked in the text as well as the colour |
 | on a phone | the three sit in one row above the title and stay there; nothing is hidden behind a hamburger, because three links do not need a menu |
@@ -5204,7 +5204,7 @@ reach a screen, not on a description of them.
 | no percentage | appears on either page, for any choice a reader can make |
 | the forbidden words | hold over every string either page can produce |
 | the menu | is three real links to the three paths, with `aria-current` on the one being read |
-| `vercel.json` | rewrites everything but `/api/` to `/index.html` |
+| `vercel.json` | rewrites everything but `/api/` and `/assets/` to `/index.html`, and nothing the built page loads depends on the rewrite |
 | `<noscript>` | links to all five result files and to `SPEC.md` |
 
 Eleven sabotages, eleven caught: a score in the details file that is not the
@@ -5214,6 +5214,17 @@ menu that forgets which page is open, a rewrite that swallows `/api` too, a
 `<noscript>` with the files taken out, a percentage printed beside a band, a
 decomposition that adds the resolution instead of subtracting it, and a map
 that quietly leaves out the cells with too few squares.
+
+#### Found on the preview, and fixed: a missing asset answered 200
+
+The first catch-all excluded only `/api/`, so **`/assets/does-not-exist.js`
+came back as `index.html` with a 200** -- measured on the preview of `e18781b`
+on 13 November 2026. A `<script src>` for a renamed or half-deployed chunk
+would then be handed HTML and the browser would report a syntax error, which
+says nothing about what is actually wrong. `/assets/` is excluded as well now,
+so Vercel answers it from the filesystem and a missing file is a 404. A test
+drives the rule over both lists, and over every same-origin link in the built
+page.
 
 #### Two things found while building, and kept
 
