@@ -1,0 +1,56 @@
+# The test suite, on every push and every pull request.
+#
+# SPEC 11.10 and 11.24. The suite needs no network, no token and no data: the
+# API tests build a small run, publish it into a temporary directory through
+# FakeStore and serve it on 127.0.0.1, and the node-driven tests call the
+# page's own pure modules with `node`. The few checks that read a Natural
+# Earth shapefile or a GRIB file skip themselves when the file is not there,
+# because `data/` is never committed -- so a green run here means everything
+# that can be checked without the archive was checked, and nothing more.
+#
+# No secret is used by this workflow and none is available to it: it has
+# `contents: read` and never names BLOB_READ_WRITE_TOKEN.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A second push to the same branch makes the first run's answer stale.
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Python 3.13.4
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.13.4'
+
+      - name: Node 24.22.3
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24.22.3'
+
+      - name: Install Python requirements
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Install the web dependencies from their lockfile
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+
+      # -rs lists what skipped and why, so a suite that quietly stopped
+      # checking something says so in the log rather than staying green.
+      - name: The whole suite
+        run: python -m pytest -q -rs
