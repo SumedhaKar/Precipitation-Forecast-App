@@ -54,7 +54,7 @@ Usage:
 
 The first prints the five squares and what the store, the tiles and the API
 say about them, which is what the browser step is then asked to look at. The
-second does the whole check and writes handchecks/results/hc8_map.csv.
+second does the whole check and writes handchecks/results/hc8_map_square.csv.
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent / "results" / "hc8_map.csv"
+OUT = Path(__file__).resolve().parent / "results" / "hc8_map_square.csv"
 SITE = "https://precipitation-forecast-app.vercel.app"
 STORE = "https://zshhfucqsimhyy61.public.blob.vercel-storage.com"
 TOKEN_NAME = "BLOB_READ_WRITE_TOKEN"
