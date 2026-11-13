@@ -812,14 +812,24 @@ either side of it, purely because of how the number was stored. The 10 mm and
 50 mm thresholds are far enough above the quantum for this to be negligible.
 
 HC6 was written to compare our counts against ECMWF's own published
-probabilities. **There are none to compare against.** Checked on
-12 November 2026: the only AIFS ENS products in the 0.25 degree `enfo` stream
-on ECMWF open data are `cf` and `pf`. There is no `ep` probability file, and
-the `pf` index lists 29 parameters with `tp` the only precipitation total.
-**[verified]** by HEAD requests on the real URLs and by reading the index.
+probabilities. On 12 November 2026 it was recorded here that there are none
+to compare against: the only AIFS ENS products seen in the 0.25 degree
+`enfo` stream were `cf` and `pf`, with `tp` the only precipitation total in
+the `pf` index.
 
-HC6 therefore dumps all 51 members instead, and the precision point still
-applies to it: a member whose stored total sits within about a quarter of a
+**That was wrong, and HC-ECMWF found it on 13 November 2026.** ECMWF open
+data does publish `tpg10`, "Total precipitation of at least 10 mm", for AIFS
+ENS, as a percentage, for 24-hour windows including 24-48 hours, which is
+our day 1. The earlier check missed it because the probability fields are
+not one file per step like `cf` and `pf`: the whole set sits in two files
+per run named for the end of their range, `-240h-enfo-ep.grib2` and
+`-360h-enfo-ep.grib2`. The comparison is in HC-ECMWF and its result file,
+and the short answer is that their number is **not** a count of members --
+it holds values far below one member's worth of 51 -- while agreeing
+closely with ours square by square. We publish a count and call it a count,
+and no other model is substituted anywhere.
+
+HC6 dumps all 51 members, and the precision point still applies to it: a member whose stored total sits within about a quarter of a
 millimetre of 1 mm may be counted on either side of that threshold. That is a
 storage-precision artefact, not a disagreement about the weather, and must be
 reported as such rather than explained away.
@@ -5239,6 +5249,127 @@ differ, rather than hiding the rounding.
 reached 10 mm on any day of the six months, so its base rate is 0 and there is
 no skill to compute. It is drawn white and reads "no number" rather than being
 left out of the map.
+
+---
+
+## The hand checks
+
+A hand check redoes one thing the pipeline did, outside the pipeline, and
+says where the two disagree. They are kept whole in `handchecks/`, with
+their output in `handchecks/results/`, and they are not run in CI: a check
+that is run by the thing it checks is not a check.
+
+The numbered ones were done first and keep their numbers. The named ones
+were added on 13 November 2026.
+
+| | what it redoes | script | result |
+|---|---|---|---|
+| HC1 | the saved subset against the original GRIB | `hc1_compare_grib.py` | `hc1_<date>.txt` |
+| HC2 | the daily difference, worked out again | `hc2_difference.py` | `hc2_<date>.txt` |
+| HC3 | the steps and the 51 members | `hc3_steps_members.py` | `hc3_<date>.txt` |
+| HC4 | one raw IMERG file, field by field | none: the file was deleted after it was read (2.6), and what it found is in 2.3 | |
+| HC-ALIGN | the two grids against each other | `hc_align.py` | `hc_align.txt` |
+| HC5 | one cell of the area-weighted remap | `hc5_cell.py` | `hc5_cell.csv` |
+| HC6 | the 51 member values in one square | `hc6_members.py` | `hc6_members.csv` |
+| HC7 | the published bytes against the built run | `hc7_published.py` | `hc7_published.csv` |
+| HC8 | one square on the live map | `hc8_map_square.py` | `hc8_map_square.csv`, `.jpg` |
+| HC9 | one reliability band, from the archive | `hc9_bucket.py` | `hc9_bucket.csv` |
+| HC-FAIL | the publisher and the chooser, made to fail | `hc_fail.py`, `hc_fail_site.mjs` | `hc_fail.csv`, `hc_fail_stale.txt`, `.jpg`, `hc_fail_13nov.txt` |
+| HC-ECMWF | ECMWF's own probability of 10 mm against our count | `hc_ecmwf.py` | `hc_ecmwf.csv` |
+| HC-REPORT | the report card's Brier scores, redone | `hc_report.py` | `hc_report.csv` |
+| HC-GHATS | one monsoon day of remapped IMERG, drawn | `hc_ghats.py` | `hc_ghats.csv`, `hc_ghats.png` |
+
+#### HC-FAIL
+
+Failure handling, on purpose (1.5, 8.6, 11.8). A real built run is copied to
+a temporary folder, broken one way at a time, and the real publisher is run
+against an in-memory store that already publishes the real run. Nothing
+touches `data/`, nothing touches the network and no token exists.
+
+Seven ways of going wrong, and in **every one of them nothing was uploaded
+and the store went on publishing the run it already had**. A broken file --
+a torn manifest, a missing `days.json`, a cut-off `squares.npz`, counts that
+no longer match their members, a different India mask -- exits 1. Nothing to
+publish -- no forecast at all, or a run with no manifest, which means it
+never finished its checks -- exits 0. That difference is deliberate: the
+workflow runs all day whether or not ECMWF has a run ready, and a red
+failure on an ordinary quiet day would teach us to ignore red. A control
+publishes the same copy unbroken, so the seven failures are the sabotage and
+not the fixture.
+
+`select_run` is asked the same question five ways: nothing offered, an
+incomplete newer run, the run already built, an older run, and a complete
+newer one. Only the last is built.
+
+The banner of 11.8 is shown rather than argued about: `hc_fail_site.mjs`
+serves `web/dist` and the real `api/*.mjs` against a copy of a published
+run, and the real 12 November run really did pass 36 hours old at 12:00 UTC
+on 13 November. No clock is moved anywhere in this check.
+
+And the day it happened for real: on 13 November 2026 **not one of the 23
+scheduled attempts fired**, and the site kept the 12 November run until a
+manual dispatch at 07:02 UTC. 31.5 hours, so no visitor ever saw the banner.
+The run list and the logs are in `hc_fail_13nov.txt`.
+
+#### HC-ECMWF
+
+ECMWF's own probability against ours, and the correction to 3.6 above.
+`tpg10` is real, it is a percentage, and at 24-48 hours it is our day 1. For
+run 20261112T00Z, over all 4,613 India squares: mean size of the difference
+**0.21 points**, correlation **0.993**, 6 squares apart by more than 10
+points. 90 squares where we say none of 51 and they say more than nothing,
+80 of them beside a square where members do reach 10 mm; never the other way
+round.
+
+**Their number is not a count of members.** A count of 51 can only be 0,
+1.96, 3.92 ... per cent; their field holds values as small as 0.03 per cent
+and no search over ensemble sizes from 20 to 400 makes them whole numbers of
+members. So the two cannot be reconciled by arithmetic, and we do not try:
+we publish a count, we say it is a count, and no other model is put in its
+place.
+
+One finding about the data rather than the forecast: the `.index` beside an
+`ep` file is three indexes concatenated and the byte offsets restart at 0 in
+each. Read as published -- which is what `ecmwf-opendata`, the official
+client, does -- the download is 354,571 bytes that do not begin with `GRIB`.
+HC-ECMWF carries the running position across the blocks instead.
+
+#### HC-REPORT
+
+The report card's own Brier scores, redone from the stored arrays with
+nothing imported from `pipeline/`. The region is chosen by rule: the one
+whose published groups hold the most cases and the most events, which is
+Central India. All 15 of its groups -- 5 lead days by 3 thresholds -- were
+worked out again: **cases, events and base rate identical, and the largest
+difference in any Brier score 4.97e-07**, which is the six decimals the
+published file is rounded to and nothing else.
+
+Ten of the 267,270 cases are written out in full, chosen on the forecast
+side alone: ten counts spread from 0 of 51 to 51 of 51, and for each the
+first case in date and then square order that says it. Each row carries the
+run date, the IMERG day it was a forecast for, the square, k, k/51, the
+satellite's millimetres, the outcome and the squared error.
+
+Two unit tests carry what no recomputation of a real group can: a perfect
+forecast scores 0 with a skill of 1, and **forecasting the usual rain for
+that place and month, every day, scores a skill of exactly 0**. The second
+is new, and it needed a second toy archive: 1/3 is a rate 51 members can say
+exactly and 1/2 is not. Breaking `verify.py` two ways is shown to fail them.
+
+#### HC-GHATS
+
+A remap can be right cell by cell and still be flipped, rolled or transposed
+as a whole, and no per-cell check would notice. Geography notices.
+
+The day is chosen by rule -- the July 2026 day with the highest
+cos(latitude) weighted mean rain over India, which is 3 July -- and then
+drawn, one rectangle per 0.25 degree square, in `hc_ghats.png`. On that day
+**23 of the 25 wettest India squares are inside the windward strip** (8 to
+21 N, 72.5 to 76 E), and the two that are not are at 73.25 E a quarter and a
+half degree north of its edge, on the same line of hills. The windward strip
+averaged **33.0 mm** against the leeward strip's **6.7 mm**, a factor of
+five on one day. Drawing the field upside down, rolled four squares east, or
+transposed is caught.
 
 ---
 

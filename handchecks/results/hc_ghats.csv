@@ -1,0 +1,49 @@
+hc-ghats,"one monsoon day of remapped IMERG, SPEC 3.3"
+date,20260703
+date_rule,the 202607 day with the highest cos(latitude) weighted mean rain over India
+days_ranked,31
+india_mean_mm,12.6458
+second_place,20260721 at 11.7305 mm
+india_squares_with_a_value,4613
+windward_strip,"8.0 to 21.0 N, 72.5 to 76.0 E"
+leeward_strip,"8.0 to 21.0 N, 76.25 to 79.75 E"
+picture,hc_ghats.png
+
+what,value,squares
+windward mean mm,33.0469,368
+leeward mean mm,6.6796,719
+windward over leeward,4.95,
+the 25 wettest squares inside the windward strip,23 of 25,
+the ones outside the strip,21.25 N 73.25 E; 21.50 N 73.25 E,the strip is cut at a round number of degrees and the hills do not stop there
+
+rank,mm,lat,lon,in_windward_strip
+1,159.87,21.00,73.25,yes
+2,159.32,20.50,73.50,yes
+3,158.17,20.75,73.50,yes
+4,156.53,20.75,73.25,yes
+5,151.81,21.00,73.00,yes
+6,146.92,18.25,73.25,yes
+7,144.35,20.75,73.75,yes
+8,142.76,20.75,73.00,yes
+9,139.88,17.50,73.75,yes
+10,138.29,17.00,73.75,yes
+11,127.62,17.25,73.75,yes
+12,127.51,18.00,73.25,yes
+13,126.61,21.25,73.25,no
+14,125.95,18.25,73.50,yes
+15,123.43,18.00,73.50,yes
+16,122.15,16.75,73.75,yes
+17,121.54,20.50,73.75,yes
+18,120.31,20.50,73.25,yes
+19,119.93,17.00,73.50,yes
+20,117.87,17.50,73.50,yes
+21,117.40,21.50,73.25,no
+22,116.97,17.25,73.50,yes
+23,114.77,17.75,73.50,yes
+24,113.14,16.75,73.50,yes
+25,112.76,17.50,74.00,yes
+
+sabotage,outcome,note
+the field drawn upside down,CAUGHT,"0 of 25 top squares in the strip, windward 14.3 mm against leeward 13.0 mm"
+the field rolled four squares east,CAUGHT,"20 of 25 top squares in the strip, windward 45.3 mm against leeward 10.9 mm"
+the square part of the field transposed,CAUGHT,"0 of 25 top squares in the strip, windward 0.3 mm against leeward 4.8 mm"

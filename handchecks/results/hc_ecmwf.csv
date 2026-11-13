@@ -1,0 +1,48 @@
+hc-ecmwf,ECMWF's own probability of 10 mm against our count of 51
+run,20261112T00Z
+answer,ECMWF open data does publish it for AIFS ENS
+product,Total precipitation of at least 10 mm
+parameter,"tpg10, in %"
+window,"24-48 hours, which is our day 1"
+threshold in the file,"10 mm, read from the GRIB itself"
+file,https://data.ecmwf.int/forecasts/20261112/00z/aifs-ens/0p25/enfo/20261112000000-240h-enfo-ep.grib2
+index,https://data.ecmwf.int/forecasts/20261112/00z/aifs-ens/0p25/enfo/20261112000000-240h-enfo-ep.index
+product types in this run's folder,cf: 122; ep: 4; pf: 122; tf: 1
+probability fields in the ep file,ep/10spg10; ep/10spg15; ep/2tl273; ep/tpg1; ep/tpg10; ep/tpg100; ep/tpg20; ep/tpg25; ep/tpg5; ep/tpg50; ep/tpl01; ep/tprg3; ep/tprg5; ep/tprl1
+what the earlier check missed,"the ep products are in two files per run named for the end of their range, not one file per step, so a listing by step does not show them"
+the index offsets,"three indexes concatenated, each starting again at 0; read as published they land inside a message"
+bytes at the published offset,"start with b'\xe7])\xaa', not b'GRIB'"
+bytes at the carried offset,start with b'GRIB'
+
+"five squares, chosen by our own count alone"
+lat,lon,region,our_count_of_51,ours_as_a_percentage,ecmwf_percentage,ours_minus_theirs
+36.50,75.75,Northwest India,0,0.000,1.7188,-1.719
+34.00,76.00,Northwest India,13,25.490,23.4688,+2.021
+35.50,75.50,Northwest India,26,50.980,47.4688,+3.512
+36.00,75.50,Northwest India,38,74.510,64.7500,+9.760
+35.75,75.75,Northwest India,43,84.314,78.0625,+6.251
+where they landed,"all five on one run's heaviest rain, which on this run was in the Karakoram. That is what choosing by the count does; the whole-India table below is what carries the comparison"
+
+over every India square,value
+squares compared,4613
+"mean difference, ours minus theirs",-0.043 points
+mean size of the difference,0.210 points
+root mean square difference,1.084 points
+correlation,0.99306
+squares differing by more than 10 points,6
+squares where both say nothing,4263
+squares where we say none of 51 and they say more than nothing,90
+"of those, next to a square where members do reach 10 mm",80
+squares where they say nothing and we say some,0
+
+is their number a count of members?,answer
+mean distance to a whole number of 51,0.2436 members
+mean distance to a whole number of 50,0.2536 members
+the smallest values they publish,0.03125%; 0.0625%; 0.15625%; 0.1875%
+conclusion,"no. A count of 51 can only be 0, 1.96, 3.92 ... per cent, and their field holds values far below one member's worth, none of them whole numbers of members. Their probability is formed some other way and is not recoverable by counting the 51 members we download"
+how the two still compare,"closely: the mean size of the difference over India is well under half a point, and they agree about which squares are at risk. We do not publish their number, and we do not call ours a probability"
+not substituted,no other model is used in place of AIFS ENS anywhere on the site
+
+sabotage,outcome,note
+ECMWF's 0-24 hour window compared against our day 1,CAUGHT,mean difference 1.80 points against 0.21 for 24-48
+their field read one degree north of our square,CAUGHT,mean difference 2.02 points against 0.21

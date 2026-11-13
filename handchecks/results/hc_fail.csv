@@ -1,0 +1,29 @@
+hc-fail,"the publisher and the chooser, made to fail on purpose. SPEC 1.5, 8.6, 11.8"
+run copied,20261112T00Z
+the store starts out publishing,20261112T00Z
+files in the store at the start,60
+the broken run's id,29991231T00Z
+the broken run,"a copy of the real run's own files, broken on purpose, in a temporary folder. It is never published and no number in it is used as a measurement"
+network,none: the store is in memory and no token exists
+data/,"not written to: the copy, the publish folder and the log all live in a temporary folder"
+
+what went wrong,exit code,files uploaded,the store still publishes,verdict
+CONTROL: nothing is broken,0,60,29991231T00Z,"published, as it should be"
+the forecast is missing altogether,0,0,20261112T00Z,the published run is untouched
+"the run has no manifest, so it never finished its checks",0,0,20261112T00Z,the published run is untouched
+the manifest is cut off halfway,1,0,20261112T00Z,the published run is untouched
+the day labels are missing,1,0,20261112T00Z,the published run is untouched
+the numbers file is cut off,1,0,20261112T00Z,the published run is untouched
+the counts no longer match the members they came from,1,0,20261112T00Z,the published run is untouched
+the run was built against a different India,1,0,20261112T00Z,the published run is untouched
+on the two exit codes,"a broken file is a failure and exits 1. Nothing to publish -- no forecast, or a run that never finished its checks -- exits 0 by design: the workflow runs every day whether or not ECMWF has a run ready, and a red failure on an ordinary quiet day would teach us to ignore red. Both upload nothing and both leave the published run alone, which is the half that matters to a reader"
+
+what the server offers,the run chosen,why
+the server offers nothing at all,nothing,no 00 UTC run in the listing
+the server offers only an incomplete newer run,nothing,the only 00 UTC run(s) offered (20261113T00Z) are incomplete
+the server offers the run that is already built,nothing,20261112T00Z has already been built
+the server offers only an older run,nothing,"20261111T00Z is older than the run already built, 20261112T00Z; an older run never replaces a newer one"
+the server offers a complete newer run,20261113T00Z,20261113T00Z is the newest complete 00 UTC run; last built was 20261112T00Z
+
+the stale banner,"hc_fail_stale.txt, with hc_fail_stale.jpg: the real 12 November run, really past 36 hours old, served from a copy of its own published bytes"
+the day it happened for real,"hc_fail_13nov.txt: on 13 November 2026 not one of the 23 scheduled attempts fired, and the site kept the 12 November run until a manual dispatch at 07:02 UTC"
