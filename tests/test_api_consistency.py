@@ -1418,20 +1418,31 @@ def test_the_grid_and_the_mark_are_not_data_and_say_so(exports):
         assert colour not in hexes, colour
 
 
-def test_the_title_in_the_tab_is_the_title_on_the_page():
-    """SPEC 11.29. One sentence, in both places, word for word."""
-    wanted = "India rain forecast: how many of 51 model runs say rain"
+def test_each_page_has_its_own_tab_title():
+    """SPEC 11.38. Three pages, three titles, all naming the site.
+
+    One shared title meant a reader with the forecast, the report card and
+    How we checked open could not tell the three tabs apart. The titles are
+    one list, in TopNav.jsx, and the first of them is also the static title
+    in index.html, which is the tab before any script has run.
+    """
     html = INDEX_HTML.read_text("utf-8")
     app = APP.read_text("utf-8")
+    nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
+    site = (ROOT / "web" / "src" / "Site.jsx").read_text("utf-8")
 
-    assert f"<title>{wanted}</title>" in html
-    # The page's own <h1> is the same sentence in two spans, so that a phone
-    # can drop the clause.
-    assert '<span className="title-what">India rain forecast</span>' in app
-    assert ": how many of 51 model runs say rain" in app
-    # The noscript page, which is all a reader without JavaScript sees, says
-    # it too.
-    assert f"<h1>{wanted}</h1>" in html
+    assert "<title>India Rain Outlook · next 5 days</title>" in html
+    # The page names itself with the same constant the tabs are built from.
+    assert "export const SITE = 'India Rain Outlook';" in nav
+    assert "<h1>{SITE}</h1>" in app
+    # And the tab follows pushState, which is the only thing that changes
+    # the path on this site.
+    assert "document.title = titleOf(path);" in site
+    # The noscript page, which is all a reader without JavaScript sees,
+    # names the site too.
+    assert "<h1>India Rain Outlook: how many of 51 runs bring rain</h1>" in html
+
+
 
 
 def test_the_day_buttons_are_short_and_the_window_is_not():

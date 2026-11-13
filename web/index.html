@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- SPEC 11.29: the same sentence as the <h1>, word for word, so the
-         browser tab and the page agree. -->
-    <title>India rain forecast: how many of 51 model runs say rain</title>
+    <!-- SPEC 11.38: the site's name and what it covers. The two document
+         pages set their own titles from the same list, in TopNav.jsx, so a
+         reader with three tabs open can tell them apart. -->
+    <title>India Rain Outlook · next 5 days</title>
     <meta
       name="description"
-      content="How many of 51 ECMWF AIFS ENS model runs give 1 mm, 10 mm and 50 mm of rain over the next five days, for one place in India. Model-run counts, not probabilities. Not an official warning."
+      content="One weather model from ECMWF, run 51 times. See how many of the 51 runs bring 1 mm, 10 mm and 50 mm of rain over the next five days, for one place in India. Counts of runs, not probabilities. Not an official warning."
     />
     <link rel="icon" href="data:," />
   </head>
@@ -17,7 +18,7 @@
     <!-- SPEC 11.22. The map is drawn with JavaScript, but the numbers are
          not behind it: this route answers JSON with no script at all. -->
     <noscript>
-      <h1>India rain forecast: how many of 51 model runs say rain</h1>
+      <h1>India Rain Outlook: how many of 51 runs bring rain</h1>
       <p>
         This page draws a map, which needs JavaScript. The forecast itself
         does not: one square's counts, dots and 51 member values are at

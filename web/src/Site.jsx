@@ -8,16 +8,19 @@
 // The two document pages are lazy, which is what keeps How we checked's
 // 126 KB of working out of the forecast's download.
 
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 
 import App, { Footer } from './App.jsx';
-import TopNav, { plainClick, usePath } from './TopNav';
+import TopNav, { SITE, plainClick, titleOf, usePath } from './TopNav';
 
 const ReportCard = lazy(() => import('./ReportCard'));
 const HowWeChecked = lazy(() => import('./HowWeChecked'));
 
 export default function Site() {
   const [path, go] = usePath();
+  // SPEC 11.38. The tab is the page's own, and it follows pushState: the
+  // menu changes the path without a navigation, so nothing else would.
+  useEffect(() => { document.title = titleOf(path); }, [path]);
   const nav = <TopNav path={path} onGo={go} />;
   if (path === '/') return <App nav={nav} />;
   return (
@@ -32,7 +35,7 @@ export default function Site() {
               go('/');
             }}
           >
-            India rain forecast
+            {SITE}
           </a>
         </p>
         {nav}

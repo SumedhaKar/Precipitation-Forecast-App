@@ -373,7 +373,7 @@ export function SquareUsed({ place }) {
  */
 export function HowToRead() {
   return (
-    <div className="howto">
+    <div className="howto" id="howtoread" tabIndex={-1}>
       <h2>How to read this map</h2>
       <ul>
         <li>
@@ -405,8 +405,47 @@ export function HowToRead() {
   );
 }
 
+/**
+ * What the page says before anything has been chosen at all. SPEC 11.38.
+ *
+ * Two real first-time readers failed here: one could not tell what the site
+ * was for, and one did not know how to start. The page opened on a map of
+ * counts with no sentence saying what a count was and no visible way in —
+ * the only control on a phone's first screen was a line of grey text.
+ *
+ * So the empty state carries exactly two things: what this is, in words that
+ * assume nothing, and what to do next. It is drawn over the map on a phone
+ * and in the empty panel on a desktop; the stylesheet hides whichever copy
+ * is not this reader's, so only one is ever in the page a reader is given.
+ *
+ * It never covers the "Not an official warning" chip, which is in the header
+ * above the map and on the screen whatever else is.
+ */
+export function Welcome({ onFind, onHowTo, where }) {
+  return (
+    <div className={`welcome welcome-${where || 'panel'}`}>
+      <h2>Will it rain where you are in the next 5 days?</h2>
+      <p>
+        One weather model from Europe&apos;s weather centre (ECMWF), run 51
+        times, each from a slightly different start. We show how many of the
+        51 bring rain where you are.
+      </p>
+      <button type="button" className="findcity" onClick={onFind}>
+        Find my city
+      </button>
+      <p className="ortap">or tap the map</p>
+      {/* A button and not a link: on a phone this has to open the panel,
+          which is a thing the page does and not a place to go. */}
+      <button type="button" className="howtolink" onClick={onHowTo}>
+        How to read this map
+      </button>
+    </div>
+  );
+}
+
 export default function Panel({
   place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
+  onFind, onHowTo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
   // are shown for the chosen square or not at all. `place.square.asked` is
@@ -448,7 +487,12 @@ export default function Panel({
         ) : null}
         {!square && busy ? <p className="small">Reading the forecast…</p>
           : null}
-        {!square && !busy ? <HowToRead /> : null}
+        {!square && !busy ? (
+          <>
+            <Welcome where="panel" onFind={onFind} onHowTo={onHowTo} />
+            <HowToRead />
+          </>
+        ) : null}
       </div>
     );
   }

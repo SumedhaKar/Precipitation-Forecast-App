@@ -12,11 +12,27 @@
 
 import { useEffect, useState } from 'react';
 
+// SPEC 11.38. The site's name, used wherever the site names itself: the
+// heading, the back link on the two document pages, and all three browser
+// tabs. One string, so a rename is one edit.
+export const SITE = 'India Rain Outlook';
+
+// SPEC 11.38. `title` is the browser tab. All three pages shared one title
+// until now, so a reader with the forecast, the report card and How we
+// checked open could not tell the three tabs apart.
 export const PAGES = [
-  { path: '/', name: 'Forecast' },
-  { path: '/report-card', name: 'Report card' },
-  { path: '/how-we-checked', name: 'How we checked' },
+  { path: '/', name: 'Forecast', title: `${SITE} · next 5 days` },
+  { path: '/report-card', name: 'Report card', title: `Report card · ${SITE}` },
+  { path: '/how-we-checked',
+    name: 'How we checked',
+    title: `How we checked · ${SITE}` },
 ];
+
+/** The browser tab for a path, with anything unknown reading as the forecast. */
+export function titleOf(path) {
+  const want = pageOf(path);
+  return (PAGES.find((page) => page.path === want) || PAGES[0]).title;
+}
 
 /** The page a path is, with anything unknown reading as the forecast. */
 export function pageOf(path) {

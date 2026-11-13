@@ -22,7 +22,8 @@ import {
   Component, Suspense, lazy, useCallback, useEffect, useRef, useState,
 } from 'react';
 
-import Panel, { summaryLine } from './Panel';
+import Panel, { Welcome, summaryLine } from './Panel';
+import { SITE } from './TopNav';
 import Legend from './Legend';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { countKey } from './palette';
@@ -422,6 +423,32 @@ export default function App({ nav }) {
   const snapTo = useCallback(
     (lat, lon) => (inBox(lat, lon) ? snap(lat, lon) : null), []);
 
+  // SPEC 11.38. The welcome card's two buttons. "Find my city" opens the
+  // panel and gives the search box the keyboard; "How to read this map"
+  // opens the panel and puts How to read this map on the screen, which on a
+  // phone it otherwise is not — the panel is shut and the card is over the
+  // map, so a link that only scrolled would scroll to nothing.
+  const findCity = useCallback(() => {
+    setSheetOpen(true);
+    setAskSearch((before) => before + 1);
+  }, []);
+
+  const howToRead = useCallback(() => {
+    setSheetOpen(true);
+    // After the panel has been given its height, or there is nothing to
+    // scroll to yet.
+    window.requestAnimationFrame(() => {
+      const found = document.getElementById('howtoread');
+      if (found) found.scrollIntoView({ block: 'start' });
+    });
+  }, []);
+
+  // SPEC 11.38. Nothing chosen at all: no square, no island note and no
+  // failure. The card is the page's whole answer to "what is this and what
+  // do I do", so it is shown exactly while there is no answer to show, and
+  // it comes back if the choice is cleared.
+  const nothingChosen = !square && !notice && !placeError;
+
   const run = place ? place.run : health;
   const days = (place ? place.days : (health ? health.days : [])) || [];
   const squareName = square
@@ -433,18 +460,17 @@ export default function App({ nav }) {
     <div className={sheetOpen ? 'shell open' : 'shell'}>
       <header>
         <div className="titles">
-          {/* SPEC 11.29. The whole title on a desktop; on a phone the
-              clause is dropped, because at 390 pixels it costs two lines the
-              map needs more. Nothing is lost by dropping it: the legend in
-              the bar says "N of 51 model runs reach 1 mm" at every width,
-              the panel says it again in words, and the browser tab keeps the
-              whole sentence. */}
-          <h1>
-            <span className="title-what">India rain forecast</span>
-            <span className="title-rest">
-              : how many of 51 model runs say rain
-            </span>
-          </h1>
+          {/* SPEC 11.38. The site's name, and under it the one sentence
+              that defines the only word the rest of the page uses: a run.
+              The title used to be the sentence itself — "India rain
+              forecast: how many of 51 model runs say rain" — which named
+              the thing in the same breath as the first reader who did not
+              know what a model run was had to meet it. */}
+          <h1>{SITE}</h1>
+          <p className="tagline">
+            51 runs of one weather model. See how many bring rain where you
+            are.
+          </p>
           <RunLine run={run} />
         </div>
         {/* SPEC 11.34: the three pages, in the header of all three. */}
@@ -518,6 +544,12 @@ export default function App({ nav }) {
                 : 'Reading the forecast…'}
             </p>
           ) : null}
+          {/* SPEC 11.38. The phone's copy, over the map. The stylesheet
+              hides it at desktop widths, where the panel's copy is shown
+              instead, so only one of the two is ever in the page. */}
+          {nothingChosen ? (
+            <Welcome where="map" onFind={findCity} onHowTo={howToRead} />
+          ) : null}
         </div>
 
         <aside className="panel" aria-label="The square you chose">
@@ -573,6 +605,8 @@ export default function App({ nav }) {
             onDay={setDay}
             onThreshold={setThreshold}
             from={from}
+            onFind={findCity}
+            onHowTo={howToRead}
           />
           <Footer />
           </div>

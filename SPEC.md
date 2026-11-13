@@ -5484,6 +5484,251 @@ that follows; and the map's own canvas back to its full height after the
 panel closes. Plus, without a browser: the line's words, and the stylesheet
 read to show the desktop keeps its panel.
 
+### 11.38 Plain words on the forecast page
+
+Three reviews and two real first-time readers said the same three things
+about this page, and none of them was about the data: one could not tell
+what the site was for, one did not know how to start, and all of them found
+the page too textual and full of words nobody outside a weather centre
+uses. The forecast is right; it was being handed over in a language the
+reader does not speak.
+
+So this section is about placement and words on the forecast page only. No
+number changes, no rule changes, no new claim: the report card and How we
+checked keep every sentence they had. What changes is which words this page
+uses for the things it already shows, and where on the screen the answer is.
+
+#### One name per thing
+
+The page had four names for the 51: "model runs" in the day sentence and
+the legend, "members" in the API's own field names, "model run" in the
+header's run line, and "runs" in the track-record sentences. A reader who
+does not already know they are the same thing has no way to learn it from
+the page.
+
+| the thing | its one name | never |
+|---|---|---|
+| one of the 51 forecasts | **run** | member, model run, ensemble member |
+| one 0.25 degree cell | **square** | cell, grid point, pixel |
+| a place in the search box | **city** | town, place, settlement |
+
+"Run" is defined once, in the tagline and again in the welcome card — "one
+weather model, run 51 times, each from a slightly different start" — and
+after that it is used bare: in the legend, in the amount rows, over the
+dots, and in the headline. The API's JSON keeps `members`, because that is
+what the field has always been called and a reader never sees it; what is
+forbidden is the word on the screen.
+
+The day sentence of 11.20 says "model runs" and is pinned, word for word,
+by its own test. It is not reworded: it is **taken off the page**, and the
+headline below says the same thing in the page's own language. `api/place`
+still computes it and still publishes it, so 11.20 is unchanged for anyone
+reading the API.
+
+A control asks a question and an answer states something. "Which day?" and
+"How much rain?" over the two button rows; everything in the panel is a
+statement. Every caveat is said once, in one place, and the repeats are
+gone.
+
+#### The amount nicknames
+
+The three thresholds are the same three numbers they have always been. The
+words beside them are **this site's own nicknames**, not an official
+category of anybody's, and they are written down here so that they are
+fixed and so that nobody can take them for IMD's classes:
+
+| threshold | the nickname | why not the obvious word |
+|---|---|---|
+| 1 mm or more | **Some rain** | |
+| 10 mm or more | **A rainy day** | "a wet day" is the natural phrase and "wet" is a forbidden word of 11.20 |
+| 50 mm or more | **A lot of rain** | "very heavy" is the natural phrase and "heavy" is a forbidden word of 11.20 |
+
+The forbidden list is not a style preference. "Heavy rain" is IMD's own
+class name for a band this site does not measure, and a page that borrowed
+it would be claiming a warning it has not issued. One line under the
+buttons gives the only scale a reader needs: *10 mm of rain is water 1 cm
+deep if none of it ran away.*
+
+The same three nicknames appear in How to read this map and nowhere else;
+they are never used without their millimetres beside them.
+
+#### The headline
+
+One sentence, the same shape every time, in the phone's closed bar and at
+the top of the panel:
+
+> **Srinagar, Today: a few of the 51 runs bring 10 mm or more (7 of 51).**
+
+The band word is a reading aid and the count is the number. Both are
+there, always, in that order, because the word alone would be a claim the
+count has not made and the count alone is what three reviews called too
+textual.
+
+| runs | the word |
+|---|---|
+| 0 | none |
+| 1 to 10 | a few |
+| 11 to 20 | some |
+| 21 to 30 | about half |
+| 31 to 45 | most |
+| 46 to 50 | almost all |
+| 51 | all |
+
+The bands describe **the runs** and never the weather. "A few of the 51
+runs bring 10 mm" is a statement about a model; "rain is unlikely" is a
+forecast, and this site does not make one. No band word is ever drawn on
+the colour legend, where it would read as a label for the colour and so as
+a claim about the square.
+
+The boundaries are tested one by one, at 0, 1, 10, 11, 20, 21, 30, 31, 45,
+46, 50 and 51, because an off-by-one here is the page saying "most" where
+the record says "about half".
+
+#### What a place is called
+
+| how it was chosen | what the page calls it |
+|---|---|
+| searched by name | that city's name |
+| tapped, and the square is a city's own square | that city's name |
+| tapped, with a city within 50 km | **near** that city |
+| tapped, with nothing within 50 km | **this area** |
+
+The name is bold and first; the coordinates are small underneath. The
+first build led with "23.25 N 77.50 E" and put the name after it, which is
+the order a grid reference is written in and not the order a person reads.
+Fifty kilometres is under two squares, so "near Nagpur" is never said about
+somewhere a reader would call a different place.
+
+#### Answer first
+
+The panel's order, on a phone and on a desktop alike:
+
+1. the place name
+2. the headline
+3. **The next five days** — the strip, moved up from sixth
+4. **The 51 runs, one dot each** — the four category counts always visible
+5. the three amount rows
+6. the trust label, once per place, with the track record as its reason
+7. one line: *A count of runs, not a promise of rain.* — linked to the report card
+
+and then a closed section, **For the curious: the numbers behind this**,
+holding the 51 values with the control run, the square's i and j and its
+tile, the run ID, the UTC line and the long track-record sentence with its
+region, day number and date range. Nothing is deleted; what is moved is
+moved into one place a reader can choose to open.
+
+The trust chip was drawn four times on one screen — once per amount row
+and once more under them — which is a wall of "Rough guide" and not a
+label. It is drawn once. Its reason is the track record itself:
+
+> When the runs said this before in East and North East India, the
+> satellite saw rain of 10 mm or more about 4 times in 10.
+
+and, only where the group's better-than-the-usual-rain check passed, one
+more sentence saying so, linked to the report card. The two ends keep the
+wording of 11.33: a band rounded to 0 reads "fewer than 1 time in 10" and
+one rounded to 10 reads "nearly every time", because "about 0 times in 10"
+reads as never and the record did not say never.
+
+On a phone, once a place is answered, the search box and "Use my location"
+move **below** the answer. The bar's Search button still opens the panel
+with the keyboard, so the way in is unchanged; what changes is that the
+answer is no longer 193 pixels down behind a box the reader has already
+used.
+
+#### The welcome card
+
+Until a place is chosen there is no answer to put first, so the space
+carries the only two things a first-time reader needs: what this is, and
+what to do.
+
+> **Will it rain where you are in the next 5 days?**
+>
+> One weather model from Europe's weather centre (ECMWF), run 51 times,
+> each from a slightly different start. We show how many of the 51 bring
+> rain where you are.
+>
+> [ Find my city ]  or tap the map
+>
+> How to read this map
+
+It is over the map on a phone and in the empty panel on a desktop. It
+leaves the moment a place is chosen and comes back if the choice is
+cleared. It never covers the "Not an official warning" chip, which is in
+the header above it and is on the screen whatever else is.
+
+"Find my city" opens the search with the box focused — the review found
+that a reader who wants to start cannot see a search box at all until the
+panel is open, and the panel's only visible control was a line of text.
+
+#### The site's name
+
+**India Rain Outlook**, with the tagline *51 runs of one weather model. See
+how many bring rain where you are.* under it. The browser tabs are
+"India Rain Outlook · next 5 days", "Report card · India Rain Outlook" and
+"How we checked · India Rain Outlook", so a reader with three tabs open can
+tell them apart, which the one shared title did not allow.
+
+#### Freshness, on a phone
+
+The header's run line is three facts — run time, publish time, run ID — in
+two sizes of grey. On a phone it is one line:
+
+> Updated 13 Nov, 12:33 pm IST · 16 h old
+
+and when the run is older than the 36 hours of 11.8 that line becomes the
+warning itself: *This forecast is 41 hours old; a newer one has not arrived
+yet.* It never says a newer one is on its way, because nothing here knows
+that. The run ID and the UTC time are in "For the curious". The desktop
+header keeps the run line it had.
+
+#### The map, and the things that are not squares
+
+| | |
+|---|---|
+| the fit | the whole of India — 6 to 38 N and both coasts — is in view on first load at 390 x 664 and at 1440 x 900, fitted **after** the map box has its real size and not before |
+| white | "White: no forecast for this spot" |
+| beige | a swatch of its own: "Land outside India, which this site does not forecast" — it had no legend entry at all, so a reader who tapped Nepal got a red error about a colour the page had never named |
+| a tap outside India | the calm line *That's outside India. Tap the map over India or find a city.*, in a plain box and not a red one, and the old city name is cleared out of the search box |
+| waiting | "Reading the 51 runs for this square…" |
+
+#### The phone floors
+
+11.37 set a floor for the panel and the bar and left the controls bar and
+the menu where they were: 12.2 pixel day buttons 29.8 pixels tall, and nav
+links of 13.6 pixels. The floors are the page's now, not the panel's:
+
+| | |
+|---|---|
+| day buttons, amount buttons, nav links | at least 44 pixels tall, text at least 15 pixels |
+| any text on the forecast page | at least 12 pixels |
+| at 390 pixels | nothing scrolls sideways |
+| at 390 x 664, after choosing | the place name, the headline and the five-day strip are all in the open panel without scrolling |
+
+Where they do not fit, the headline wraps to two lines and the strip's
+cells shrink first. No text goes under the floors to make room, and the
+open panel keeps the height 11.37 gave it.
+
+#### Tests
+
+| | |
+|---|---|
+| the bands | every boundary, 0 to 51, against the table above |
+| the names | the rendered forecast page holds no "model runs" and no "members" |
+| the day labels | the visitor's date equal to, one before, and two before the first day, so "Tomorrow" is never printed for today |
+| the welcome card | it shows with nothing chosen, leaves when a place is chosen, comes back when the choice is cleared, its button focuses the search box, and its How to read this map link opens on a phone |
+| the place name | a city's own square by name, a square within 50 km as "near", and one beyond as "this area" |
+| answer first | at 390 x 664, after a tap, the name, the headline and the strip are inside the open panel with no scrolling, and nothing is under the floors |
+| once only | "A count of runs, not a promise of rain." appears exactly once in the answered panel |
+| the dots | the four counts are readable without opening the closed section |
+| the trust reason | the track-record line is the chip's reason, and the better-than-usual sentence appears only for groups whose check passed |
+| the fit | the whole India box is in view at 390 x 664 and at 1440 x 900 |
+| the sizes | the floors above, measured in a real browser |
+| outside India | a tap there gives the calm line and clears the box |
+| staleness | the stale line never promises a newer run |
+| the tabs | each page's own title |
+| the words | the forbidden-word and no-percentage sweep covers every new sentence and every new state, and is shown to catch a "certain" inserted into it |
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

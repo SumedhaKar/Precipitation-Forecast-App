@@ -48,10 +48,6 @@ body {
 h1, h2, h3 { line-height: 1.25; margin: 0 0 0.4rem; }
 h1 { font-size: 1.25rem; letter-spacing: -0.01em; }
 
-/* SPEC 11.29. The title is one sentence in two pieces so that the phone can
-   drop the second one, where it would cost two lines of a 390 pixel screen
-   that the map needs more. */
-.title-rest { font-weight: 400; color: var(--quiet); }
 h2 { font-size: 1.05rem; }
 h3 { font-size: 0.95rem; }
 p { margin: 0 0 0.6rem; }
@@ -115,7 +111,23 @@ header {
   border-bottom: 1px solid var(--rule);
 }
 
-.titles { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 1rem; }
+/* SPEC 11.38. The name, the tagline that says what a run is, and the run
+   line, stacked: the tagline has to be under the title and not beside it,
+   or it reads as part of the name. */
+.titles {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+/* SPEC 11.38. The one sentence that says what a run is, under the name. */
+.tagline {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--quiet);
+  max-width: 46ch;
+}
 
 .run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
 .runid {
@@ -532,6 +544,76 @@ header {
   border-left: 3px solid var(--picked);
   border-radius: 0 6px 6px 0;
 }
+
+/* ------------------------------------------- the welcome card, SPEC 11.38 */
+
+/* Two copies, one shown. The phone's sits over the map, where the whole of
+   its first screen was a map of colours with nothing saying what a colour
+   was; the desktop's sits in the empty panel, which is where a desktop
+   reader is already looking. Each is hidden at the other's width, so only
+   one is in the page a reader is given and a screen reader hears it once. */
+.welcome {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+
+.welcome h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.45rem;
+}
+
+.welcome p {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  color: var(--quiet);
+}
+
+/* Large, because the review's reader could not find a way in at all. */
+.welcome .findcity {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.6rem 1rem;
+  background: var(--picked);
+  border: 1px solid var(--picked);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.welcome .ortap {
+  margin: 0.45rem 0 0.2rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--faint);
+}
+
+.welcome .howtolink {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.3rem;
+  background: none;
+  border: 0;
+  color: #0b4f8a;
+  font-size: 0.95rem;
+  text-decoration: underline;
+}
+
+.welcome-map {
+  position: absolute;
+  z-index: 2;
+  left: 0.6rem;
+  right: 0.6rem;
+  top: 0.6rem;
+  box-shadow: 0 6px 20px rgb(15 35 55 / 22%);
+}
+
+/* The desktop shows the panel's copy; the phone shows the map's. */
+.welcome-map { display: none; }
 
 /* --------------------------------------- how to read this, and a notice */
 
@@ -967,6 +1049,23 @@ footer p { max-width: 70ch; }
     padding: 0;
   }
 
+  /* SPEC 11.38. The phone's copy of the welcome card is the one over the
+     map. It goes when the panel opens: the map is down to its floor by
+     then and the card would be taller than what is left of it. */
+  .welcome-map { display: block; }
+  .welcome-panel { display: none; }
+  .shell.open .welcome-map { display: none; }
+
+  /* It has to fit inside the map's own box without scrolling, so the type
+     is a step smaller and the padding a third less. Nothing is dropped. */
+  .welcome-map { left: 0.5rem; right: 0.5rem; top: 0.5rem; padding: 0.7rem 0.8rem; }
+  .welcome-map h2 { font-size: 1.02rem; margin-bottom: 0.35rem; }
+  .welcome-map p { font-size: 0.9rem; margin-bottom: 0.5rem; }
+  .welcome-map .findcity { min-height: 46px; font-size: 1rem; }
+  .welcome-map .ortap { margin: 0.3rem 0 0.1rem; }
+
+  .titles { flex: 1 1 100%; }
+
   /* SPEC 11.37. The white line moves into How to read this map, where
      there is room for it; in the bar it cost the map a whole line. */
   .legend-white { display: none; }
@@ -1047,8 +1146,6 @@ footer p { max-width: 70ch; }
    same information set smaller and arranged in fewer lines, and the measured
    result is in SPEC 11.29. */
 @media (max-width: 560px) {
-  .title-rest { display: none; }
-
   header {
     align-items: center;
     gap: 0.15rem 0.5rem;
