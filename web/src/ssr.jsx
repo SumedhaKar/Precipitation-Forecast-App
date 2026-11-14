@@ -20,12 +20,12 @@ import HowWeChecked, {
   Blocks, Decomposition, Maps, Sensitivities,
 } from './HowWeChecked';
 import HowToRead from './HowToRead';
-import TopNav from './TopNav';
+import TopNav, { Menu } from './TopNav';
 import Panel, { Welcome } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { UNITS, noMatch, tooBig, townLabel, townsIn } from './places';
 import MapKey from './Legend';
-import { Footer, Freshness, StaleBanner } from './App';
+import { Footer, Freshness, PageHead, StaleBanner } from './App';
 import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
 import { NO_LOCATION, locationProblem, mapProblem } from './messages';
@@ -142,6 +142,14 @@ export function forecastWords(answers) {
   const days = answers.length ? answers[0].days : [];
   const run = answers.length ? answers[0].run : null;
   out.push(renderToStaticMarkup(<Welcome onGo={nothing} />));
+  // SPEC 11.39. The header of every page, and the menu behind the button
+  // on a phone: the band, the freshness line, the warning bar and all
+  // four page names. Before this the sweep never saw any of them.
+  out.push(renderToStaticMarkup(
+    <Menu path="/" onGo={nothing} />));
+  out.push(renderToStaticMarkup(
+    <PageHead run={null} nav={<TopNav path="/" onGo={nothing} />}
+      onGo={nothing} />));
   // SPEC 11.39. How to read this map, which is a page of its own now. It
   // is swept with the forecast page and not with the two document pages,
   // because it is the one page that may say "it is not a probability" --
@@ -194,6 +202,11 @@ export function forecastWords(answers) {
       run_time_utc: '2026-01-01T00:00:00+00:00' };
     out.push(renderToStaticMarkup(<Freshness run={old} />));
     out.push(renderToStaticMarkup(<StaleBanner run={old} />));
+    // And the header as a whole, fresh and old, which is where the
+    // freshness line is actually read.
+    [fresh, old].forEach((when) => out.push(renderToStaticMarkup(
+      <PageHead run={when} nav={<TopNav path="/" onGo={nothing} />}
+        onGo={nothing} />)));
   }
   // The calm line for a tap on the sea or on a neighbour's land.
   out.push(renderToStaticMarkup(

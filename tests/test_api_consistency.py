@@ -1888,12 +1888,20 @@ def test_every_unit_box_holds_every_city_in_it():
 
 @needs_node
 def test_the_freshness_line_says_when_and_how_old(forecast_words):
-    """SPEC 11.38. One line on a phone, where the run line was three."""
+    """SPEC 11.38 and 11.39. One line, where the run line was three.
+
+    It names the run's own time and counts the age from the time it has
+    just printed. It used to print the publish time beside an age counted
+    from the run time, so the two numbers on one line disagreed with each
+    other by however long the pipeline had taken.
+    """
     seen = 0
     for html in forecast_words:
         if not isinstance(html, str) or 'class="fresh"' not in html:
             continue
-        text = words_of(html).strip()
+        line = re.search(r'<p class="fresh[^"]*"[^>]*>(.*?)</p>', html)
+        assert line, html[:200]
+        text = words_of(line.group(1)).strip()
         assert text.startswith("Forecast from "), text
         assert " IST" in text and "h old" in text, text
         # No year: on a phone it is a word nobody reads.
@@ -4720,8 +4728,8 @@ def viewport(tmp_path_factory):
         runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
         plan = {
             "api": str(ROOT / "api"),
-            "sizes": [[390, 664], [390, 844], [320, 568],
-                      [1440, 900], [1024, 768]],
+            "sizes": [[390, 664], [390, 844], [360, 640],
+                      [320, 568], [1440, 900], [1024, 768]],
             "target": target,
             "squares": squares,
             # A city inside the run a test publishes, so searching for it
@@ -5076,7 +5084,8 @@ def test_tapping_the_map_answers_in_the_card(viewport, size):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568"])
 def test_the_card_can_be_read_on_a_phone(viewport, size):
     """SPEC 11.37 item by item, as SPEC 11.39 leaves it.
 
@@ -5111,7 +5120,8 @@ def test_the_card_can_be_read_on_a_phone(viewport, size):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568"])
 def test_the_three_rows_a_thumb_hits_are_44_pixels_and_15_point(
         viewport, size):
     """SPEC 11.38, as SPEC 11.39 leaves it. Every control above the card.
@@ -5131,7 +5141,8 @@ def test_the_three_rows_a_thumb_hits_are_44_pixels_and_15_point(
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568"])
 def test_nothing_on_the_forecast_page_is_under_twelve_pixels(viewport, size):
     """SPEC 11.38. The page's own floor, at every phone width.
 
@@ -5144,7 +5155,8 @@ def test_nothing_on_the_forecast_page_is_under_twelve_pixels(viewport, size):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568"])
 def test_nothing_scrolls_sideways_on_a_phone(viewport, size):
     """SPEC 11.38, and 11.29 before it."""
     shut = viewport["phone"][size]["first"]
@@ -6041,8 +6053,8 @@ def on_screen(points, bounds, width, height):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568",
-                                  "1440x900", "1024x768"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568", "1440x900", "1024x768"])
 def test_the_key_covers_no_india_square_at_any_width(viewport, size):
     """SPEC 11.39. The Arabian Sea, and nothing of the country.
 
@@ -6328,7 +6340,8 @@ def test_one_finger_scrolls_the_page_and_two_move_the_map(viewport, size):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568"])
 def test_the_map_card_is_the_size_the_spec_says(viewport, size):
     """SPEC 11.39, item 3. The smaller of 55 per cent and 480, never under
     280.
@@ -6564,3 +6577,73 @@ def test_no_bottom_sheet_and_no_summary_row_remain(forecast_words):
         for gone in ('class="sheetbar"', 'class="handle"',
                      'class="summaryline"'):
             assert gone not in html, gone
+
+
+# ------------------ SPEC 11.39: the checks that run at every width
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
+                                  "320x568", "1024x768", "1440x900"])
+def test_no_two_controls_overlap_at_any_width(viewport, size):
+    """SPEC 11.39. Two controls on the same pixels is one control lost.
+
+    Every pair of the page's own controls -- the search box, the location
+    button, the eight pills, "What does mm mean?", the menu, the links
+    under the card and the key -- measured against every other, in the
+    state the page opens in and after a place has been chosen.
+    """
+    for state in ("first", "afterSearch", "afterMapTap"):
+        page = viewport["phone"][size].get(state)
+        if not page:
+            continue
+        assert page["overlapping"] == [], (size, state, page["overlapping"])
+        assert page["docScrollWidth"] <= int(size.split("x")[0]), (
+            size, state, page["docScrollWidth"])
+
+
+@needs_node
+def test_the_age_is_counted_from_the_time_the_line_prints(exports):
+    """SPEC 11.39. One line, two numbers, and they agree.
+
+    The header said "Updated 13 Nov, 12:33 pm" -- the publish time --
+    beside an age counted from the **run** time, so the arithmetic a
+    reader could do came out wrong by however long the pipeline had
+    taken. The line names the run and counts from the run.
+
+    The age is worked out in the page rather than read from the API's
+    `age_hours`, for the same reason the staleness is: a page served from
+    a browser cache would otherwise show an hours figure frozen at
+    whatever it was when the JSON was fetched.
+    """
+    app = APP.read_text("utf-8")
+    fresh = app.split("export function Freshness(")[1].split("\n}")[0]
+    assert "shortIst(run.run_time_ist)" in fresh
+    assert "publish_time_ist" not in fresh
+    assert "hoursOld(run)" in fresh
+    counted = app.split("export function hoursOld(")[1].split("\n}")[0]
+    assert "Date.parse(run.run_time_utc)" in counted
+    assert "Date.now()" in counted
+    # The stale banner counts the same way, from the same field.
+    banner = app.split("export function StaleBanner(")[1].split("\n}")[0]
+    assert "hoursOld(run)" in banner
+    assert "staleNow(run)" in banner
+
+
+@needs_node
+def test_the_sweep_covers_the_header_and_the_menu(forecast_words):
+    """A sweep that never renders a block cannot catch a word in it.
+
+    SPEC 11.39 added a header, a menu, a colour key, a card and a page;
+    every one of them is rendered into the sweep, and this says so by
+    naming a sentence from each.
+    """
+    every = " ".join(words_of(html) for html in forecast_words
+                     if isinstance(html, str))
+    for must in ("India Rain Outlook", "Forecast from ", "Menu",
+                 "How we checked", "How to read this map",
+                 "Not an official warning.", "For alerts:",
+                 "How many of the 51 runs bring rain?", "Back to map",
+                 "Will it rain where you are?",
+                 "Enough to leave the ground damp.",
+                 "hours old; a newer one has not arrived yet."):
+        assert must in every, must

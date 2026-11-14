@@ -6199,6 +6199,33 @@ the headline written to fit in a drawer, and the rule it existed to keep —
 that a number is never shown under the wrong place's name — is kept where
 it always was, at the top of the card.
 
+#### What is measured, and where
+
+Every claim in this section is measured in a real browser against the
+built bundle, at six sizes: 390 x 664, 390 x 844, 360 x 640, 320 x 568,
+1024 x 768 and 1440 x 900. The run behind it is a real published run, the
+API answering is the real `api/place`, and the three ways of choosing a
+place are all done for real — a city typed into the box and submitted, a
+fix handed to the page by the browser, and a tap on the canvas.
+
+| | |
+|---|---|
+| the header | the mark, the name, the freshness line and the warning, on all four pages, above the fold |
+| the menu | a button on a phone with four pages behind it; three links as text at 1024 and over |
+| the search row | the placeholder, the button's accessible name, both 44 pixels, and the box used for real |
+| the map card | the heights above, the whole card on the first screen at 390 x 844, 250 pixels of it at 390 x 664 |
+| the gestures | one finger scrolls and the map stays; two fingers move the map and the page stays; the hint appears |
+| the key | the nine rows, shut or open as the width says, and clear of all 4,613 squares and every point of the outline |
+| the pills | five and three, two lines each, one filled, a fifth and a third of the row on a phone |
+| "What does mm mean?" | its own line, at the end of it, pointing at `#amounts` |
+| choosing a place | the pills at 36 pixels and the card's top at 269, by all three routes; nothing moves on a desktop |
+| Back to map | returns, and is not drawn where the map is in view |
+| the card | the order of 11.39, three text sizes, every sentence at 15 pixels or more, nothing under 13, every control 44 |
+| the calm look | every pill a fill with no border, the chosen one navy, the input bordered, no card outlined, no capitals |
+| overlap | every pair of controls, at every width, in three states |
+| sideways | no document wider than its screen, at any of the six |
+| the words | the forbidden-word and no-percentage sweep over every component the page draws, the header and the menu included |
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
