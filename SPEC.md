@@ -2053,6 +2053,24 @@ a threshold after seeing which side of it the answer fell.
 
 ---
 
+## 7. Pipeline stages and file layout
+
+Drafted here on 14 November 2026, from what was built. One run goes through
+five stages, each a module of `pipeline/` with one job: `ecmwf_download`
+fetches the 00 UTC AIFS ENS total precipitation for the six 24-hour step
+boundaries and keeps the India box alone; `ecmwf_process` differences the
+accumulations into five daily totals per run; `india_mask` applies the
+committed mask of 3.5; `checks` refuses a run that breaks any rule of 4.5;
+and `publish` uploads it in the order of 8.5. `run_live` is the one entry
+point that calls them in order and decides which run to build (8.6). A run
+lives in `data/live/<run id>/` as `squares.npz` (the member totals, the
+counts, the dots and the grid), `days.json` and `manifest.json`, and `data/`
+is never committed. `config/` holds what the pipeline and the two API
+functions share and nothing that changes per run: the mask, the regions of
+5.4, and the store's public base URL. Sections 2, 3, 4 and 8 are the rules
+these stages carry out; this section is only the map of which file does
+which.
+
 ## 8. Publishing
 
 Section 4.6 builds a run and publishes nothing. This section is how a built
@@ -2798,6 +2816,44 @@ Nothing in section 8 is open.
 | 10 N 70 E, the Arabian Sea | 404, "outside the forecast area" |
 | the page | the live JavaScript bundle is **byte for byte** the local build, 228,423 bytes, and holds no store URL |
 | the function region | `X-Vercel-Id: bom1::...`, which is Mumbai |
+
+## 9. Automation and failure handling
+
+Drafted here on 14 November 2026, from what was built. The daily run is
+`.github/workflows/forecast.yml`, which asks GitHub's scheduler for 23
+attempts between 06:17 and 22:23 UTC and can also be started by hand; the
+job is called `live` and its concurrency group is `live`, so two runs can
+never publish at once. Every attempt reads what the store publishes before
+it builds anything, and exits 0 when the newest complete run is already
+there, which is why 22 of a day's 23 attempts cost one listing check. A
+failure is never a half-published run: the uploads go in the order of 8.5
+with the manifest last and the marker after it, so until the manifest moves
+the site serves the previous run, and the site says how old what it is
+showing is and calls it old past 36 hours (11.8). The scheduler's own
+unreliability is recorded rather than worked around -- in this build not one
+scheduled attempt arrived inside the midday window and every publish so far
+was started by hand -- and the backup trigger designed for it is listed as
+future work in `README.md`. HC-FAIL is the hand check for this section: the
+publisher broken seven ways and the run chooser given five awkward servers.
+
+## 10. Testing strategy
+
+Drafted here on 14 November 2026, from what was built. Four kinds of check,
+and nothing in the suite needs the network, a token or the archive. First,
+the pipeline's own rules are driven as functions over small arrays built in
+the test, so a rule and its test cannot share a mistake. Second, the API is
+driven end to end: a small run is published through a fake store into a
+temporary directory, served on 127.0.0.1, and the real `api/health` and
+`api/place` are imported and called against it. Third, the page's pure
+modules -- the palette, the snap, the sentences, the day names, the record
+-- are loaded by `node` and driven against the same published files, which
+is why they are plain `.js` with no imports (11.24). Fourth, the built site
+is measured in a headless Chrome over the DevTools protocol at eight screen
+sizes, so every claim about what a reader can see is a measurement and not
+an opinion. A check that cannot run says so and skips, and the suite is run
+with `-rs` in CI so a check that quietly stopped checking is visible. The
+hand checks of the next section are deliberately outside all of this: they
+redo one step against the original file, by hand.
 
 ## 11. Display rules, the website pages and the `api/` functions
 
@@ -6563,6 +6619,23 @@ are now eight: the two laptops item 8 names are measured as well.
 | the pills | five counts in the map's colours, the caption once, the chosen pill's number equal to the card's, a tap changing the day the canvas paints |
 | the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences included |
 
+## 12. Tiers and acceptance tests
+
+Drafted here on 14 November 2026, from what was built and what was not.
+Tier 1 is the live forecast: the counts, the map, the panel and the two API
+functions, accepted when the suite is green, HC7 matches the published bytes
+against a run built on the laptop, and HC8 matches five squares on the live
+map against both. Tier 2 is the track record of sections 5 and 6, accepted
+when every rule was committed before any result was seen (5.11, 6.8), the
+report card publishes all 60 labels including the ones that fail, and
+HC-REPORT redoes fifteen of its scores outside the pipeline; the 51-against-50
+comparison this section was reserved for is published as a sensitivity on
+How we checked rather than as a second report card. Tier 3, calibrated
+probabilities, is not built and may not be until a held-out record exists
+(5.8); until then the site shows counts out of 51 and no percentage, which
+is the rule 11.33 enforces over every page. The acceptance test for the
+whole of it is HC10, the final checklist, run at the end of the build.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
@@ -6721,10 +6794,12 @@ Nothing in sections 1-4 is now blocked.
 
 ## Sections still to draft
 
-7. Pipeline stages and file layout
-9. Automation and failure handling
-10. Testing strategy
-12. Tiers and acceptance tests
+None. Sections 7, 9, 10 and 12 were the last four, and each was drafted on
+14 November 2026, in its own numbered place above, from what had been built.
+That is the order this project asked for: the sections that fix rules before
+results -- 2 to 6, 8 and 11 -- were written first and were not allowed to
+move afterwards, and these four describe the thing that was built to carry
+them out.
 
 **Section 11 is drafted and approved in two parts.** Part one, 11.1 to
 11.11, is the plain page with `api/health` and `api/place`, live since 12

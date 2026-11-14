@@ -5040,6 +5040,191 @@ def viewport(tmp_path_factory):
         server.server_close()
 
 
+# ------------------------- SPEC 11.41: the repository's own documents
+
+README = ROOT / "README.md"
+DECISIONS = ROOT / "DECISIONS.md"
+
+# The last section of README.md: the author's own account of how this
+# repository was built and what help was used. It is written out here in
+# full on purpose -- a test that compared the file with a copy of itself
+# would allow any edit at all -- and the README has to match it
+# character for character.
+DISCLOSURE = """\
+## How this was built, and the help I used
+
+All of the code, data processing, tests and deployment in this repository were produced by Claude Code in a single session, from 11 November 2026 at 11:56 pm IST to its final commit on 14 November 2026. The full session log is submitted with this application. Before the session I practised the downloads, map and checks on my own; none of that practice code or data was reused, and I said so in the session's first prompt.
+
+Alongside the session, I used a separate Claude chat in the Claude desktop app as an advisor. I used it to review Claude Code's reports, point out risks and gaps, explain things I didn't understand, keep track of my schedule, and polish the prompts I sent to Claude Code. Every prompt went through me: I read it, questioned it, often asked for changes, and decided whether and when to send it. I asked it repeatedly to challenge me rather than agree with me. Some independent checks came from that chat, such as recomputing one remapped square by hand (HC5) and checking news reports of the 406 mm day.
+
+For the user interface I also used ChatGPT and a second Claude chat to critique the site, compare it with other weather websites, and produce mock-up images that I used as design references. None of their code went into this repository.
+
+The decisions were mine throughout. I read every report and prompt, asked questions until I understood them, stuck to my plan where I believed it was right, and changed it when the evidence said so. There were many more such decisions; these are some of the major ones:
+
+- **Found a phone bug on my own Samsung A32** (and my mother's Oppo): the "Show the details" handle was hidden under the phone's bottom bar, so the forecast panel couldn't be opened. Desktop testing had not shown it. The cause turned out to be a layout rule, and it was fixed and tested on both phones.
+- **Noticed the map didn't move to a searched place:** when I used "Use my location" or searched for Delhi, the map circled the place but didn't slide to it, so I asked for it to move there automatically.
+- **Caught that the hand checks had drifted from my original plan:** several checks I had planned (failure handling, a comparison with ECMWF's own published figure, real report-card rows, a monsoon map) had been renumbered or not done. I had them added, and one of them found a mistake in the specification.
+- **Asked for every line on the "How we checked" page to be verified against its file,** which corrected two entries (one check had run on three dates, not one; another covered five squares, not one).
+- **Found gaps in the search:** it said "town" but only knew cities, and typing a state such as West Bengal found nothing. That led to the city wording, state search and old city names.
+- **Pushed back on wording a beginner wouldn't understand:** for example "1 cm deep" for 10 mm, and "tap a square" when the squares aren't visible until you zoom in.
+- **Made sure dry places read correctly and the track record states its period:** 0 of 51 runs in Delhi in November is the right answer, not missing data, and the report card says its record comes mostly from the monsoon.
+- **Checked the GitHub scheduler myself,** found it firing late (in the evening or at night, never when the new forecast arrives around midday), ran the forecast by hand when needed, and designed a backup daily trigger, which I chose to leave as future work so the last hours went to the interface.
+- **Dropped the Time Machine feature** I had planned, to spend the last day on the interface after real users struggled with it.
+- **Kept the security rules myself:** I never put a password or token in a prompt; I created the secrets in the GitHub and Vercel dashboards by hand.
+
+To test the interface, I asked my mother and several friends to use the site without help and tell me what they struggled with. They all said much the same: it was hard to see where to start, there was too much text, and the numbers were hard to understand. I also asked for the site to be compared with other weather apps. That feedback is the reason for the final, simpler design.
+
+This section was drafted with the help of the same Claude chat and edited by me.
+"""
+
+
+def test_the_readme_last_section_is_the_disclosure_character_for_character():
+    """SPEC 11.41. The author's own words, unchanged.
+
+    This section is the one part of the repository that is not the
+    project's own prose: it says who built what, which tools helped, and
+    which decisions were the author's. Nothing may tidy it.
+    """
+    said = README.read_text(encoding="utf-8")
+    at = said.find("## How this was built")
+    assert at > 0, "the section is missing"
+    assert said[at:] == DISCLOSURE, "the section does not match"
+    # And it is the last thing in the file: nothing is appended after a
+    # statement about who wrote the rest.
+    assert said.count("## How this was built") == 1
+
+
+def test_every_link_in_the_readme_resolves():
+    """SPEC 11.41. Every relative link is a file that exists.
+
+    The hand-check links are the point of this: a table of fourteen
+    checks each naming its own output file is only evidence while the
+    files are there.
+    """
+    said = README.read_text(encoding="utf-8")
+    links = re.findall(r"\]\(([^)]+)\)", said)
+    assert len(links) >= 20, len(links)
+    checks = 0
+    for link in links:
+        if link.startswith(("http://", "https://", "#", "mailto:")):
+            continue
+        target = ROOT / link.split("#")[0]
+        assert target.exists(), link
+        if "handchecks/results/" in link:
+            checks += 1
+            assert target.stat().st_size > 0, link
+    # Every hand check that wrote a file is linked to its file.
+    assert checks >= 14, checks
+    for name in ("hc1_20260513.txt", "hc5_cell.csv", "hc_align.txt",
+                 "hc_fail.csv", "hc_ecmwf.csv", "hc_report.csv",
+                 "hc_ghats.csv", "hc9_bucket.csv"):
+        assert f"handchecks/results/{name}" in said, name
+    # HC4 has no file of its own and says so rather than linking to
+    # nothing; HC10 is the checklist at the end of the build.
+    assert "the file was deleted after it was read" in said
+    assert "the final checklist, done at the end" in said
+    # The live site, by its one address.
+    assert "https://precipitation-forecast-app.vercel.app" in said
+
+
+def test_the_readme_counts_the_suite_it_claims():
+    """SPEC 11.41. The number of tests in the README is the number there is.
+
+    Both numbers: what `pytest` collects, which is what a reader would
+    see, and how many `def test_` functions are behind them.
+    """
+    said = README.read_text(encoding="utf-8")
+    functions = sum(
+        len(re.findall(r"^def test_", path.read_text(encoding="utf-8"),
+                       re.M))
+        for path in sorted((ROOT / "tests").glob("test_*.py")))
+    files = len(list((ROOT / "tests").glob("test_*.py")))
+    done = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "--collect-only"],
+        capture_output=True, text=True, encoding="utf-8", check=False,
+        cwd=ROOT)
+    assert done.returncode == 0, done.stdout[-2000:]
+    found = re.search(r"(\d+) tests? collected", done.stdout)
+    assert found, done.stdout[-2000:]
+    collected = int(found.group(1))
+    want = (f"runs {collected} tests from {functions} test functions in "
+            f"{files} files")
+    assert want in re.sub(r"\s+", " ", said), want
+
+
+@needs_node
+def test_the_readme_track_record_is_the_report_cards_own_summary(pages):
+    """SPEC 11.41. One summary of the record, in two places.
+
+    The README's track record paragraph is the report card's TL;DR,
+    which is counted from summary.json -- so the repository cannot claim
+    one thing about the record while the site says another.
+    """
+    flat = re.sub(r"\s+", " ", README.read_text(encoding="utf-8"))
+    for sentence in pages([["tldr", "summary"]])[0]["sentences"]:
+        assert sentence in flat, sentence
+
+
+@needs_node
+def test_the_readme_and_the_page_give_the_same_three_steps(forecast_words):
+    """SPEC 11.41. The mini user manual, in the README and on the page."""
+    flat = re.sub(r"\s+", " ", README.read_text(encoding="utf-8"))
+    every = " ".join(words_of(html) for html in forecast_words
+                     if isinstance(html, str))
+    for step in ("Search your city, or just tap the map.",
+                 "Pick the day and the amount of rain you care about.",
+                 "That's it, your forecast shows up."):
+        assert step in flat, ("README", step)
+        assert step in every, ("the page", step)
+
+
+def test_the_decisions_file_records_every_choice_it_was_asked_for():
+    """SPEC 11.41. The architecture audit, one entry each with its reason.
+
+    Seven things the code does not explain by itself. Each entry is
+    checked for its subject and for something only its own reason would
+    say, so an entry cannot pass by naming the subject alone.
+    """
+    flat = re.sub(r"\s+", " ", DECISIONS.read_text(encoding="utf-8"))
+    for subject, reason in (
+            ("api/health.mjs", "snap.js"),
+            ("normal merge commits", "never been force-pushed"),
+            ("config/regions.json", "SHA-256"),
+            ("forecast.yml", "concurrency group"),
+            ("config/features.json", "does not exist"),
+            ("label_colours", "results-v1"),
+            ("time-machine", "never merged")):
+        assert subject in flat, subject
+        assert reason in flat, (subject, reason)
+    # The two claims about the repository that can be checked here.
+    assert not (ROOT / "config" / "features.json").exists()
+    assert (ROOT / "config" / "regions.json").exists()
+
+
+def test_the_four_late_spec_sections_are_drafted():
+    """SPEC 11.41. 7, 9, 10 and 12 were empty; each has its paragraph now.
+
+    They were on the "Sections still to draft" list from the first draft
+    to the last day: the sections that fix rules before results had to be
+    written first, and these four describe what was built to carry them
+    out.
+    """
+    spec = (ROOT / "SPEC.md").read_text(encoding="utf-8")
+    heads = re.findall(r"^## (\d+)\. ", spec, re.M)
+    assert heads == [str(number) for number in range(1, 13)], heads
+    for number, must in ((7, "pipeline/"), (9, "forecast.yml"),
+                         (10, "DevTools protocol"), (12, "HC10")):
+        body = spec.split(f"\n## {number}. ")[1].split("\n## ")[0]
+        assert len(body) > 600, (number, len(body))
+        assert must in body, (number, must)
+        # Each says when it was drafted, because every other section of
+        # this file was written before the thing it describes.
+        assert "14 November 2026" in body, number
+    # And nothing is left on the list.
+    left = spec.split("## Sections still to draft")[1]
+    assert left.strip().startswith("None."), left[:120]
+
+
 @needs_node
 @pytest.mark.parametrize("size", ["390x664", "1440x900"])
 def test_the_whole_of_india_is_in_view_on_first_load(viewport, size):
