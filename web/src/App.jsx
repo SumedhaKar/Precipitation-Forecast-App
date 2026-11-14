@@ -22,9 +22,12 @@ import {
   Component, Suspense, lazy, useCallback, useEffect, useRef, useState,
 } from 'react';
 
-import Panel, { Welcome, summaryLine } from './Panel';
-import { SITE } from './TopNav';
-import Legend from './Legend';
+import Panel, { Welcome } from './Panel';
+import {
+  HowToReadLink, ReportCardLink, SITE, plainClick,
+} from './TopNav';
+import MapKey from './Legend';
+import { Clock, Logo, Warn } from './Icons';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { countKey } from './palette';
 import { inBox, snap, squareText } from './snap';
@@ -45,6 +48,43 @@ const STALE_HOURS = 36; // SPEC 11.8
 // is, rather than one city's numbers nobody asked for.
 const FIRST_DAY = 1;
 const FIRST_THRESHOLD = 1;
+
+/**
+ * Is this a screen with room on the map for the colour key? SPEC 11.39.
+ *
+ * The one thing the page asks the width for. Everything else about the
+ * layout is the stylesheet's, as it should be; the colour key cannot be,
+ * because whether it is open on first sight is a fact the map has to know
+ * in order to pad the fit for it, and a stylesheet cannot tell it.
+ *
+ * `matchMedia` and not an `innerWidth` read: the same query the stylesheet
+ * uses, so the two cannot disagree about where the boundary is.
+ *
+ * 1280 and not the 1024 the two-column layout begins at, and the
+ * difference was measured. The key is paid for by padding the fit on the
+ * side it sits on, which costs nothing while the fit is limited by the
+ * height. At 1024 by 768 the map box is 574 by 476: padding 234 pixels of
+ * it away makes the fit width-limited instead, India shrinks to 305
+ * pixels, and Gujarat ends up behind the key anyway. So below 1280 the
+ * key is drawn under the map, which is what 11.39 allows for a phone and
+ * for the same reason.
+ */
+export const WIDE = '(min-width: 1280px)';
+
+export function useWide(query = WIDE) {
+  const [wide, setWide] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const watch = window.matchMedia(query);
+    const seen = () => setWide(watch.matches);
+    seen();
+    watch.addEventListener('change', seen);
+    return () => watch.removeEventListener('change', seen);
+  }, [query]);
+  return wide;
+}
 
 const search = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -101,7 +141,7 @@ export function StaleBanner({ run }) {
   if (!staleNow(run)) return null;
   return (
     <p className="stale" role="status">
-      <strong>This forecast is {run.age_hours} hours old;</strong>{' '}
+      <strong>This forecast is {hoursOld(run)} hours old;</strong>{' '}
       a newer one has not arrived yet. Nothing here has been updated since{' '}
       {istText(run.run_time_ist)} IST.
     </p>
@@ -109,51 +149,63 @@ export function StaleBanner({ run }) {
 }
 
 /**
- * How old this forecast is, in one line. SPEC 11.38.
+ * How old this run is, counted from the time it names. SPEC 11.38, 11.39.
  *
- * The header's run line is three facts in two sizes of grey -- the run
- * time, the publish time and the run ID -- and on a phone it was two of
- * the lines that pushed the map under the fold. A reader wants to know one
- * thing: is this fresh? So this is the phone's copy, and the run line stays
- * the desktop's; the run ID and the UTC time are in "For the curious".
+ * The header had three facts in two sizes of grey -- the run time, the
+ * publish time and the run ID -- and on a phone they were two of the lines
+ * that pushed the map under the fold. A reader wants to know one thing: is
+ * this fresh? So the header says that and nothing else, at every width,
+ * and the run's own ID and its UTC time are inside More detail.
+ *
+ * 11.39 names the **run** time rather than the publish time, and counts
+ * the age from the time it has just printed. Before this the line said
+ * "Updated 13 Nov, 12:33 pm" -- the publish time -- beside an age counted
+ * from the run time, so the two numbers on one line did not agree with
+ * each other and the arithmetic a reader could do came out wrong by
+ * however long the pipeline had taken.
+ *
+ * The age is worked out here rather than read from `age_hours`, for the
+ * same reason `staleNow` is: a page served from a browser cache would
+ * otherwise show an hours figure frozen at whatever it was when the JSON
+ * was fetched.
  *
  * When the run is older than the 36 hours of 11.8 the line becomes the
  * warning itself. It never says a newer one is on its way, because nothing
  * here knows that: 11.8's banner used to say "a newer model run has not
  * been published", which is true, and the hopeful reading of it is not.
  */
+export function hoursOld(run) {
+  if (!run) return null;
+  const at = Date.parse(run.run_time_utc);
+  if (Number.isNaN(at)) {
+    return Number.isFinite(run.age_hours) ? Math.round(run.age_hours) : null;
+  }
+  return Math.max(0, Math.round((Date.now() - at) / 3_600_000));
+}
+
 export function Freshness({ run }) {
   if (!run) return null;
+  const hours = hoursOld(run);
   if (staleNow(run)) {
     return (
       <p className="fresh old" role="status">
-        <strong>
-          This forecast is {run.age_hours} hours old; a newer one has not
-          arrived yet.
-        </strong>
+        <Warn />
+        <span>
+          <strong>
+            This forecast is {hours} hours old; a newer one has not arrived
+            yet.
+          </strong>
+        </span>
       </p>
     );
   }
-  const when = shortIst(run.publish_time_ist || run.run_time_ist);
-  const hours = Number.isFinite(run.age_hours)
-    ? Math.round(run.age_hours) : null;
   return (
     <p className="fresh">
-      Updated {when} IST
-      {hours === null ? null : ` · ${hours} h old`}
-    </p>
-  );
-}
-
-export function RunLine({ run }) {
-  if (!run) return null;
-  return (
-    <p className="run">
-      Run of <strong>{istText(run.run_time_ist)} IST</strong> (00 UTC).
-      {run.publish_time_ist
-        ? ` Published ${istText(run.publish_time_ist)} IST.`
-        : null}
-      <span className="runid">Run {run.run_id}</span>
+      <Clock />
+      <span>
+        Forecast from {shortIst(run.run_time_ist)} IST
+        {hours === null ? null : ` · ${hours} h old`}
+      </span>
     </p>
   );
 }
@@ -268,13 +320,18 @@ export default function App({ nav, onGo }) {
   const [square, setSquare] = useState(null);
   const [from, setFrom] = useState(null);
   const [shown, setShown] = useState('');
-  const [sheetOpen, setSheetOpen] = useState(false);
   // SPEC 11.38. The state or union territory the search box last named,
   // which the map is fitted to. It is never a chosen place and never a
   // count: a state is a list of cities here, not a square.
   const [unitBox, setUnitBox] = useState(null);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
+  // SPEC 11.39. The colour key: expanded where there is room beside the
+  // map and shut where there is not, and the reader's own click wins over
+  // both until the width changes.
+  const wide = useWide();
+  const [keyOpen, setKeyOpen] = useState(wide);
+  useEffect(() => { setKeyOpen(wide); }, [wide]);
   // The number of the most recent request for a square's numbers (11.30).
   const asked = useRef(0);
 
@@ -436,7 +493,6 @@ export default function App({ nav, onGo }) {
     const here = snap(lat, lon);
     setSquare(here);
     setFrom(how);
-    setSheetOpen(true);
     setShown(label || squareText(here.lat, here.lon));
     load(here.lat, here.lon);
   }, [load]);
@@ -469,8 +525,7 @@ export default function App({ nav, onGo }) {
       setPlaceError(null);
       setSquare(null);
       setFrom('town');
-      setSheetOpen(true);
-      setShown(chosen.name);
+        setShown(chosen.name);
       setNotice({
         where: `${chosen.name}, ${chosen.not_forecast}`,
         note: notFoundNote(chosen.lat, chosen.lon),
@@ -501,37 +556,46 @@ export default function App({ nav, onGo }) {
     : null;
 
   return (
-    <div className={[
-      'shell', sheetOpen ? 'open' : '',
-      // SPEC 11.38. On a phone the answer comes before the box that asked
-      // for it: the place line was 193 pixels down, behind a search box the
-      // reader had just used. The stylesheet does the moving.
-      place && square ? 'answered' : '',
-    ].filter(Boolean).join(' ')}>
-      <header>
-        <div className="titles">
-          {/* SPEC 11.38. The site's name, and under it the one sentence
-              that defines the only word the rest of the page uses: a run.
-              The title used to be the sentence itself — "India rain
-              forecast: how many of 51 model runs say rain" — which named
-              the thing in the same breath as the first reader who did not
-              know what a model run was had to meet it. */}
-          <h1>{SITE}</h1>
-          <p className="tagline">
-            51 runs of one weather model. See how many bring rain where you
-            are.
-          </p>
-          <RunLine run={run} />
+    <div className="shell">
+      {/* SPEC 11.39. The header is one band -- the mark, the name, how old
+          this run is, and the pages -- with the warning across the width
+          under it. No tagline: what the site is for is the question at the
+          top of the card, where a reader who has not chosen anything yet is
+          looking. No run ID and no "(00 UTC)" either; both are in More
+          detail, which is where a reader who wants them goes. */}
+      <header className="pagehead">
+        <div className="band">
+          <a
+            className="brand"
+            href="/"
+            onClick={(event) => {
+              if (!onGo || !plainClick(event)) return;
+              event.preventDefault();
+              onGo('/');
+            }}
+          >
+            <Logo />
+            {/* The page's one h1. The card's question is an h2 under
+                it, and the place name takes that h2 once there is an
+                answer, so the document has one outline either way. */}
+            <h1 className="sitename">{SITE}</h1>
+          </a>
           <Freshness run={run} />
+          {/* SPEC 11.34 and 11.39: the pages, in the header of all four.
+              Three of them are written out as text here; the fourth, How
+              to read this map, is linked from the page it explains. */}
+          {nav}
         </div>
-        {/* SPEC 11.34: the three pages, in the header of all three. */}
-        {nav}
         {/* SPEC 11.28: this was in the footer only, below the fold on every
             screen. The footer still carries it; this is the copy a reader
-            cannot miss. */}
+            cannot miss, and 11.39 makes it a bar across the width rather
+            than a chip squeezed in beside the name. */}
         <p className="headwarn">
-          <strong>Not an official warning.</strong> For alerts, see{' '}
-          <a href="https://mausam.imd.gov.in/">IMD</a>
+          <Warn />
+          <span>
+            <strong>Not an official warning.</strong> For alerts:{' '}
+            <a href="https://mausam.imd.gov.in/">IMD</a>
+          </span>
         </p>
       </header>
 
@@ -542,119 +606,118 @@ export default function App({ nav, onGo }) {
         </p>
       ) : null}
 
-      {/* SPEC 11.28: a bar above the map, not a card floating on it. As a
-          card the controls covered Tamil Nadu, Kerala and the tip of the
-          country, and the legend covered the Bay of Bengal and the Andaman
-          Islands. Nothing is over the map now but MapLibre's zoom buttons. */}
-      <div className="controls">
-        {days.length ? (
-          <DayChoice days={days} day={day} onDay={setDay} />
-        ) : null}
-        <ThresholdChoice
-          threshold={threshold}
-          onThreshold={setThreshold}
-        />
-        <Legend threshold={threshold} />
-      </div>
-
-      <div className="stage">
-        <div className="mapwrap">
-          {/* SPEC 11.29. Three states, in this order: the map could not be
-              drawn, the numbers have not arrived yet, or the map. The first
-              one is a message in the map's own area and nothing else on the
-              page changes, because nothing else on the page needs the map:
-              the search, the panel, the five days and all 51 values come
-              from api/place. */}
-          {noMap ? (
-            <p className="loading mapgone" role="status">
-              <span>{mapProblem(noMap)}</span>
-            </p>
-          ) : null}
-          {!noMap && counts && health ? (
-            <MapFrame onProblem={setNoMap}>
-              <Suspense fallback={<p className="loading">Drawing the map…</p>}>
-                <ForecastMap
-                  counts={counts}
-                  grid={health.source.grid}
-                  threshold={threshold}
-                  day={day}
-                  square={square}
-                  squareName={squareName}
-                  onPick={pick}
-                  onProblem={setNoMap}
-                  unitBox={unitBox}
-                  handcheck={handcheck}
-                />
-              </Suspense>
-            </MapFrame>
-          ) : null}
-          {!noMap && !(counts && health) ? (
-            <p className="loading">
-              {countsError
-                ? `The forecast could not be read: ${countsError}`
-                : 'Reading the 51 runs…'}
-            </p>
-          ) : null}
-          {/* SPEC 11.38. The phone's copy, over the map. The stylesheet
-              hides it at desktop widths, where the panel's copy is shown
-              instead, so only one of the two is ever in the page. */}
-          {nothingChosen ? (
-            <Welcome where="map" onGo={onGo} />
-          ) : null}
+      {/* SPEC 11.39. A page that scrolls, in five blocks. On a phone they
+          are one column in this order: the search row, the map, the day
+          pills, the amount pills, the card. On a desktop the two rows of
+          controls go above the map and the card is the column beside it.
+          The order is the stylesheet's, in one grid, so there is one copy
+          of every control and no copy of anything. */}
+      <main className="forecast">
+        <div className="asks">
+          <Search
+            onTown={town}
+            onPoint={point}
+            onUnit={toUnit}
+            busy={busy}
+            shown={shown}
+            onLocation={located}
+            snapTo={snapTo}
+            from={from}
+          />
         </div>
 
-        <aside className="panel" aria-label="The square you chose">
-          {/* SPEC 11.37. On a phone this is the whole of the panel until it
-              is opened: one line and one button, and the map has the rest
-              of the screen. Each control does one thing. The line opens the
-              panel and takes no keyboard; "Search" opens it and gives the
-              search box the keyboard; open, the same button closes it. */}
-          <div className="sheetbar">
-            <button
-              type="button"
-              className="handle"
-              aria-expanded={sheetOpen}
-              onClick={() => setSheetOpen(!sheetOpen)}
-            >
-              {sheetOpen ? 'Hide the details'
-                : summaryLine(place, square, day, threshold)}
-            </button>
-            {/* SPEC 11.39. The "Search" button that stood here is gone
-                with "Find my city": both of them opened the panel so that
-                the search box could have the keyboard, and the search box
-                is itself the way in. The line opens the panel; what is in
-                the panel is the box. */}
-          </div>
-          <div className="sheetbody">
-          <div className="finder">
-            <Search
-              onTown={town}
-              onPoint={point}
-              onUnit={toUnit}
-              busy={busy}
-              shown={shown}
-            />
-            {/* `from` is passed so that this control's own message clears
-                when some other place is chosen. SPEC 11.29. */}
-            <MyLocation onLocation={located} snapTo={snapTo} from={from} />
-          </div>
-          <Panel
-            square={square}
-            place={place}
-            error={placeError}
-            notice={notice}
-            busy={busy}
-            day={day}
+        <div className="pills">
+          {days.length ? (
+            <DayChoice days={days} day={day} onDay={setDay} />
+          ) : null}
+          <ThresholdChoice
             threshold={threshold}
-            onDay={setDay}
             onThreshold={setThreshold}
-            from={from}
             onGo={onGo}
           />
-          <Footer />
+        </div>
+
+        <div className="mapcard">
+          <div className="mapwrap">
+            {/* SPEC 11.29. Three states, in this order: the map could not
+                be drawn, the numbers have not arrived yet, or the map. The
+                first is a message in the map's own area and nothing else
+                on the page changes, because nothing else on the page needs
+                the map: the search, the card, the five days and all 51
+                values come from api/place. */}
+            {noMap ? (
+              <p className="loading mapgone" role="status">
+                <span>{mapProblem(noMap)}</span>
+              </p>
+            ) : null}
+            {!noMap && counts && health ? (
+              <MapFrame onProblem={setNoMap}>
+                <Suspense
+                  fallback={<p className="loading">Drawing the map…</p>}
+                >
+                  <ForecastMap
+                    counts={counts}
+                    grid={health.source.grid}
+                    threshold={threshold}
+                    day={day}
+                    square={square}
+                    squareName={squareName}
+                    onPick={pick}
+                    onProblem={setNoMap}
+                    unitBox={unitBox}
+                    keyOpen={keyOpen}
+                    handcheck={handcheck}
+                  />
+                </Suspense>
+              </MapFrame>
+            ) : null}
+            {!noMap && !(counts && health) ? (
+              <p className="loading">
+                {countsError
+                  ? `The forecast could not be read: ${countsError}`
+                  : 'Reading the 51 runs…'}
+              </p>
+            ) : null}
           </div>
-        </aside>
-      </div>
+          {/* SPEC 11.39. The colour key, in the map's lower left corner
+              over the sea where there is room for it there, and directly
+              under the map where there is not. The stylesheet decides
+              which; the map pads its fit by this box's width whenever it
+              is over the canvas. */}
+          <MapKey
+            threshold={threshold}
+            open={keyOpen}
+            onToggle={(event) => setKeyOpen(event.currentTarget.open)}
+          />
+        </div>
+
+        <div className="cardcol">
+          <section className="fcard" aria-label="Location forecast">
+            <Panel
+              square={square}
+              place={place}
+              error={placeError}
+              notice={notice}
+              busy={busy}
+              day={day}
+              threshold={threshold}
+              onDay={setDay}
+              onThreshold={setThreshold}
+              from={from}
+              onGo={onGo}
+            />
+          </section>
+          {/* SPEC 11.39. Two links under the card, and one of them is not
+              drawn when the thing it points at is already on the screen:
+              the empty card carries How to read this map itself. */}
+          <p className="cardlinks">
+            {nothingChosen ? null : <HowToReadLink onGo={onGo} />}
+            <ReportCardLink onGo={onGo}>Report card</ReportCardLink>
+          </p>
+        </div>
+
+        <Footer />
+      </main>
     </div>
   );
 }

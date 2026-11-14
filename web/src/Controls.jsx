@@ -10,7 +10,9 @@ import {
   townsIn,
 } from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
-import { dayButton, dayName, istToday } from './days';
+import { HowToReadLink } from './TopNav';
+import { Pin } from './Icons';
+import { dayDate, dayName, dayWord, istToday } from './days';
 
 const THRESHOLDS = [1, 10, 50];
 
@@ -43,7 +45,14 @@ export function DayChoice({ days, day, onDay, today }) {
               + (entry.label ? `, ${entry.label} IST` : '')}
             onClick={() => onDay(entry.lead_day)}
           >
-            {dayButton(entry.from_ist, now, entry.short_ist)}
+            {/* SPEC 11.39. Two lines: the name over the date. "Sat 15"
+                put two facts on one line and the date was the one that
+                got cut; "Today" with no date under it left a reader
+                counting days on their fingers. */}
+            <span className="pilltop">
+              {dayWord(entry.from_ist, now, entry.short_ist)}
+            </span>
+            <span className="pillunder">{dayDate(entry.short_ist)}</span>
           </button>
         ))}
       </div>
@@ -75,7 +84,7 @@ export const AMOUNTS = [
   { mm: 50, nickname: 'A lot of rain' },
 ];
 
-export function ThresholdChoice({ threshold, onThreshold }) {
+export function ThresholdChoice({ threshold, onThreshold, onGo }) {
   return (
     <div className="group amounts">
       <span className="grouplabel" id="amountlabel">How much rain?</span>
@@ -90,15 +99,25 @@ export function ThresholdChoice({ threshold, onThreshold }) {
             aria-label={`${amount.nickname}, ${amount.mm} mm or more`}
             onClick={() => onThreshold(amount.mm)}
           >
-            <span className="nickname">{amount.nickname}</span>
-            <span className="mmtag">{amount.mm} mm+</span>
+            <span className="pilltop">{amount.nickname}</span>
+            <span className="pillunder">{amount.mm} mm+</span>
           </button>
         ))}
       </div>
       {/* SPEC 11.39. "10 mm of rain is water 1 cm deep if none of it ran
           away" was true, and it was a sentence under a control. What 10 mm
-          is like is on the How to read this map page in everyday words, and
-          11.39's own item 5 puts the link to it under these buttons. */}
+          is like is on the How to read this map page, in everyday words,
+          and this is the link to exactly that part of it.
+
+          On its own line under the pills, at the end of it, with no rule
+          above it and no icon beside it: a reader who wants the question
+          answered will find it, and the three pills keep the whole width
+          between them. */}
+      <p className="mmlink">
+        <HowToReadLink onGo={onGo} to="/how-to-read#amounts">
+          What does mm mean?
+        </HowToReadLink>
+      </p>
     </div>
   );
 }
@@ -115,7 +134,9 @@ export function ThresholdChoice({ threshold, onThreshold }) {
  * and the answer never disagree. `shown` is that text and the box falls back
  * to it whenever the reader is not in the middle of typing.
  */
-export function Search({ onTown, onPoint, onUnit, busy, shown }) {
+export function Search({
+  onTown, onPoint, onUnit, busy, shown, onLocation, snapTo, from,
+}) {
   const [text, setText] = useState(null); // null means "not typing"
   const [said, setSaid] = useState(null);
   const [near, setNear] = useState([]);
@@ -196,14 +217,21 @@ export function Search({ onTown, onPoint, onUnit, busy, shown }) {
 
   return (
     <form className="search" onSubmit={submit} role="search">
-      <label htmlFor="place">A city, or a latitude and longitude</label>
+      {/* SPEC 11.39. The label is for a screen reader only: the box says
+          what it is for in its own placeholder, and a label over a box
+          that already says it was one more line of grey text above the
+          map. It is not removed, because a placeholder is not a label --
+          it goes the moment anybody types. */}
+      <label htmlFor="place" className="offscreen">
+        Search a city or state, or type a latitude and longitude
+      </label>
       <div className="searchrow">
         <input
           id="place"
           ref={box}
           type="text"
           autoComplete="off"
-          placeholder="Search a city, or type lat, lon"
+          placeholder="Search a city or state"
           value={value}
           onFocus={() => { if (!typing) setText(''); }}
           onChange={(event) => {
@@ -212,8 +240,13 @@ export function Search({ onTown, onPoint, onUnit, busy, shown }) {
             setNear([]);
           }}
         />
-        <button type="submit" disabled={busy}>Show</button>
+        {/* SPEC 11.39. At the right end of the box, because it answers the
+            same question the box does. The icon is a picture of a pin and
+            the button's name is words: "Use my location". */}
+        <MyLocation onLocation={onLocation} snapTo={snapTo} from={from} />
       </div>
+      {/* SPEC 11.39. The other way in, said once, under the box. */}
+      <p className="ortap">or tap the map</p>
       {/* SPEC 11.38. A whole state, which is never one forecast. */}
       {unit ? (
         <div className="unitfound">
@@ -326,12 +359,23 @@ export function MyLocation({ onLocation, snapTo, from }) {
     );
   }
 
+  // SPEC 11.39. The button and its message are siblings inside the search
+  // row rather than a box of their own: the button is at the right end of
+  // the search box, and anything it has to say wraps onto the line under
+  // the two of them.
   return (
-    <div className="mine">
-      <button type="button" onClick={ask} disabled={asking}>
-        {asking ? 'Asking…' : 'Use my location'}
+    <>
+      <button
+        type="button"
+        className="locate"
+        onClick={ask}
+        disabled={asking}
+        title="Use my location"
+        aria-label={asking ? 'Finding your location' : 'Use my location'}
+      >
+        <Pin />
       </button>
-      {said ? <p className="note">{said}</p> : null}
-    </div>
+      {said ? <p className="note locatenote">{said}</p> : null}
+    </>
   );
 }

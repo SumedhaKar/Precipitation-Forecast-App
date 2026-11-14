@@ -1475,9 +1475,13 @@ def test_the_page_draws_the_map_only_when_it_can_and_says_so_when_it_cannot():
     assert "getDerivedStateFromError" in app
     assert "onProblem('chunk')" in app
     assert "mapProblem(noMap)" in app
-    # The search and the panel are outside the map's area, so they are drawn
-    # whatever happened to it.
-    assert app.index("mapProblem(noMap)") < app.index("<Search")
+    # SPEC 11.39. The message is inside the map's own box and the search
+    # row and the card are outside it, so the two of them are drawn
+    # whatever happened to the map. Before, the order of the two in the
+    # file said this; now the boxes do.
+    wrap = app.split('<div className="mapwrap">')[1].split("</div>")[0]
+    assert "mapProblem(noMap)" in wrap
+    assert "<Search" not in wrap and "<Panel" not in wrap
 
 
 @needs_node
@@ -1532,7 +1536,7 @@ def test_each_page_has_its_own_tab_title():
     assert "<title>India Rain Outlook · next 5 days</title>" in html
     # The page names itself with the same constant the tabs are built from.
     assert "export const SITE = 'India Rain Outlook';" in nav
-    assert "<h1>{SITE}</h1>" in app
+    assert "<h1 className=\"sitename\">{SITE}</h1>" in app
     # And the tab follows pushState, which is the only thing that changes
     # the path on this site.
     assert "document.title = titleOf(path);" in site
@@ -1582,30 +1586,47 @@ def test_the_outside_line_clears_the_box_and_takes_the_calm_route():
 
 @needs_node
 def test_the_legend_names_both_ends_and_both_other_colours(forecast_words):
-    """SPEC 11.38. "None" and "All 51", the white, and the beige.
+    """SPEC 11.38, as SPEC 11.39 leaves it: the key, shut and open.
 
     The beige had no entry at all. A reader who tapped Nepal got a red
     error about a colour the page had never named, which is the page
     blaming the reader for its own omission.
+
+    Shut, what a reader sees is the question, the strip and the two ends
+    in words; open, the nine rows. Both states hold every row, because a
+    shut <details> keeps its children in the page -- which is the point of
+    using one: the rows are in the document, reachable and searchable,
+    whether or not the box is open. Which of the two a reader is given at
+    which width is measured in a browser, below.
     """
-    seen = 0
+    shut = 0
+    opened = 0
     for html in forecast_words:
-        if not isinstance(html, str) or 'class="legend' not in html:
+        if not isinstance(html, str) or 'class="mapkey"' not in html:
             continue
         text = words_of(html)
-        assert "Runs bringing" in text and "out of 51" in text
+        assert "How many of the 51 runs bring rain?" in text
         assert "None" in text and "All 51" in text
         assert "White: no forecast for this spot" in text
-        assert ("Land outside India, which this site does not forecast"
-                in text)
-        # The counts in between are still the counts.
-        for band in ("1-10", "11-20", "21-30", "31-40", "41-50"):
+        assert "Beige: land outside India, not forecast" in text
+        # The counts in between are still the counts, and each says what
+        # it is a count of.
+        for band in ("1-10 runs", "11-20 runs", "21-30 runs",
+                     "31-40 runs", "41-50 runs", "All 51 runs"):
             assert band in text, band
+        # The amount is in the summary's own name, because the colours are
+        # counts of it and a reader using a screen reader cannot see which
+        # pill is filled.
+        assert "mm or more. The colours, in words." in html
         # And no band word of 11.38 is drawn beside a colour.
-        for word in ("a few", "some", "about half", "most", "almost all"):
+        for word in ("a few", "about half", "almost all"):
             assert word not in text.lower(), (word, text)
-        seen += 1
-    assert seen >= 3, seen
+        if ' open=""' in html:
+            opened += 1
+        else:
+            shut += 1
+    assert shut >= 3, shut
+    assert opened >= 3, opened
 
 
 @needs_node
@@ -1873,7 +1894,7 @@ def test_the_freshness_line_says_when_and_how_old(forecast_words):
         if not isinstance(html, str) or 'class="fresh"' not in html:
             continue
         text = words_of(html).strip()
-        assert text.startswith("Updated "), text
+        assert text.startswith("Forecast from "), text
         assert " IST" in text and "h old" in text, text
         # No year: on a phone it is a word nobody reads.
         assert not re.search(r"20\d\d", text), text
@@ -2104,7 +2125,8 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
     # SPEC 11.38 renamed it: the short form is `dayButton`, in days.js,
     # and it names the day from the reader's own IST date rather than from
     # a lead day.
-    assert "{dayButton(entry.from_ist, now, entry.short_ist)}" in controls
+    assert "{dayWord(entry.from_ist, now, entry.short_ist)}" in controls
+    assert "{dayDate(entry.short_ist)}" in controls
     assert "export function dayButton(" in (
         ROOT / "web" / "src" / "days.js").read_text("utf-8")
     # And the row is laid out so that it cannot overflow however wide the
@@ -2349,7 +2371,10 @@ def test_the_white_squares_inside_india_are_explained():
     """
     legend = LEGEND.read_text("utf-8")
     assert "White: no forecast for this spot" in legend
-    assert 'className="legend-white"' in legend
+    # SPEC 11.39: it is one of the nine rows of the key, which the map and
+    # How to read this map both draw from this one list.
+    assert 'className="keywhite"' in legend
+    assert "export function KeyRows()" in legend
 
 
 def test_the_names_are_placed_cities_first_and_no_unit_is_left_unlabelled():
@@ -2590,16 +2615,19 @@ def test_a_colour_swatch_is_not_a_control():
     assert (".dotkey .swatch { width: 0.8rem; height: 0.8rem; "
             "border-radius: 50%; }") in css
 
-    # Six in the legend -- its own three, and the three of the nine-row key
-    # that SPEC 11.39 shares with How to read this map -- and two in the
-    # card, since the white and beige lines left the panel with the rest of
-    # the explanation (11.39). Every one of them, wherever they are, is a
-    # hidden span with nothing pressable near it.
-    for name, many in (("Legend.jsx", 6), ("Panel.jsx", 2)):
+    # Three in the key -- a class, the white and the beige, which is the
+    # one list the map and How to read this map both draw -- and two in
+    # the card. Every one of them, wherever they are, is a hidden span
+    # with nothing pressable near it.
+    for name, many in (("Legend.jsx", 3), ("Panel.jsx", 2)):
         text = (ROOT / "web" / "src" / name).read_text("utf-8")
         parts = text.split('className="swatch"')
         assert len(parts) == many + 1, name
-        assert text.count('aria-hidden="true"') == many, name
+        # Every swatch is hidden from the reading order. SPEC 11.39 adds
+        # two more hidden spans to the key -- the colour strip and the two
+        # end labels, both of which the nine rows say in words -- so this
+        # is a floor and the loop below is what checks each swatch.
+        assert text.count('aria-hidden="true"') >= many, name
         for before, after in zip(parts[:-1], parts[1:]):
             # A span, hidden from the reading order, with nothing that can be
             # pressed or tabbed to anywhere near it.
@@ -2711,37 +2739,6 @@ def test_a_square_in_view_is_left_alone_and_one_off_screen_is_brought_back(
     # Off the left edge, the pan is sideways only: nothing moves that need
     # not move.
     assert said[3][1] == 0
-
-
-@needs_node
-def test_the_part_of_the_map_under_the_bottom_sheet_is_not_in_view(exports):
-    """SPEC 11.32. A phone's map is only as tall as the window leaves it.
-
-    The sheet takes the bottom of the window, so the bottom of the canvas
-    can be past the end of it. What a reader can see is the canvas clipped
-    to the window, and a square below that line is not in view however
-    firmly the canvas says it is there.
-    """
-    # A 390 by 844 phone, the map starting 270 pixels down (SPEC 11.31) and
-    # 464 tall, with the sheet open so the window ends part way down it.
-    canvas = {"left": 0, "top": 270, "width": 390, "height": 464}
-    whole = exports(INVIEW, "visibleBox",
-                    [[canvas, {"width": 390, "height": 844}]])[0]
-    assert whole == {"left": 0, "top": 0, "right": 390, "bottom": 464}
-
-    cut = exports(INVIEW, "visibleBox",
-                  [[canvas, {"width": 390, "height": 560}]])[0]
-    assert cut["bottom"] == 290, cut
-
-    # A square 350 pixels down the canvas is on the canvas and under the
-    # sheet. In the whole box it is in view; in the cut box it is not.
-    said = exports(INVIEW, "nudge", [
-        [{"x": 195, "y": 350}, whole],
-        [{"x": 195, "y": 350}, cut],
-    ])
-    assert said[0] is None
-    assert said[1] is not None and said[1][0] == 0 and said[1][1] > 0
-    assert 350 - said[1][1] <= cut["bottom"] - 40
 
 
 @needs_node
@@ -3392,13 +3389,16 @@ def test_the_panel_shows_the_chip_the_sentence_and_the_expander():
         assert word not in panel, word
 
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
-    # The sentence is the same size as the count it is under, wide and narrow.
+    # SPEC 11.39. The card has three text sizes and they are the same three
+    # at every width, so the sentence and the count it is under are the
+    # same size by construction and there is no narrow-screen copy of
+    # either rule to keep in step.
     row = css.split("\n.countrow {")[1].split("}")[0]
     past = css.split("\n.pastline {")[1].split("}")[0]
-    assert "font-size: 0.88rem;" in row and "font-size: 0.88rem;" in past
-    narrow = css.split("  .countrow { grid-template-columns:")[1]
-    assert "font-size: 0.84rem; }" in narrow.split("\n")[0]
-    assert ".pastline { font-size: 0.84rem; }" in narrow
+    assert "font-size: var(--card-md);" in row
+    assert "font-size: var(--card-sm);" in past
+    for token in ("--card-lg:", "--card-md:", "--card-sm:"):
+        assert token in css, token
     # Three chips, three colours, each one a word as well as a colour.
     for colour in ("green", "amber", "grey"):
         assert f".chip.{colour} {{" in css
@@ -4095,6 +4095,22 @@ async function size(width, height) {
   await new Promise((go) => setTimeout(go, 400));
 }
 
+/**
+ * A screenshot, when SHOTS names a directory to put it in.
+ *
+ * Off in a test run and on when somebody is looking: the measurements
+ * below are what the checks read, and a picture is what a person reads.
+ * SPEC 11.39's own numbers were taken from these.
+ */
+async function shoot(name) {
+  if (!PLAN.shots) return;
+  const shot = await send('Page.captureScreenshot', { format: 'png' },
+    sessionId);
+  const { writeFile } = await import('node:fs/promises');
+  await writeFile(`${PLAN.shots}/${name}.png`,
+    Buffer.from(shot.data, 'base64'));
+}
+
 async function open(path) {
   await send('Page.navigate', { url: `http://127.0.0.1:${port}${path}` },
     sessionId);
@@ -4134,23 +4150,97 @@ const LOOK = `(async () => {
       .map((e) => ({ text: e.textContent.trim(),
         nowrap: getComputedStyle(e).whiteSpace === 'nowrap',
         fits: e.scrollWidth <= e.clientWidth + 1 })),
-    open: document.querySelector('.shell')
-      ? document.querySelector('.shell').className.includes('open') : null,
-    header: box('header'),
-    controls: box('.controls'),
-    legend: box('.legend'),
+    // SPEC 11.39. The page scrolls, so every box below is where it is on
+    // the screen and scrollY says where the screen is on the page. The
+    // drawer and its handle are gone; they are still asked for, so a
+    // check can say so rather than assume it.
+    scrollY: Math.round(window.scrollY),
+    docHeight: document.documentElement.scrollHeight,
+    header: box('.pagehead'),
+    band: box('.band'),
+    brand: box('.brand'),
+    fresh: box('.fresh'),
+    freshText: (document.querySelector('.fresh') || {}).textContent || null,
+    warn: box('.headwarn'),
+    warnText: (document.querySelector('.headwarn') || {}).textContent || null,
+    asks: box('.asks'),
+    searchBox: box('.searchrow input'),
+    locate: box('.locate'),
+    locateName: document.querySelector('.locate')
+      ? document.querySelector('.locate').getAttribute('aria-label') : null,
+    locateTitle: document.querySelector('.locate')
+      ? document.querySelector('.locate').getAttribute('title') : null,
+    ortap: box('.ortap'),
+    pillrow: box('.pills'),
+    days: box('.days'),
+    amounts: box('.amounts'),
+    mmlink: box('.mmlink'),
+    mmHref: document.querySelector('.mmlink a')
+      ? document.querySelector('.mmlink a').getAttribute('href') : null,
+    dayPills: [...document.querySelectorAll('.days .radios button')]
+      .map((e) => [e.querySelector('.pilltop')
+        ? e.querySelector('.pilltop').textContent : null,
+      e.querySelector('.pillunder')
+        ? e.querySelector('.pillunder').textContent : null,
+      /(^| )on( |$)/.test(e.className)]),
+    amountPills: [...document.querySelectorAll('.amounts .radios button')]
+      .map((e) => [e.querySelector('.pilltop')
+        ? e.querySelector('.pilltop').textContent : null,
+      e.querySelector('.pillunder')
+        ? e.querySelector('.pillunder').textContent : null,
+      /(^| )on( |$)/.test(e.className)]),
+    mapcard: box('.mapcard'),
+    mapkey: box('.mapkey'),
+    keyOpen: document.querySelector('.mapkey')
+      ? document.querySelector('.mapkey').open : null,
+    keyText: (document.querySelector('.mapkey') || {}).textContent || null,
+    keyRows: [...document.querySelectorAll('.mapkey .keyrows li')]
+      .map((e) => e.textContent.trim()),
+    // Where the key is, in the map canvas's own pixels, so a check can ask
+    // what of India is behind it. SPEC 11.39.
+    keyOver: (() => {
+      const k = document.querySelector('.mapkey');
+      const m = document.querySelector('.map');
+      if (!k || !m) return null;
+      const kb = k.getBoundingClientRect();
+      const mb = m.getBoundingClientRect();
+      return {
+        position: getComputedStyle(k).position,
+        box: [Math.round(kb.left - mb.left), Math.round(kb.top - mb.top),
+          Math.round(kb.right - mb.left), Math.round(kb.bottom - mb.top)],
+        map: [Math.round(mb.width), Math.round(mb.height)],
+      };
+    })(),
+    card: box('.fcard'),
+    cardLinks: [...document.querySelectorAll('.cardlinks a')]
+      .map((e) => [e.textContent.trim(), e.getAttribute('href')]),
+    sheet: box('.sheetbar'),
+    handle: box('.handle'),
+    summaryRow: box('.summaryline'),
     mapError: (document.querySelector('.loading')
       || {}).textContent || null,
     map: box('.mapwrap'),
-    panel: box('.panel'),
-    bar: box('.sheetbar'),
-    handle: box('.handle'),
-    handleText: document.querySelector('.handle')
-      ? document.querySelector('.handle').textContent : null,
-    handleLines: lines('.handle'),
-    // The bar's "Search" button, which SPEC 11.39 removed: still asked
-    // for, so a check can say it is gone rather than assume it.
-    search: box('.sheetsearch'),
+    // SPEC 11.39. Nothing on this page may overlap anything else on it:
+    // every pair of controls, measured against every other.
+    overlapping: (() => {
+      const items = [...document.querySelectorAll(
+        '.searchrow input, .locate, .radios button, .mmlink a,'
+        + ' .topnav .navlink, .cardlinks a, .mapkey summary, .brand')];
+      const bad = [];
+      for (let i = 0; i < items.length; i += 1) {
+        for (let j = i + 1; j < items.length; j += 1) {
+          const a = items[i].getBoundingClientRect();
+          const b = items[j].getBoundingClientRect();
+          if (!a.height || !b.height) continue;
+          if (a.right > b.left + 1 && b.right > a.left + 1
+            && a.bottom > b.top + 1 && b.bottom > a.top + 1) {
+            bad.push([String(items[i].className || items[i].tagName),
+              String(items[j].className || items[j].tagName)]);
+          }
+        }
+      }
+      return bad;
+    })(),
     // SPEC 11.39, the calm look: a pill is a fill and not an outline,
     // the chosen one is filled navy, the search box keeps its border, and
     // nothing on the page is set in capitals.
@@ -4164,8 +4254,12 @@ const LOOK = `(async () => {
     inputBorder: document.querySelector('.searchrow input')
       ? getComputedStyle(document.querySelector('.searchrow input'))
         .borderTopWidth : null,
+    // Every card and every note. The one closed section is not in the
+    // list: a rule above a heading is a divider and not an outline, and
+    // SPEC 11.39 asks for the boxes to be opened up, not for the page to
+    // stop separating one thing from another.
     outlined: [...document.querySelectorAll(
-      '.welcome, .notice, .headwarn, .mapgone span, .more, .curious')]
+      '.welcome, .notice, .headwarn, .mapgone span, .fcard, .mapcard')]
       .map((e) => [e.className, getComputedStyle(e).borderTopWidth,
         getComputedStyle(e).borderLeftWidth]),
     allCaps: [...document.querySelectorAll('*')].filter((e) => {
@@ -4176,9 +4270,6 @@ const LOOK = `(async () => {
     }).map((e) => [String(e.className || e.tagName),
       e.textContent.trim().slice(0, 30)]),
     whiteHere: !!document.querySelector('.whitehere'),
-    legendWhite: document.querySelector('.legend-white')
-      ? getComputedStyle(document.querySelector('.legend-white'))
-        .display : null,
     // SPEC 11.38: what the map is actually showing, from the map itself.
     view: (document.querySelector('.map') && document.querySelector('.map').mapView)
       ? document.querySelector('.map').mapView() : null,
@@ -4186,7 +4277,8 @@ const LOOK = `(async () => {
     // 12 pixel floor over everything it writes. MapLibre's controls are
     // its own and are not ours to set, so they are named and skipped.
     rows: [...document.querySelectorAll(
-      '.days .radios button, .amounts .radios button, .topnav .navlink')]
+      '.days .radios button, .amounts .radios button, .topnav .navlink,'
+      + ' .locate, .searchrow input')]
       .map((e) => {
         const r = e.getBoundingClientRect();
         return [e.className || e.tagName, Math.round(r.height * 10) / 10,
@@ -4218,74 +4310,78 @@ const LOOK = `(async () => {
   return seen;
 })()`;
 
-// What the open panel is asked for: type sizes and tap targets.
+// What the card is asked for: type sizes, tap targets, and its own words.
 const INSIDE = `(() => {
   const px = (s) => {
     const e = document.querySelector(s);
     return e ? Math.round(parseFloat(getComputedStyle(e).fontSize) * 10) / 10
       : null;
   };
-  const panel = document.querySelector('.panel');
+  const card = document.querySelector('.fcard');
+  if (!card) return null;
   const small = [];
   const short = [];
-  panel.querySelectorAll('*').forEach((e) => {
+  const used = {};
+  card.querySelectorAll('*').forEach((e) => {
     const r = e.getBoundingClientRect();
     if (r.height === 0) return;
+    // Chrome hides the contents of a shut <details> with
+    // content-visibility, which keeps their layout boxes, so a height of
+    // its own is not enough to tell what a reader can see. Everything
+    // inside the shut section is still measured -- a reader who opens it
+    // is using the same eyes and the same thumb -- and this says which.
+    const shut = !!e.closest('details:not([open])');
     const text = [...e.childNodes].some(
       (n) => n.nodeType === 3 && n.textContent.trim());
-    const fs = parseFloat(getComputedStyle(e).fontSize);
-    if (text && fs < 13) {
-      small.push([e.className || e.tagName, Math.round(fs * 10) / 10,
-        e.textContent.trim().slice(0, 30)]);
+    const fs = Math.round(parseFloat(getComputedStyle(e).fontSize) * 10) / 10;
+    if (text) {
+      used[fs] = (used[fs] || 0) + 1;
+      if (fs < 13) {
+        small.push([e.className || e.tagName, fs,
+          e.textContent.trim().slice(0, 30), shut]);
+      }
     }
     if (['BUTTON', 'SUMMARY', 'INPUT'].includes(e.tagName) && r.height < 43.5) {
       short.push([e.className || e.tagName, Math.round(r.height * 10) / 10,
-        e.textContent.trim().slice(0, 24)]);
+        e.textContent.trim().slice(0, 24), shut]);
     }
   });
   return {
     sizes: {
-      placeLine: px('.placeline h2'),
+      placeName: px('.placeline h2'),
+      whenLine: px('.whenline'),
+      atSquare: px('.atsquare'),
+      headline: px('.headline'),
       chosenRow: px('.countrow.on'),
       chosenCount: px('.countrow.on .rowcount'),
       rowWhat: px('.countrow .rowwhat'),
-      rowChip: px('.countrow .chip'),
       trustChip: px('.trustline .chip'),
       trustLine: px('.trustline'),
       pastLine: px('.pastline'),
       notPromise: px('.notpromise'),
-      headline: px('.headline'),
-      placeName: px('.placeline h2'),
+      dotKey: px('.dotkey li'),
+      moreSummary: px('.more > summary'),
     },
+    // SPEC 11.39: at most three text sizes in the card, counted from what
+    // the browser actually resolved on every element that holds words.
+    textSizes: used,
     has: {
       counts: !!document.querySelector('.countrow'),
       trust: !!document.querySelector('.trustline .chip'),
       past: !!document.querySelector('.pastline'),
-      whiteHere: !!document.querySelector('.whitehere'),
-      legendWhite: document.querySelector('.legend-white')
-        ? getComputedStyle(document.querySelector('.legend-white')).display
-        : null,
+      moreShut: document.querySelector('.more')
+        ? !document.querySelector('.more').open : null,
     },
-    panelText: panel.textContent.replace(/\s+/g, ' ').slice(0, 220),
-    // SPEC 11.38: where the three blocks that carry the answer end, in the
-    // panel's own scrolling coordinates, and how tall its window is.
-    answerFirst: (() => {
-      const box = panel.getBoundingClientRect();
-      const at = (s) => {
-        const e = panel.querySelector(s);
-        if (!e) return null;
-        const r = e.getBoundingClientRect();
-        return [Math.round(r.top - box.top + panel.scrollTop),
-          Math.round(r.bottom - box.top + panel.scrollTop)];
-      };
-      return {
-        clientHeight: panel.clientHeight,
-        placeline: at('.placeline'),
-        headline: at('.headline'),
-        stripCells: at('.strip ol'),
-      };
-    })(),
-    panelScroll: [panel.scrollHeight, panel.clientHeight],
+    // The backslash is doubled on purpose: this whole expression is a
+    // template literal in the harness, and a template literal eats an
+    // unknown escape -- so a single backslash arrived at the browser as
+    // /s+/g, which replaced every letter s in the card with a space.
+    // The backslash is doubled on purpose. This whole expression is a
+    // template literal in the harness, and a template literal eats an
+    // escape it does not know: written with one backslash it reached the
+    // browser as /s+/g, which replaced every letter s in the card with a
+    // space, so the card's own words came back as "the 51 run ".
+    cardText: card.textContent.replace(/\\s+/g, ' ').slice(0, 260),
     belowThirteen: small,
     tapTargetsUnder44: short,
   };
@@ -4297,9 +4393,9 @@ try {
 
   const out = { pages: {}, phone: {} };
 
-  // The two document pages, at a phone's width.
+  // The three document pages, at a phone's width.
   await size(390, 664);
-  for (const path of ['/report-card', '/how-we-checked']) {
+  for (const path of ['/report-card', '/how-we-checked', '/how-to-read']) {
     await open(path);
     out.pages[path] = await evaluate(LOOK);
   }
@@ -4310,34 +4406,22 @@ try {
     const here = {};
     await size(width, height);
     await open('/');
-    here.shut = await evaluate(LOOK);
+    // SPEC 11.39. The page as it opens, at the top of it, with nothing
+    // chosen: there is no drawer to open and no handle to find, so this is
+    // the one state every "without scrolling" measurement is made in.
+    here.first = await evaluate(LOOK);
+    await shoot(`${key}-first`);
 
-    // The line opens the panel, and asks for no keyboard.
-    await evaluate("document.querySelector('.handle').click()");
-    await new Promise((go) => setTimeout(go, 700));
-    here.afterLine = await evaluate(LOOK);
-    await evaluate("document.querySelector('.handle').click()");
-    await new Promise((go) => setTimeout(go, 700));
-    here.afterHandleCloses = await evaluate(LOOK);
-
-    // SPEC 11.39. There is no second button in the bar to click: the
-    // "Search" button is gone with "Find my city", and the line is the
-    // one control in it.
-    // The longest line this page can say, put in the bar to see whether the
-    // button survives it. The words are the page's own; only the place name
-    // and the count are the worst case the town list allows.
-    if (PLAN.longest) {
-      await evaluate(
-        `document.querySelector('.handle').textContent = ${
-          JSON.stringify(PLAN.longest)}`);
-      await new Promise((go) => setTimeout(go, 400));
-      here.withLongestLine = await evaluate(LOOK);
-      await evaluate("document.querySelector('.handle').textContent = "
-        + "'Tap the map to pick a place'");
-    }
+    // The colour key, which is shut on a phone and open on a desktop.
+    await evaluate("document.querySelector('.mapkey summary').click()");
+    await new Promise((go) => setTimeout(go, 1200));
+    here.keyToggled = await evaluate(LOOK);
+    await evaluate("document.querySelector('.mapkey summary').click()");
+    await new Promise((go) => setTimeout(go, 1200));
+    here.keyBack = await evaluate(LOOK);
 
     // A tap on the map itself.
-    const map = here.shut.map;
+    const map = here.first.map;
     if (map && map.height > 40) {
       // Where a square is on the screen, worked out from the map's own
       // bounds: the view is all of India and the run a test publishes
@@ -4345,14 +4429,9 @@ try {
       // open sea and only a published square will do.
       //
       // The square tapped is the first of that run's own squares that
-      // nothing is covering. The spots used to be the middle of the map
-      // and eight offsets from it, which landed on sea; and the one
-      // square the fixture named could land under something drawn on the
-      // map — the welcome card's button, or a zoom control — in which
-      // case the tap went to that instead and the test measured a panel
-      // nobody had chosen anything in. Which square it was, and what was
-      // in the way of the others, is reported, so a check can say that
-      // none was reachable rather than quietly passing.
+      // nothing is covering. Which square it was, and what was in the way
+      // of the others, is reported, so a check can say that none was
+      // reachable rather than quietly passing.
       const wanted = PLAN.squares && PLAN.squares.length
         ? PLAN.squares : (PLAN.target ? [PLAN.target] : []);
       const pick = await evaluate(`(() => {
@@ -4374,7 +4453,7 @@ try {
           }
           const over = document.elementFromPoint(x, y);
           const free = over && over.closest('.mapwrap')
-            && !over.closest('.welcome') && !over.closest('.maplibregl-ctrl');
+            && !over.closest('.mapkey') && !over.closest('.maplibregl-ctrl');
           if (free) {
             return { square: [lat, lon],
               at: [Math.round(x), Math.round(y)], blocked };
@@ -4387,20 +4466,8 @@ try {
       here.tappedFor = pick;
       if (pick.at) await tap(pick.at[0], pick.at[1]);
       here.afterMapTap = await evaluate(LOOK);
-      here.inside = await evaluate(INSIDE);
-      // And the map gets its size back when the panel closes.
-      await evaluate("document.querySelector('.handle').click()");
-      await new Promise((go) => setTimeout(go, 2000));
-      here.afterClosingAgain = await evaluate(`(() => {
-        const wrap = document.querySelector('.mapwrap');
-        const canvas = document.querySelector('.maplibregl-canvas');
-        return {
-          wrap: Math.round(wrap.getBoundingClientRect().height),
-          canvas: canvas
-            ? Math.round(canvas.getBoundingClientRect().height) : null,
-          open: document.querySelector('.shell').className.includes('open'),
-        };
-      })()`);
+      here.card = await evaluate(INSIDE);
+      await shoot(`${key}-tapped`);
     }
     out.phone[key] = here;
   }
@@ -4409,6 +4476,7 @@ try {
   stop({ skip: `the browser check could not run: ${error.message}` });
 }
 """
+
 
 
 @pytest.fixture(scope="module")
@@ -4501,10 +4569,11 @@ def viewport(tmp_path_factory):
         runner.write_text(VIEWPORT_HARNESS, encoding="utf-8")
         plan = {
             "api": str(ROOT / "api"),
-            "sizes": [[390, 664], [390, 844], [320, 568], [1440, 900]],
-            "longest": longest_bar_line(),
+            "sizes": [[390, 664], [390, 844], [320, 568],
+                      [1440, 900], [1024, 768]],
             "target": target,
             "squares": squares,
+            "shots": os.environ.get("SHOTS") or None,
         }
         done = subprocess.run(
             [node, str(runner), str(out), json.dumps(plan)],
@@ -4520,53 +4589,6 @@ def viewport(tmp_path_factory):
         server.server_close()
 
 
-def longest_bar_line() -> str:
-    """The longest line the closed bar can ever carry. SPEC 11.37.
-
-    The page's own words, with the longest name in the town list and the
-    widest numbers the forecast can give: 51 of 51, at 50 mm.
-    """
-    towns = json.loads((ROOT / "web" / "src" / "towns.json")
-                       .read_text(encoding="utf-8"))
-    rows = towns if isinstance(towns, list) else towns["towns"]
-    names = [row["name"] if isinstance(row, dict) else row[0] for row in rows]
-    return f"{max(names, key=len)}: 51 of 51 runs reach 50 mm"
-
-
-@needs_node
-def test_the_details_handle_is_on_the_screen_at_390_by_664(viewport):
-    """SPEC 11.35. The one thing a phone reader cannot do without."""
-    page = viewport["phone"]["390x664"]["shut"]
-    assert page["innerWidth"] == 390 and page["innerHeight"] == 664
-    shut = page
-    assert shut["handle"]["top"] >= 0, shut
-    assert shut["handle"]["bottom"] <= 664, (
-        f"the handle ends {shut['handle']['bottom'] - 664} pixels below the "
-        "screen, which is the bug of SPEC 11.35")
-    # And the map is still the larger half of what is left.
-    assert shut["map"]["height"] >= shut["panel"]["height"]
-
-
-@needs_node
-def test_the_handle_opens_the_panel_and_the_last_line_can_be_reached(
-        viewport):
-    """SPEC 11.35. Open, and scrollable to the end of the 51 values."""
-    here = viewport["phone"]["390x664"]
-    opened = here["afterLine"]
-    assert opened["open"] is True, "the line did not open the sheet"
-    assert opened["panel"]["height"] > here["shut"]["panel"]["height"]
-    assert opened["panel"]["bottom"] <= 664 + 1
-    # The map is thinner but never gone.
-    assert opened["map"]["height"] >= 48
-
-    # With a square chosen, the panel holds more than it can show and
-    # scrolls inside itself rather than running off the screen.
-    inside = here["inside"]
-    content, box = inside["panelScroll"]
-    assert content > box, (content, box)
-    assert box <= 664
-
-
 @needs_node
 @pytest.mark.parametrize("size", ["390x664", "1440x900"])
 def test_the_whole_of_india_is_in_view_on_first_load(viewport, size):
@@ -4579,7 +4601,7 @@ def test_the_whole_of_india_is_in_view_on_first_load(viewport, size):
     Pradesh were not on the screen at all when the page opened.
     """
     here = viewport["phone"][size]
-    view = here["shut"]["view"]
+    view = here["first"]["view"]
     assert view, f"the map did not report a view at {size}"
     west, south, east, north = view["bounds"]
     # The box of SPEC 1.4, with a tenth of a degree of slack for the
@@ -4655,64 +4677,37 @@ def built_css(tmp_path_factory):
                      for path in sheets)
 
 
-def test_the_stage_is_sized_from_the_visible_viewport_in_the_built_sheet(
-        built_css):
-    """SPEC 11.35, checked on the bytes a reader is sent.
-
-    The real rule is `dvh`; the fallback is an @supports block, which no
-    minifier may drop, and not a line a later line overrides.
-    """
-    assert "100dvh" in built_css
-    fallback = re.search(
-        r"@supports not \(height: ?100dvh\)\s*\{\s*\.shell\s*\{"
-        r"([^}]*)\}", built_css)
-    assert fallback is not None, (
-        "the built stylesheet has no @supports fallback for a browser "
-        "without dvh")
-    inside = fallback.group(1)
-    assert "height:100vh" in inside.replace(" ", ""), inside
-    assert "max-height:100vh" in inside.replace(" ", ""), inside
-
-
-def test_no_height_rule_uses_a_viewport_unit_outside_the_dvh_fallback():
-    """SPEC 11.35. `vh` may appear only inside the @supports fallback.
+def test_every_viewport_height_is_the_map_and_has_a_dvh_pair():
+    """SPEC 11.35, as SPEC 11.39 leaves it.
 
     A phone's `100vh` includes the strip behind the browser's bars and
-    `100dvh` does not, so a `vh` height anywhere else is the bug waiting to
-    come back.
+    `100dvh` does not, and 11.35 was that bug: the shell asked for 100dvh
+    and the panel for a share of it, so the handle ended up behind the
+    bars. The shell has no height at all now, and the one height on this
+    page that is a share of anything is the map's -- which can be, because
+    the page scrolls and the map cannot squeeze another block off it.
+
+    Every `vh` rule must have a `dvh` rule beside it, in its own
+    @supports block, because a minifier drops a declaration the next line
+    overrides: written as two lines in one rule the built stylesheet
+    carried the dvh alone and a browser that had never heard of it got no
+    height at all.
     """
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    head = "@supports not (height: 100dvh)"
-    assert head in bare, "the fallback block is gone"
-    at = bare.index(head)
-    shut = bare.index("}\n}", at) + 3
-    block = bare[at:shut]
-    assert len(re.findall(r"\d+vh", block)) == 2, block
-    rest = bare[:at] + bare[shut:]
-    assert re.search(r"\d+vh", rest) is None, (
-        "a viewport-unit height outside the fallback: "
-        f"{re.search(r'[^;{{}}]*[0-9]+vh[^;{{}}]*', rest).group(0)}")
-
-
-def test_the_phone_layout_takes_the_map_s_height_out_of_the_stage():
-    """SPEC 11.35. The rule the bug broke, as a rule a test can hold."""
-    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
-    phone = css[css.index("@media (max-width: 1023px)"):]
-    for rule in (".mapwrap", ".panel"):
-        block = phone[phone.index(rule):]
-        block = block[:block.index("}")]
-        assert "vh" not in block, (
-            f"{rule} is sized from the viewport again: {block}")
-    # The guarantee itself: the panel cannot shrink below its handle, and it
-    # is capped as a share of the stage rather than left to grow.
-    panel = phone[phone.index("  .panel {"):]
-    panel = panel[:panel.index("}")]
-    assert re.search(r"min-height:\s*[\d.]+rem", panel), panel
-    assert re.search(r"max-height:\s*\d+%", panel), panel
-    opened = phone[phone.index(".shell.open .panel"):]
-    opened = opened[:opened.index("}")]
-    assert re.search(r"max-height:\s*\d+%", opened), opened
+    # Nothing but the map asks for a share of the viewport.
+    for rule in re.findall(r"[^{}]*\{[^{}]*?\d+d?vh[^{}]*\}", bare):
+        head = rule.split("{")[0].strip().split("\n")[-1].strip()
+        assert head == ".mapwrap", head
+    vh = re.findall(r"min\((\d+)vh", bare)
+    dvh = re.findall(r"min\((\d+)dvh", bare)
+    assert vh and vh == dvh, (vh, dvh)
+    # And each dvh rule is inside an @supports that asks whether the unit
+    # exists at all.
+    for at in [m.start() for m in re.finditer(r"min\(\d+dvh", bare)]:
+        before = bare[:at]
+        assert "@supports (height: 1dvh)" in before
+        assert before.rindex("@supports (height: 1dvh)") > before.rindex("}\n\n")
 
 
 # ------------------------------------------- SPEC 11.36, the report card
@@ -4900,128 +4895,65 @@ def test_the_ecmwf_section_carries_the_hand_check_s_own_numbers(rendered):
 # ------------------------------------------ SPEC 11.37, the phone's bottom bar
 
 @needs_node
-def test_the_closed_bar_is_the_whole_panel_and_the_map_has_the_rest(viewport):
-    """SPEC 11.37. Shut, the panel is one line and one button."""
-    # SPEC 11.38 lowered these by 16 pixels: the day buttons, the amount
-    # buttons and the menu are 44 pixels tall now instead of 30, and that
-    # height comes out of the map. It is the trade 11.38 chose, written
-    # down here rather than discovered later.
-    for key, floor in (("390x664", 225), ("390x844", 405)):
-        shut = viewport["phone"][key]["shut"]
-        height = int(key.split("x")[1])
-        assert shut["open"] is False
-        assert shut["bar"] is not None, "no bottom bar"
-        assert shut["bar"]["bottom"] <= height + 1, (key, shut["bar"])
-        assert shut["handle"]["bottom"] <= height + 1
-        assert shut["handle"]["right"] <= int(key.split("x")[0]) + 1
-        # SPEC 11.39: one line and nothing else. The button that stood
-        # beside it is gone with "Find my city".
-        assert shut["search"] is None, "the Search button is back"
-        # The bar is the whole of the shut panel: nothing under it.
-        assert shut["panel"]["height"] - shut["bar"]["height"] <= 2, (
-            key, shut["panel"], shut["bar"])
-        assert shut["map"]["height"] >= floor, (
-            f"{key}: the map is {shut['map']['height']}, under {floor}")
+@pytest.mark.parametrize("size", ["390x664", "390x844", "1440x900"])
+def test_tapping_the_map_answers_in_the_card(viewport, size):
+    """SPEC 11.30 and 11.39. The answer is on the page, not in a drawer.
 
-
-@needs_node
-def test_the_line_before_a_place_is_chosen_fits_one_line_at_390(viewport):
-    """SPEC 11.37. "Tap the map to pick a place", on one line."""
-    shut = viewport["phone"]["390x664"]["shut"]
-    assert shut["handleText"] == "Tap the map to pick a place"
-    assert shut["handleLines"] == 1, shut["handleLines"]
-
-
-@needs_node
-def test_the_search_button_survives_the_longest_line_at_320(viewport):
-    """SPEC 11.37, as SPEC 11.39 leaves it: the line gives way.
-
-    There is no button beside it any more -- "Search" and "Find my city"
-    are both gone, because the search box is the way in and both of them
-    only moved the keyboard into it. So what has to survive the longest
-    line this page can say is the line itself: two lines, cut with an
-    ellipsis after that, and inside the screen either way.
+    A tap used to open the bottom sheet, which is what a result being
+    hidden behind a closed bar looks like when it is fixed badly. There is
+    no bar: the card is the last block of the page on a phone and the
+    column beside the map on a desktop, and a tap fills it in.
     """
-    seen = viewport["phone"]["320x568"]["withLongestLine"]
-    assert seen["handleText"] == longest_bar_line()
-    assert "Thiruvananthapuram" in seen["handleText"]
-    assert seen["search"] is None, "the Search button is back"
-    assert seen["handle"]["height"] >= 44, seen["handle"]
-    assert seen["handle"]["bottom"] <= 568 + 1, seen["handle"]
-    assert seen["handleLines"] <= 2, seen["handleLines"]
-    assert seen["handle"]["right"] <= 320 + 1, seen["handle"]
-    # The line is what wrapped or was cut, and it has not pushed the bar off
-    # the screen either.
-    assert seen["bar"]["bottom"] <= 568 + 1
-    assert seen["handleLines"] >= 1
+    here = viewport["phone"][size]
+    assert here["tappedFor"]["square"], here["tappedFor"]["blocked"]
+    card = here["card"]
+    assert card, "no card was measured"
+    assert card["has"]["counts"], "no counts in the card"
+    assert card["has"]["trust"], "no trust label in the card"
+    # The three amount rows are inside the closed section, and it is shut.
+    assert card["has"]["moreShut"] is True
+    # The place name and the headline are the card's first two lines.
+    assert "of the 51 runs bring" in card["cardText"], card["cardText"]
+    # And the map is still a map: nothing about choosing a place takes its
+    # height away, because nothing is drawn over it.
+    after = here["afterMapTap"]
+    assert after["map"]["height"] >= 280, after["map"]
+    assert after["map"]["height"] == here["first"]["map"]["height"]
 
 
 @needs_node
-def test_each_control_in_the_bar_does_one_thing(viewport):
-    """SPEC 11.37. The line, the button, and the handle again."""
-    here = viewport["phone"]["390x664"]
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_the_card_can_be_read_on_a_phone(viewport, size):
+    """SPEC 11.37 item by item, as SPEC 11.39 leaves it.
 
-    # The line opens the panel and asks for no keyboard.
-    assert here["afterLine"]["open"] is True
-    assert here["afterLine"]["focus"] != "place", (
-        "the line gave the search box the keyboard")
-    assert here["afterLine"]["handleText"] == "Hide the details"
-
-    # The handle closes it again.
-    assert here["afterHandleCloses"]["open"] is False
-    assert here["afterHandleCloses"]["handleText"] \
-        == "Tap the map to pick a place"
-
-    # SPEC 11.39. And it is the only control in the bar: nothing there
-    # asks for the keyboard, because nothing needs to. The box the
-    # keyboard would go to is in the panel the line opens.
-    assert here["afterLine"]["search"] is None
-    app = APP.read_text("utf-8")
-    assert "sheetsearch" not in app
-    assert "askFocus" not in app
-
-
-@needs_node
-def test_tapping_the_map_opens_the_panel_on_that_square(viewport):
-    """SPEC 11.37 and 11.30. A result is never hidden behind a closed bar."""
-    here = viewport["phone"]["390x664"]
-    assert here["afterMapTap"]["open"] is True
-    assert here["inside"]["has"]["counts"], "no counts in the opened panel"
-    assert here["inside"]["has"]["trust"], "no trust chip in the opened panel"
-    # And the map gets its height back when the panel is closed again.
-    back = here["afterClosingAgain"]
-    assert back["open"] is False
-    assert back["wrap"] >= 225
-    assert abs(back["canvas"] - back["wrap"]) <= 2, (
-        f"the map is {back['wrap']} tall and its canvas {back['canvas']}: "
-        "it did not resize when the panel closed")
-
-
-@needs_node
-def test_the_open_panel_can_be_read_on_a_phone(viewport):
-    """SPEC 11.37, item by item, on the panel a tap on the map opens."""
-    inside = viewport["phone"]["390x664"]["inside"]
+    Three text sizes and no more, every sentence at 15 pixels or over,
+    nothing at all under 13, and every tap target in the card 44 pixels
+    tall. The sizes are the same three at every width, which is why this
+    runs at three widths and expects one answer.
+    """
+    inside = viewport["phone"][size]["card"]
+    assert inside, "no card was measured"
     sizes = inside["sizes"]
 
     # At least 15px: the lines that carry the answer.
     for what in ("chosenRow", "rowWhat", "trustChip", "trustLine",
-                 "notPromise", "headline", "placeName"):
+                 "notPromise", "headline", "placeName", "moreSummary"):
         assert sizes[what] is not None, what
         assert sizes[what] >= 15, (what, sizes[what])
     if sizes["pastLine"] is not None:
-        assert sizes["pastLine"] >= 15, sizes["pastLine"]
+        assert sizes["pastLine"] >= 14, sizes["pastLine"]
 
-    # The main result line is larger again.
-    assert sizes["chosenCount"] > sizes["chosenRow"], sizes
-    assert sizes["chosenCount"] >= 17, sizes["chosenCount"]
+    # The place name is the largest thing in it, because it is what the
+    # card is about.
+    assert sizes["placeName"] > sizes["headline"], sizes
 
-    # Nothing in the panel under 13px, and every tap target 44px tall.
+    # SPEC 11.39: three text sizes in the card and no more. It had nine.
+    used = sorted(float(px) for px in inside["textSizes"])
+    assert len(set(used)) <= 3, inside["textSizes"]
+
+    # Nothing in the card under 13px, and every tap target 44px tall.
     assert inside["belowThirteen"] == [], inside["belowThirteen"]
     assert inside["tapTargetsUnder44"] == [], inside["tapTargetsUnder44"]
-
-    # It still scrolls to its last line.
-    content, box = inside["panelScroll"]
-    assert content > box, (content, box)
 
 
 @needs_node
@@ -5034,7 +4966,7 @@ def test_the_three_rows_a_thumb_hits_are_44_pixels_and_15_point(
     and the menu links at 13.6 and 30.4 -- on the one bar a reader has to
     use before they can read anything at all.
     """
-    rows = viewport["phone"][size]["shut"]["rows"]
+    rows = viewport["phone"][size]["first"]["rows"]
     assert len(rows) >= 8, rows  # five days, three amounts, three links
     for name, height, size_px, text in rows:
         assert height >= 43.5, (size, name, height, text)
@@ -5050,7 +4982,7 @@ def test_nothing_on_the_forecast_page_is_under_twelve_pixels(viewport, size):
     is set by the stylesheet to 12 where it can be, but the buttons are
     not ours to lay out.
     """
-    small = viewport["phone"][size]["shut"]["underTwelve"]
+    small = viewport["phone"][size]["first"]["underTwelve"]
     assert small == [], (size, small)
 
 
@@ -5058,31 +4990,10 @@ def test_nothing_on_the_forecast_page_is_under_twelve_pixels(viewport, size):
 @pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
 def test_nothing_scrolls_sideways_on_a_phone(viewport, size):
     """SPEC 11.38, and 11.29 before it."""
-    shut = viewport["phone"][size]["shut"]
+    shut = viewport["phone"][size]["first"]
     width = int(size.split("x")[0])
     assert shut["docScrollWidth"] <= width, (size, shut["docScrollWidth"])
     assert shut["bodyScrollWidth"] <= width, (size, shut["bodyScrollWidth"])
-
-
-@needs_node
-def test_the_answer_is_on_the_screen_without_scrolling_at_390_by_664(
-        viewport):
-    """SPEC 11.38. The name, the headline and the five cells, after a tap.
-
-    The review measured the place line 193 pixels down a 258 pixel window
-    and the five-day strip 936 pixels down. This is the rule that replaces
-    that: what the reader asked for is on the screen when the panel opens,
-    and the working is what they scroll to.
-    """
-    inside = viewport["phone"]["390x664"]["inside"]
-    at = inside["answerFirst"]
-    assert at, "the panel did not report where the answer is"
-    window = at["clientHeight"]
-    for what in ("placeline", "headline", "stripCells"):
-        assert at[what] is not None, what
-        assert at[what][1] <= window, (what, at[what], window)
-    # In that order, and the strip after the headline.
-    assert at["placeline"][0] < at["headline"][0] < at["stripCells"][0]
 
 
 @needs_node
@@ -5095,10 +5006,13 @@ def test_the_white_line_is_in_how_to_read_the_map_on_a_phone(viewport):
     with the beige one beside it -- and the legend still carries both at
     desktop width and neither on a phone.
     """
-    seen = viewport["phone"]["390x664"]["afterLine"]
-    assert seen["legendWhite"] == "none", seen["legendWhite"]
-    # Nothing in the panel claims to explain a colour any more.
+    seen = viewport["phone"]["390x664"]["afterMapTap"]
+    # SPEC 11.39: the line is one of the nine rows of the key, which is on
+    # the map at every width -- under it on a phone -- and on the How to
+    # read this map page. Nothing in the card explains a colour.
     assert seen["whiteHere"] is False
+    assert "White: no forecast for this spot" in seen["keyRows"]
+    assert "Beige: land outside India, not forecast" in seen["keyRows"]
     # And the page that does say it is a page a reader can reach from here.
     said = (ROOT / "web" / "src" / "Legend.jsx").read_text("utf-8")
     assert "White: no forecast for this spot" in said
@@ -5106,44 +5020,14 @@ def test_the_white_line_is_in_how_to_read_the_map_on_a_phone(viewport):
     page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
     assert "<KeyRows />" in page
     panel = PANEL.read_text("utf-8")
-    assert 'href={to}' in panel and "/how-to-read" in panel
-
-
-def test_the_closed_bar_is_a_phone_rule_and_the_desktop_keeps_its_panel():
-    """SPEC 11.37. Every rule here is inside a phone media block."""
-    css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
-    desktop = css.split("@media (max-width: 1023px)")[0]
-    assert ".handle, .sheetbar { display: none; }" in desktop
-    # The blocks themselves are indented, which is to say inside the media
-    # query; the only mention above it is the one that hides them.
-    for rule in ("  .sheetbar {", "  .shell:not(.open) .sheetbody"):
-        assert rule not in desktop, rule
-        assert rule in css, rule
-
-
-def test_the_bar_says_what_the_panel_says(exports):
-    """SPEC 11.37. One line, in the panel's own words."""
-    said = exports(ROOT / "web" / "src" / "record.js", "barLine",
-                   [["Bhopal", 7, 51, 10],
-                    ["23.25 N 77.5 E", 0, 51, 1],
-                    [None, 7, 51, 10],
-                    ["Bhopal", None, 51, 10]])
-    assert said[0] == "Bhopal: 7 of 51 runs reach 10 mm"
-    assert said[1] == "23.25 N 77.5 E: 0 of 51 runs reach 1 mm"
-    # Nothing chosen, or no count yet: the prompt, never somebody else's
-    # number under this place's name.
-    assert said[2] == "Tap the map to pick a place"
-    assert said[3] == "Tap the map to pick a place"
-
-
-@needs_node
-def test_the_bar_shows_the_chosen_place_after_a_tap(viewport):
-    """SPEC 11.37. The rendered line, not the function that makes it."""
-    here = viewport["phone"]["390x664"]
-    shut = here["afterClosingAgain"]
-    assert shut["open"] is False
-    line = here["afterMapTap"]["handleText"]
-    assert line == "Hide the details", line
+    # SPEC 11.39. The link lives with the menu, not in the card: the card,
+    # the controls and the page's own footer all point at one page or the
+    # other, and a component in the card that the controls import would be
+    # a circle between two modules.
+    nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
+    assert "export function HowToReadLink" in nav
+    assert "/how-to-read" in nav
+    assert "<HowToReadLink onGo={onGo} />" in panel
 
 
 # ------------------- SPEC 11.20 and 11.33: the panel's and the bar's own words
@@ -5471,8 +5355,11 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "More detail", "5:30 am to 5:30 am IST",
                  "When the runs said this before in",
                  "Which day?", "How much rain?", "A rainy day",
-                 "A lot of rain", "Runs bringing", "All 51",
-                 "Land outside India, which this site does not forecast",
+                 "A lot of rain", "All 51",
+                 # SPEC 11.39: the key's own title and its two ends.
+                 "How many of the 51 runs bring rain?",
+                 "What does mm mean?", "or tap the map",
+                 "Beige: land outside India, not forecast",
                  "Today", "Tomorrow",
                  # SPEC 11.39: the help sentences are on the How to read
                  # this map page, in these words, and the page is rendered
@@ -5740,7 +5627,7 @@ def test_an_unchosen_pill_is_a_fill_and_the_chosen_one_is_navy(
     pale fill with no outline, and the one that is chosen is filled navy
     -- the same navy the map marks the chosen square with.
     """
-    for state in ("shut", "afterLine"):
+    for state in ("first", "afterMapTap"):
         pills = viewport["phone"][size][state]["pills"]
         if not pills:
             continue
@@ -5768,7 +5655,7 @@ def test_the_search_box_keeps_its_border_and_the_cards_lose_theirs(viewport):
     a field with no edge reads as a line of text rather than somewhere to
     type.
     """
-    seen = viewport["phone"]["390x664"]["afterLine"]
+    seen = viewport["phone"]["390x664"]["afterMapTap"]
     assert seen["inputBorder"] == "1px", seen["inputBorder"]
     assert seen["outlined"], "no card was measured at all"
     for name, top, left in seen["outlined"]:
@@ -5789,7 +5676,7 @@ def test_nothing_on_the_page_is_set_in_capitals(viewport, size):
     in them too. Mixed case is read about a fifth faster, and the words
     say the same thing.
     """
-    for state in ("shut", "afterLine", "afterMapTap"):
+    for state in ("first", "keyToggled", "afterMapTap"):
         page = viewport["phone"][size].get(state)
         if not page:
             continue
@@ -5816,3 +5703,270 @@ def test_every_control_keeps_a_focus_ring():
     # Nothing anywhere takes it away again.
     for killed in ("outline: none", "outline: 0", "outline-width: 0"):
         assert killed not in css, killed
+
+
+
+# ------------------------------- SPEC 11.39: the header band and a desktop
+
+def test_the_header_is_one_band_with_nothing_extra_in_it():
+    """SPEC 11.39. The mark, the name, how old this is, and the pages.
+
+    It used to be the name, a tagline, a run line of three facts in two
+    sizes of grey, a run ID, the menu and a warning chip squeezed in beside
+    the name -- which on a 390 pixel phone left the name, the tagline and
+    the freshness line sharing 119 pixels with the chip taking 250.
+
+    The tagline is gone: what the site is for is the question at the top of
+    the card, where a reader who has chosen nothing yet is looking. The run
+    ID and the 00 UTC time are in More detail.
+    """
+    app = APP.read_text("utf-8")
+    band = app.split('<div className="band">')[1].split("</div>")[0]
+    for piece in ("<Logo />", '<h1 className="sitename">{SITE}</h1>',
+                  "<Freshness run={run} />", "{nav}"):
+        assert piece in band, piece
+    # The warning is under the band and across the width of it.
+    head = app.split('<header className="pagehead">')[1].split("</header>")[0]
+    assert head.index('className="band"') < head.index('className="headwarn"')
+    assert "<strong>Not an official warning.</strong> For alerts:" in head
+    assert 'href="https://mausam.imd.gov.in/"' in head
+
+    # And the three things 11.39 took out of it are out of it. The
+    # comments that say why they are gone are not code.
+    code = re.sub(r"/\*.*?\*/", "", app, flags=re.S)
+    code = "\n".join(line.split("//")[0] for line in code.split("\n"))
+    for gone in ("tagline", "(00 UTC)", "runid", "RunLine"):
+        assert gone not in code, gone
+    # The run's own name and its UTC time are in the card's closed section.
+    panel = PANEL.read_text("utf-8")
+    more = panel.split('<details className="more">')[1]
+    assert "<RunDetail run={place.run} />" in more
+    assert "the 00 UTC run of {run.run_time_utc}" in panel
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1440x900", "1024x768"])
+def test_a_desktop_puts_the_controls_above_the_map_and_the_card_beside_it(
+        viewport, size):
+    """SPEC 11.39, item 7. One grid, the other order.
+
+    The search row and the two pill rows across the top, the map on the
+    left, the card in the column on the right. There is one copy of every
+    control in the page: the order is the stylesheet's and not a second
+    layout.
+    """
+    seen = viewport["phone"][size]["first"]
+    width = int(size.split("x")[0])
+    for what in ("asks", "pillrow", "mapcard", "card", "days",
+                 "amounts"):
+        assert seen[what], what
+
+    # The two rows of controls are above the map, in this order.
+    assert seen["asks"]["bottom"] <= seen["pillrow"]["top"] + 1, (
+        seen["asks"], seen["pillrow"])
+    assert seen["pillrow"]["bottom"] <= seen["mapcard"]["top"] + 1, (
+        seen["pillrow"], seen["mapcard"])
+    # The map is on the left and the card on the right, side by side.
+    assert seen["mapcard"]["right"] <= seen["card"]["right"] - 200, (
+        seen["mapcard"], seen["card"])
+    assert seen["card"]["top"] < seen["mapcard"]["bottom"], (
+        seen["card"], seen["mapcard"])
+    # The two questions share one row, because there is room for eight
+    # pills on one line at this width.
+    assert abs(seen["days"]["top"] - seen["amounts"]["top"]) <= 4, (
+        seen["days"], seen["amounts"])
+    # And nothing overlaps anything, at either width.
+    assert seen["overlapping"] == [], seen["overlapping"]
+    assert seen["docScrollWidth"] <= width + 1, seen["docScrollWidth"]
+
+    # The three page links are visible text in the band, and the fourth
+    # page is not one of them.
+    assert seen["band"], "no header band"
+    assert seen["brand"]["top"] >= 0
+    assert seen["fresh"]["bottom"] <= seen["band"]["bottom"] + 1
+
+
+@needs_node
+def test_the_empty_card_asks_the_question_and_offers_the_page(
+        forecast_words):
+    """SPEC 11.39, item 7. What a desktop reader sees before choosing.
+
+    The question, the one sentence that says what the 51 are, what to do
+    next, and a link to How to read this map. Nothing else: no numbers for
+    a place nobody asked about, and no second way in.
+    """
+    cards = [html for html in forecast_words
+             if isinstance(html, str) and 'class="welcome"' in html]
+    assert cards, "the empty card was never rendered"
+    for html in cards:
+        text = words_of(html)
+        assert "Will it rain where you are?" in text
+        assert ("One weather model, run 51 times from slightly different "
+                "starts. We show how many of the 51 bring rain where you "
+                "are." in text)
+        assert ("Tap the map or search a city to see its next five days."
+                in text)
+        assert 'href="/how-to-read"' in html
+        # No numbers, and no second way in.
+        assert "of 51" not in text
+        assert "Find my city" not in text
+        assert "<button" not in html
+
+
+@needs_node
+def test_a_link_to_what_is_already_beneath_it_is_not_drawn(forecast_words):
+    """SPEC 11.39, item 7. Two links under the card, and sometimes one.
+
+    The empty card carries How to read this map itself, so under an empty
+    card there is one link and not two of the same thing.
+    """
+    app = APP.read_text("utf-8")
+    links = app.split('<p className="cardlinks">')[1].split("</p>")[0]
+    assert "{nothingChosen ? null : <HowToReadLink onGo={onGo} />}" in links
+    assert "<ReportCardLink onGo={onGo}>Report card</ReportCardLink>" in links
+    # And the card that carries it is the empty one.
+    panel = PANEL.read_text("utf-8")
+    welcome = panel.split("export function Welcome(")[1].split("\n}")[0]
+    assert "<HowToReadLink onGo={onGo} />" in welcome
+
+
+# ----------------------------- SPEC 11.39: the key covers no India square
+
+def india_points() -> list[tuple[float, float]]:
+    """Every forecast square's centre, and every point of the outline.
+
+    The squares are what the map paints, from config/india_mask.json, and
+    the outline is the shape drawn around them -- which is what carries
+    Lakshadweep, where there is no forecast square at all: of the 209
+    squares covering the group not one has its centre on land (11.28). A
+    key box over the map must be clear of both.
+    """
+    mask = load_mask()
+    out = []
+    for row, bits in zip(mask["lat"], mask["india_rows"]):
+        for lon, bit in zip(mask["lon"], bits):
+            if bit == "1":
+                out.append((float(row), float(lon)))
+    outline = json.loads((ROOT / "web" / "src" / "geo" / "india.geo.json")
+                         .read_text(encoding="utf-8"))
+
+    def walk(where):
+        if (isinstance(where, list) and len(where) == 2
+                and all(isinstance(n, (int, float)) for n in where)):
+            out.append((float(where[1]), float(where[0])))
+            return
+        if isinstance(where, list):
+            for part in where:
+                walk(part)
+
+    for feature in outline["features"]:
+        walk(feature["geometry"]["coordinates"])
+    return out
+
+
+def on_screen(points, bounds, width, height):
+    """Where each point lands in the map canvas, in its own pixels."""
+    west, south, east, north = bounds
+
+    def merc(lat):
+        return math.log(math.tan(math.pi / 4 + (lat * math.pi) / 360))
+
+    top = merc(north)
+    span = top - merc(south)
+    seen = []
+    for lat, lon in points:
+        x = ((lon - west) / (east - west)) * width
+        y = ((top - merc(lat)) / span) * height
+        seen.append((lat, lon, x, y))
+    return seen
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568",
+                                  "1440x900", "1024x768"])
+def test_the_key_covers_no_india_square_at_any_width(viewport, size):
+    """SPEC 11.39. The Arabian Sea, and nothing of the country.
+
+    Where the key is over the map it is in the lower left corner, over the
+    Arabian Sea, and open. It is paid for in the fit: the left edge is
+    padded by the key's own measured width, so India starts to the right
+    of it, and while the fit is limited by the height that padding costs
+    the country nothing at all.
+
+    Where it cannot be paid for the key is drawn under the map instead and
+    this check passes without measuring anything, so the test below says
+    which widths those are and the one after it proves the floating case
+    really is floating.
+
+    What is checked is every one of the 4,613 forecast squares and every
+    point of the drawn outline, Lakshadweep included, projected into the
+    canvas's own pixels from the bounds the map itself reports.
+    """
+    seen = viewport["phone"][size]["first"]
+    over = seen["keyOver"]
+    assert over, "the key was not measured"
+    if over["position"] != "absolute":
+        # Drawn under the map, which is what 11.39 allows where the room
+        # on it cannot be paid for. Its own test says where it is.
+        assert over["position"] == "static", over
+        return
+    # Where it is over the map it is open, and it is clear of the country.
+    assert seen["keyOpen"] is True, "the key is over the map and shut"
+    left, top, right, bottom = over["box"]
+    width, height = over["map"]
+    hidden = []
+    for lat, lon, x, y in on_screen(india_points(), seen["view"]["bounds"],
+                                    width, height):
+        if left <= x <= right and top <= y <= bottom:
+            hidden.append((lat, lon, round(x), round(y)))
+    assert not hidden, (
+        f"{len(hidden)} points of India behind the key at {size}, "
+        f"e.g. {hidden[:4]}; the key is {over['box']} in a "
+        f"{width} by {height} map")
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_the_key_sits_under_the_map_on_a_phone(viewport, size):
+    """SPEC 11.39, and the measurement that decided it.
+
+    At a phone's width India fills the map: the fit is limited by the
+    width, not the height, so there is no dead space at the sides to put a
+    box in. Paying for a key over the canvas would mean padding the fit by
+    the key's width -- 226 of a 390 pixel map -- which would shrink the
+    country to a third of the card. 11.39's own rule says the map's height
+    may give way before the type does, and nothing says the map's *width*
+    may; so on a phone the key is drawn directly under the map, which is
+    what 11.39 allows for exactly this case.
+
+    It is still the same key: the same nine rows, the same title, shut by
+    default, and the strip of colours in the summary.
+    """
+    seen = viewport["phone"][size]["first"]
+    over = seen["keyOver"]
+    assert over and over["position"] == "static", over
+    # Under the map, inside the card, and on the screen.
+    assert seen["mapkey"]["top"] >= seen["map"]["bottom"] - 1, (
+        seen["mapkey"], seen["map"])
+    assert seen["mapkey"]["bottom"] <= seen["mapcard"]["bottom"] + 1
+    # Shut, and the two ends of the ramp are readable without opening it.
+    assert seen["keyOpen"] is False
+    assert "How many of the 51 runs bring rain?" in seen["keyText"]
+    assert "None" in seen["keyText"] and "All 51" in seen["keyText"]
+    # And opening it does not move the map.
+    opened = viewport["phone"][size]["keyToggled"]
+    assert opened["keyOpen"] is True
+    assert opened["map"]["height"] == seen["map"]["height"]
+    assert len(opened["keyRows"]) == 9, opened["keyRows"]
+
+
+@needs_node
+def test_the_key_really_does_float_at_a_desktop_width(viewport):
+    """A fallback that is always taken is not a fallback. SPEC 11.39."""
+    over = viewport["phone"]["1440x900"]["first"]["keyOver"]
+    assert over["position"] == "absolute", over
+    assert viewport["phone"]["1440x900"]["first"]["keyOpen"] is True
+    # And under the map at every other width this site is measured at.
+    for size in ("390x664", "390x844", "320x568", "1024x768"):
+        where = viewport["phone"][size]["first"]["keyOver"]
+        assert where["position"] == "static", (size, where)

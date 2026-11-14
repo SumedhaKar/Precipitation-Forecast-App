@@ -77,6 +77,62 @@ export function usePath() {
   return [path, go];
 }
 
+/**
+ * A link to the report card. SPEC 11.38.
+ *
+ * A plain <a href>, so a middle click opens a tab and the keyboard reaches
+ * it with no handler of ours; a plain left click becomes the pushState the
+ * menu uses, where the page has one to offer. With no `onGo` -- which is
+ * what the server renderer and the tests have -- it is simply a link, and
+ * the path it points at is a real page either way (SPEC 11.34).
+ */
+export function ReportCardLink({ onGo, children }) {
+  return (
+    <a
+      href="/report-card"
+      onClick={(event) => {
+        if (!onGo || !plainClick(event)) return;
+        event.preventDefault();
+        onGo('/report-card');
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+/**
+ * A link to How to read this map. SPEC 11.39.
+ *
+ * The explanation used to be a block drawn in the panel, under whatever
+ * else the panel was saying: three bullets, two colour lines and the three
+ * amount nicknames, on the same screen as the answer. It is a page of its
+ * own now, and this is how the forecast page points at it.
+ *
+ * `to` carries the fragment where there is one: "What does mm mean?" lands
+ * on the amounts rather than at the top of the page.
+ *
+ * Both of these live here, with the menu, rather than in the card: the
+ * card, the controls and the page's own footer all link to one or the
+ * other, and a component in the card that the controls import is a circle
+ * between two modules.
+ */
+export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
+  return (
+    <a
+      href={to}
+      className="howtolink"
+      onClick={(event) => {
+        if (!onGo || !plainClick(event)) return;
+        event.preventDefault();
+        onGo(to);
+      }}
+    >
+      {children || 'How to read this map'}
+    </a>
+  );
+}
+
 export default function TopNav({ path, onGo }) {
   return (
     <nav className="topnav" aria-label="The main pages">

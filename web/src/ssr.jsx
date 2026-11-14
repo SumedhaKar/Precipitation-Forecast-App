@@ -24,8 +24,8 @@ import TopNav from './TopNav';
 import Panel, { Welcome, summaryLine } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { UNITS, noMatch, tooBig, townLabel, townsIn } from './places';
-import Legend from './Legend';
-import { Footer, Freshness, RunLine, StaleBanner } from './App';
+import MapKey from './Legend';
+import { Footer, Freshness, StaleBanner } from './App';
 import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
 import { NO_LOCATION, locationProblem, mapProblem } from './messages';
@@ -142,10 +142,7 @@ export function forecastWords(answers) {
   // not where most of a first-time reader's words are.
   const days = answers.length ? answers[0].days : [];
   const run = answers.length ? answers[0].run : null;
-  out.push(renderToStaticMarkup(
-    <Welcome where="map" onGo={nothing} />));
-  out.push(renderToStaticMarkup(
-    <Welcome where="panel" onGo={nothing} />));
+  out.push(renderToStaticMarkup(<Welcome onGo={nothing} />));
   // SPEC 11.39. How to read this map, which is a page of its own now. It
   // is swept with the forecast page and not with the two document pages,
   // because it is the one page that may say "it is not a probability" --
@@ -162,12 +159,17 @@ export function forecastWords(answers) {
   });
   [1, 10, 50].forEach((threshold) => {
     out.push(renderToStaticMarkup(
-      <ThresholdChoice threshold={threshold} onThreshold={nothing} />));
-    out.push(renderToStaticMarkup(<Legend threshold={threshold} />));
+      <ThresholdChoice threshold={threshold} onThreshold={nothing}
+      onGo={nothing} />));
+    // SPEC 11.39. The colour key, shut and open, for all three amounts.
+    out.push(renderToStaticMarkup(
+      <MapKey threshold={threshold} open={false} onToggle={nothing} />));
+    out.push(renderToStaticMarkup(
+      <MapKey threshold={threshold} open onToggle={nothing} />));
   });
   out.push(renderToStaticMarkup(
     <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}
-      shown="" />));
+      shown="" onLocation={nothing} snapTo={nothing} from={null} />));
   // SPEC 11.38. The state block, for every one of the 36, and the line a
   // query that matched nothing is answered with.
   UNITS.forEach((unit) => {
@@ -179,7 +181,6 @@ export function forecastWords(answers) {
     <MyLocation onLocation={nothing} snapTo={nothing} from={null} />));
   out.push(renderToStaticMarkup(<Footer />));
   if (run) {
-    out.push(renderToStaticMarkup(<RunLine run={run} />));
     // The run a test publishes is dated, so freshness is forced here:
     // both of the two things this line can say are rendered and swept.
     const fresh = {

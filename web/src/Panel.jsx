@@ -17,7 +17,7 @@ import { placeName } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
-import { plainClick } from './TopNav';
+import { HowToReadLink, ReportCardLink } from './TopNav';
 import { AMOUNTS } from './Controls';
 import { dayButton, dayDate, dayName, dayWord, istToday } from './days';
 
@@ -80,30 +80,6 @@ export function headlineFor(place, day, threshold, today) {
     chosen.short_ist);
   return headline(placeName(where.lat, where.lon), when, entry.count,
     place.members, threshold);
-}
-
-/**
- * A link to the report card. SPEC 11.38.
- *
- * A plain <a href>, so a middle click opens a tab and the keyboard reaches
- * it with no handler of ours; a plain left click becomes the pushState the
- * menu uses, where the page has one to offer. With no `onGo` -- which is
- * what the server renderer and the tests have -- it is simply a link, and
- * the path it points at is a real page either way (SPEC 11.34).
- */
-export function ReportCardLink({ onGo, children }) {
-  return (
-    <a
-      href="/report-card"
-      onClick={(event) => {
-        if (!onGo || !plainClick(event)) return;
-        event.preventDefault();
-        onGo('/report-card');
-      }}
-    >
-      {children}
-    </a>
-  );
 }
 
 /** The headline, at the top of the panel, under the place name. */
@@ -534,34 +510,6 @@ export function MoreDetail({ place, day, threshold, onThreshold }) {
 }
 
 /**
- * A link to How to read this map. SPEC 11.39.
- *
- * The explanation used to be a block drawn here, in the panel, under
- * whatever else the panel was saying: three bullets, two colour lines and
- * the three amount nicknames, on the same screen as the answer. It is a
- * page of its own now, and this is how the forecast page points at it.
- *
- * A plain <a href>, like the report card's link: a middle click opens a
- * tab, the keyboard reaches it with no handler of ours, and a plain left
- * click becomes the pushState the menu uses where the page has one.
- */
-export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
-  return (
-    <a
-      href={to}
-      className="howtolink"
-      onClick={(event) => {
-        if (!onGo || !plainClick(event)) return;
-        event.preventDefault();
-        onGo(to);
-      }}
-    >
-      {children || 'How to read this map'}
-    </a>
-  );
-}
-
-/**
  * What the card says before anything has been chosen. SPEC 11.38, 11.39.
  *
  * Two real first-time readers failed here: one could not tell what the site
@@ -576,10 +524,15 @@ export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
  * job was to move the keyboard into a box already on the screen is a
  * second way in competing with the first, and the search row is the first:
  * the card says what to do and the box is right there to do it in.
+ *
+ * And there is one copy of it now rather than two. The second copy floated
+ * over the map on a phone, because the card itself was in a drawer and a
+ * reader with the drawer shut had nowhere to be told what the site was
+ * for. The card is on the page now.
  */
-export function Welcome({ onGo, where }) {
+export function Welcome({ onGo }) {
   return (
-    <div className={`welcome welcome-${where || 'panel'}`}>
+    <div className="welcome">
       <h2>Will it rain where you are?</h2>
       <p>
         One weather model, run 51 times from slightly different starts. We
@@ -645,7 +598,7 @@ export default function Panel({
         ) : null}
         {!square && !busy ? (
           <>
-            <Welcome where="panel" onGo={onGo} />
+            <Welcome onGo={onGo} />
           </>
         ) : null}
       </div>

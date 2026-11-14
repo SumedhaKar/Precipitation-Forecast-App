@@ -46,6 +46,21 @@
      rather than setting its own. */
   --gap: 1rem;
   --gap-across: 3.2rem;
+
+  /* SPEC 11.39. Three text sizes in the card and no more. It had nine --
+     0.6, 0.72, 0.75, 0.78, 0.82, 0.86, 0.88, 0.95 and 1.15rem -- and a
+     reader cannot tell nine levels of importance apart, so what they
+     actually read was noise. Every rule inside the card uses one of these
+     three, and they are the same three at every width: the sentence floor
+     of 15 pixels is met by `md` everywhere, so there is nothing for a
+     phone to raise.
+
+       lg  the place name, which is what the card is about
+       md  every sentence, and every number that is an answer
+       sm  labels, dates, coordinates, and the working */
+  --card-lg: 1.25rem;
+  --card-md: 1rem;
+  --card-sm: 0.875rem;
 }
 
 * { box-sizing: border-box; }
@@ -82,106 +97,120 @@ button {
   outline-offset: 2px;
 }
 
-.small { font-size: 0.82rem; color: var(--quiet); }
-.note { font-size: 0.82rem; color: var(--quiet); margin: 0.3rem 0 0; }
+.small { font-size: 0.875rem; color: var(--quiet); }
+.note { font-size: 0.875rem; color: var(--quiet); margin: 0.3rem 0 0; }
 
 /* ------------------------------------------------------------- the shell */
 
+/* SPEC 11.39. A page, not an application window.
+
+   It was a fixed-height shell -- 100dvh, the map a flex child of it, the
+   card in a drawer over the map -- and every rule in it was about dividing
+   one screen that never scrolled: the map had a floor of 56 pixels, the
+   card had a cap of 81 per cent of what was left, and the answer lived
+   behind a handle a reader had to find. Three reviews and two first-time
+   readers all tripped on it.
+
+   It scrolls now. The shell has no height of its own, which is why nothing
+   in it can push anything else off the screen, and the blocks are placed
+   by one grid whose order is the only thing that differs between a phone
+   and a desktop. */
 .shell {
   display: flex;
   flex-direction: column;
-  /* A definite height, not min-height: the map is the hero and fills the
-     screen, and the panel scrolls inside itself. With min-height the stage
-     grows to fit the panel's content and pushes the map below the fold,
-     which is what the first build did.
-
-     On a phone with a toolbar at the bottom of the screen, 100vh is the
-     screen and 100dvh is the part of it the reader can see; the difference
-     is the bars, and it is the whole of SPEC 11.35.
-
-     The fallback is the @supports block below and not a vh line above
-     these, because a minifier drops a declaration the next line overrides:
-     written that way the built stylesheet carried the dvh line alone, and
-     a browser that had never heard of dvh got no height at all. */
-  height: 100dvh;
-  max-height: 100dvh;
+  min-height: 100%;
 }
 
-/* SPEC 11.35. For a browser with no dvh: the whole screen, bars included,
-   which is the page as it was before 11.35 and still a working page. It
-   survives minification because nothing else in the rule overrides it. */
-@supports not (height: 100dvh) {
-  .shell {
-    height: 100vh;
-    max-height: 100vh;
-  }
-}
+/* ------------------------------------------------------------ the header */
 
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.2rem 1rem;
-  padding: 0.6rem 1rem;
+.pagehead {
   background: var(--card);
   border-bottom: 1px solid var(--rule);
 }
 
-/* SPEC 11.38. The name, the tagline that says what a run is, and the run
-   line, stacked: the tagline has to be under the title and not beside it,
-   or it reads as part of the name. */
-.titles {
+/* The mark, the name, how old this run is, and the pages: one band. */
+.band {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 1.2rem;
+  padding: 0.45rem 0.7rem;
 }
 
-/* SPEC 11.38. The one sentence that says what a run is, under the name. */
-.tagline {
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+/* SPEC 11.39: two text sizes in the header and no more. This is the first
+   of them; everything else in the band is the second. */
+.sitename {
   margin: 0;
-  font-size: 0.9rem;
-  color: var(--quiet);
-  max-width: 46ch;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-/* SPEC 11.38. One line about freshness, on a phone, where the run line's
-   three facts in two greys were two of the lines that pushed the map
-   under the fold. The desktop keeps the run line; each is hidden at the
-   other's width, so only one is ever read. */
-.fresh { display: none; }
+/* SPEC 11.39. Five icons, drawn inline (Icons.jsx), each one beside a word
+   that says the same thing. None of them carries information of its own. */
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+}
 
-.run { margin: 0; font-size: 0.85rem; color: var(--quiet); }
-.runid {
-  margin-left: 0.6rem;
-  font-size: 0.75rem;
-  color: var(--faint);
+.logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--picked);
+}
+
+/* How old this run is: the clock, then the words. One line, at every
+   width -- the desktop used to have a different line from the phone, with
+   the run ID and the publish time in it, and both of those are in More
+   detail now. */
+.fresh {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--quiet);
   font-variant-numeric: tabular-nums;
 }
 
-/* SPEC 11.28: visible without scrolling, on every screen. */
-/* SPEC 11.39: the amber says it is a warning about warnings; the outline
-   round the amber said nothing the fill did not. */
+.fresh.old { color: var(--warn-ink); font-variant-numeric: normal; }
+
+/* SPEC 11.39: a bar across the whole width, under the band. As a chip
+   beside the name it took 250 of a phone's 390 pixels, which is why the
+   name, the tagline and the freshness line were squeezed into 119. */
 .headwarn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  width: 100%;
   margin: 0;
-  font-size: 0.875rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.9375rem;
   color: var(--warn-ink);
   background: var(--warn-bg);
   border: 0;
-  border-radius: 6px;
-  padding: 0.2rem 0.5rem;
 }
 
 .headwarn a { color: #7a4100; }
+.headwarn .icon { width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; }
 
 .stale {
   margin: 0;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.7rem;
   background: var(--warn-bg);
   color: var(--warn-ink);
   border-bottom: 1px solid #f0d9b5;
-  font-size: 0.88rem;
+  font-size: 0.9375rem;
 }
 
 .error {
@@ -190,24 +219,78 @@ header {
   background: var(--err-bg);
   color: var(--err-ink);
   border-radius: 6px;
-  font-size: 0.88rem;
+  font-size: 0.9375rem;
 }
 
 .error p { margin: 0; }
-.error .why { margin-top: 0.25rem; font-size: 0.82rem; opacity: 0.85; }
+.error .why { margin-top: 0.25rem; font-size: 0.875rem; opacity: 0.85; }
 
-.stage {
-  position: relative;
-  flex: 1 1 auto;
-  display: flex;
-  min-height: 0;
+/* ------------------------------------------------------------- the grid */
+
+/* SPEC 11.39. Five blocks, one grid, and the order is the only difference
+   between the two layouts. On a phone: the search row, the map, the day
+   pills, the amount pills, the card. On a desktop the two rows of controls
+   go above the map and the card is the column beside it. There is one copy
+   of every control in the page either way. */
+.forecast {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "asks"
+    "map"
+    "pills"
+    "cardcol"
+    "foot";
+  gap: var(--gap);
+  width: 100%;
+  max-width: 96rem;
+  margin: 0 auto;
+  padding: var(--gap) 0.7rem calc(var(--gap) * 2);
 }
 
+.asks { grid-area: asks; }
+.pills {
+  grid-area: pills;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.mapcard { grid-area: map; }
+.cardcol { grid-area: cardcol; min-width: 0; }
+.forecast > footer { grid-area: foot; }
+
+/* ---------------------------------------------------------- the map card */
+
+/* SPEC 11.39. A card with the map in it and the colour key in its corner.
+   Nothing else is ever drawn over the canvas: MapLibre's zoom buttons and
+   its attribution are its own, and the fit is padded by all three. */
+.mapcard {
+  position: relative;
+  background: var(--card);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* The map's height, which is the one height on this page that is a share
+   of anything. It can be: the page scrolls, so the map cannot squeeze
+   another block off the screen, which is what the old 52vh did. The floor
+   is 280 pixels, measured: under that the fit of SPEC 1.4's box cannot
+   hold both coasts and the whole of the north at a phone's width.
+
+   The vh line and the dvh line are in two rules on purpose. A minifier
+   drops a declaration the next one overrides, and written as two lines in
+   one rule the built stylesheet carried the dvh alone -- so a browser that
+   had never heard of dvh got no height at all (SPEC 11.35). */
 .mapwrap {
   position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
+  height: min(55vh, 480px);
+  min-height: 280px;
   background: var(--sea);
+}
+
+@supports (height: 1dvh) {
+  .mapwrap { height: min(55dvh, 480px); }
 }
 
 /* Not `position: absolute; inset: 0`. MapLibre's own stylesheet sets
@@ -226,7 +309,7 @@ header {
   justify-content: center;
   margin: 0;
   color: var(--quiet);
-  font-size: 0.9rem;
+  font-size: 0.9375rem;
 }
 
 /* SPEC 11.29. The map could not be drawn. The message is in the map's own
@@ -242,44 +325,106 @@ header {
   border-radius: 8px;
 }
 
-/* --------------------------------------------------------- the controls */
+/* ------------------------------------------------------- the search row */
 
-/* SPEC 11.28. A bar above the map, at every width. As a card floating on the
-   map it sat on Tamil Nadu, Kerala and the southern tip, and on a phone it
-   covered the legend as well. Nothing is drawn over the country now except
-   the legend and MapLibre's own zoom buttons, and the fit leaves room for
-   both by measuring them. */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--gap) var(--gap-across);
-  padding: 0.5rem 1rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--rule);
+.search { margin: 0; }
+
+/* A label for a screen reader and not for the page: the box says what it
+   is for in its own placeholder, and a label over a box that already says
+   it was one more line of grey text above the map. It is not dropped,
+   because a placeholder goes the moment anybody types. */
+.offscreen {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
-.group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.searchrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.4rem;
+}
 
-/* SPEC 11.38: 12 pixels is the floor for the whole forecast page, not the
-   phone alone. These were 11.5 and 10.6 on a desktop. */
-/* SPEC 11.39: no all-caps anywhere on this page. Capitals are 20 per cent
-   harder to read than the same words in mixed case and these were being
-   used to make three ordinary questions look like system labels. */
-.grouplabel {
-  font-size: 0.8125rem;
+/* SPEC 11.39. Every pill lost its outline and this did not: an input is
+   the one control a reader puts something into, and a field with no edge
+   reads as a line of text. */
+.searchrow input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+/* At the right end of the box, because it answers the same question the
+   box does. Its name is "Use my location", in the accessible name and in
+   the tooltip; the pin is a picture of the same thing. */
+.locate {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: var(--pill);
+  border: 0;
+  border-radius: 8px;
+  color: var(--picked);
+}
+
+.locate[disabled] { color: var(--faint); }
+.locatenote { flex: 1 1 100%; margin: 0; }
+
+/* The other way in, said once, under the box. */
+.ortap {
+  margin: 0.3rem 0 0;
+  font-size: 0.875rem;
   color: var(--quiet);
 }
 
-.radios { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+/* --------------------------------------------------------- the controls */
 
+.group { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+
+/* SPEC 11.39: no all-caps anywhere on this page. Capitals are read about a
+   fifth slower and these were being used to make three ordinary questions
+   look like system labels. */
+.grouplabel {
+  font-size: 0.9375rem;
+  color: var(--quiet);
+}
+
+.radios { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* SPEC 11.39. A pill is a fill: the bar used to be fourteen white boxes
+   with hairline borders, which is what an empty form looks like, and three
+   of them were already answered without a reader being able to see which.
+   Two lines on every one of them -- the name over the date, the nickname
+   over the millimetres -- so a pill never says half of what it is. */
 .radios button {
-  padding: 0.3rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-height: 44px;
+  padding: 0.3rem 0.5rem;
   background: var(--pill);
   color: var(--pill-ink);
   border: 0;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  border-radius: 10px;
+  font-size: 0.9375rem;
   white-space: nowrap;
 }
 
@@ -289,6 +434,24 @@ header {
   font-weight: 600;
 }
 
+.pilltop { font-size: 0.9375rem; }
+.pillunder { font-size: 0.8125rem; color: var(--quiet); }
+.radios button.on .pillunder { color: #dce6f0; }
+
+/* SPEC 11.39. "What does mm mean?" on its own line under the amount
+   pills, at the end of it, with no rule above it and no icon beside it.
+   The three pills keep the whole width between them. */
+.mmlink {
+  margin: 0.15rem 0 0;
+  text-align: right;
+  font-size: 0.9375rem;
+}
+
+.mmlink a, .cardlinks a, .readmore a, .welcome .howtolink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 
 /* ----------------------------------------------------- the place labels */
 
@@ -372,70 +535,83 @@ header {
   box-shadow: 0 0 0 1.5px #5b6b7b;
 }
 
-/* ----------------------------------------------------------- the legend */
+/* --------------------------------------------------------- the colour key */
 
-/* SPEC 11.28. In the bar, next to the threshold buttons it describes, not
-   floating over the Bay of Bengal. A horizontal ramp: the swatches are the
-   scale and the numbers under them are the classes. */
-.legend { gap: 0.3rem; }
-
-.legend .grouplabel {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.78rem;
-  color: var(--ink);
-}
-
-
-
-/* SPEC 11.30. The white squares inside the outline: inside India, and not
-   forecast, because the model's own land fraction for them is under a half.
-   One line, with the colour beside it, at every width. */
-.legend-white {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
+/* SPEC 11.39. Shut it is a title, a strip of the seven colours and the two
+   ends in words; opened it is nine plain rows. On a desktop it sits in the
+   map's lower left corner, over the Arabian Sea, open; the fit is padded by
+   its width so that nothing of India is ever behind it. On a phone it is
+   directly under the map instead, because there India fills the width and
+   the only way to pay for a box over the canvas would be to shrink the
+   country to a third of it. 11.39 writes that measurement down. */
+.mapkey {
   margin: 0;
-  font-size: 0.7rem;
-  color: var(--quiet);
+  padding: 0.45rem 0.6rem 0.5rem;
+  background: var(--card);
+  border-top: 1px solid var(--rule);
 }
 
-.legend-white .swatch {
-  background: #ffffff;
-}
-
-.legend-rows {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  gap: 0;
-}
-
-.legend-rows li {
+.mapkey summary {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  min-width: 2.3rem;
-  font-size: 0.75rem;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* The triangle is replaced by the strip itself, which says more. */
+.mapkey summary::-webkit-details-marker { display: none; }
+.mapkey summary::marker { content: ""; }
+
+.keytitle { font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
+
+.ministrip {
+  display: flex;
+  height: 0.6rem;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ministrip span { flex: 1 1 0; }
+
+.keyends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
   color: var(--quiet);
-  font-variant-numeric: tabular-nums;
 }
 
-.legend-rows .swatch {
-  width: 100%;
-  height: 0.8rem;
-  border-radius: 0;
-  border-left-width: 0;
+.mapkey .keyrows {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
 }
 
-.legend-rows li:first-child .swatch { border-left-width: 1px; }
+.mapkey .keyrows li { min-height: 1.5rem; }
+
+/* 1280 and not the 1024 the two columns begin at: the width is measured
+   in App.jsx, beside the query the page reads for the same boundary. At
+   1024 by 768 the map box is 574 by 476 and padding 234 pixels of it away
+   for the key makes the fit width-limited, which shrinks India to 305
+   pixels and puts Gujarat behind the key regardless. */
+@media (min-width: 1280px) {
+  .mapkey {
+    position: absolute;
+    left: 0.75rem;
+    bottom: 0.75rem;
+    width: 14rem;
+    border: 0;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.93);
+    box-shadow: 0 1px 3px rgba(31, 41, 51, 0.18);
+  }
+}
 
 /* SPEC 11.31. A colour, and nothing that can be pressed.
    These were 0.95rem squares with a hairline border and a 2px radius, which
    is what an empty checkbox looks like in every browser there is -- and the
-   one in the panel sits inside a row that really is a radio button, so it
+   one in the card sits inside a row that really is a radio button, so it
    read as a tick box that would not tick. A swatch is wider than it is tall
    with square corners now: the shape of a colour chip, which is not the
    shape of a control. None of them has ever been focusable or had a handler;
@@ -451,20 +627,45 @@ header {
   pointer-events: none;
 }
 
-/* ------------------------------------------------------------ the panel */
+/* ---------------------------------------- the card, and what is under it */
 
-.panel {
-  flex: 0 0 var(--panel);
-  width: var(--panel);
-  overflow-y: auto;
+/* SPEC 11.39. The Location forecast: on a phone the last block of the
+   column, on a desktop the column beside the map. It is a card and not a
+   drawer, and nothing about it is hidden until it is dragged. */
+.fcard {
+  display: block;
   background: var(--card);
-  border-left: 1px solid var(--rule);
-  padding: 0.8rem 0.9rem 1.2rem;
+  border-radius: 12px;
+  padding: 0.9rem 1rem 1.1rem;
+  font-size: var(--card-md);
 }
 
-.handle, .sheetbar { display: none; }
+/* SPEC 11.38 and 11.39. Every control in the card is 44 pixels tall, at
+   every width -- including the ones inside the closed section, because a
+   reader who opens it is using the same thumb. These used to be 44 on a
+   phone and 30 on a desktop, which is a mouse's measurement applied to a
+   tablet. */
+.fcard button, .fcard summary, .fcard input { min-height: 44px; }
 
-.finder { margin-bottom: 0.8rem; }
+.fcard summary { display: flex; align-items: center; }
+
+.fcard h2 { font-size: var(--card-lg); }
+.fcard h3 { font-size: var(--card-md); }
+.fcard p, .fcard li, .fcard summary, .fcard button, .fcard dt, .fcard dd {
+  font-size: var(--card-md);
+}
+
+/* Two links under it. One of them is not drawn when the thing it points at
+   is already on the screen: the empty card carries How to read this map
+   itself, so under an empty card there is one link and not two. */
+.cardlinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--gap-across);
+  margin: 0.2rem 0 0;
+  padding: 0 0.2rem;
+  font-size: 0.9375rem;
+}
 
 .search label {
   display: block;
@@ -472,35 +673,6 @@ header {
   color: var(--quiet);
   margin-bottom: 0.2rem;
 }
-
-.searchrow { display: flex; gap: 0.35rem; }
-
-/* SPEC 11.39. Every pill lost its outline and this did not: an input is
-   the one control a reader puts something into, and a field with no edge
-   reads as a line of text. */
-.searchrow input {
-  flex: 1 1 auto;
-  min-width: 0;
-  font: inherit;
-  font-size: 0.9rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--card);
-  color: var(--ink);
-}
-
-.searchrow button,
-.mine button,
-.reveal {
-  padding: 0.35rem 0.7rem;
-  background: var(--card);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  font-size: 0.85rem;
-}
-
-.mine { margin-top: 0.4rem; }
 
 .matches {
   list-style: none;
@@ -521,7 +693,7 @@ header {
   border: 0;
   border-bottom: 1px solid var(--rule);
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.9375rem;
 }
 
 .matches li:last-child button { border-bottom: 0; }
@@ -551,7 +723,7 @@ header {
   background: var(--page);
   border: 1px solid var(--rule);
   border-radius: 999px;
-  font-size: 0.82rem;
+  font-size: 0.9375rem;
 }
 
 .didyoumean button:hover { background: var(--card); }
@@ -560,7 +732,7 @@ header {
    a city hung off it, so it is a heading and nothing else. */
 .placeline h2 {
   margin: 0 0 0.1rem;
-  font-size: 1.15rem;
+  font-size: var(--card-lg);
 }
 
 /* SPEC 11.38. The square's own centre, under the name rather than in
@@ -571,19 +743,19 @@ header {
    the amount buttons. */
 .whenline {
   margin: 0 0 0.1rem;
-  font-size: 0.875rem;
+  font-size: var(--card-sm);
   color: var(--quiet);
 }
 
 .atsquare {
   margin: 0 0 0.3rem;
-  font-size: 0.82rem;
+  font-size: var(--card-sm);
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 
 .moved {
-  font-size: 0.82rem;
+  font-size: var(--card-sm);
   color: var(--warn-ink);
   background: var(--warn-bg);
   padding: 0.35rem 0.5rem;
@@ -601,7 +773,7 @@ header {
   background: var(--page);
   border-left: 3px solid var(--picked);
   border-radius: 0 6px 6px 0;
-  font-size: 1.05rem;
+  font-size: var(--card-md);
   line-height: 1.35;
   color: var(--ink);
 }
@@ -610,17 +782,10 @@ header {
 
 /* Two lines on one button: this site's own nickname for the amount, and
    the millimetres it means. The nickname is never on its own. */
-.amounts .radios button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.05rem;
-  line-height: 1.2;
-}
-
-.amounts .nickname { font-weight: 600; }
-.amounts .mmtag { font-size: 0.75rem; color: var(--quiet); }
-.amounts .radios button.on .mmtag { color: inherit; }
+/* SPEC 11.39. Two lines on every pill: the nickname over the millimetres,
+   as the day pills carry the name over the date. The two classes are the
+   same two the day pills use, so one rule sets both. */
+.amounts .radios button { line-height: 1.25; }
 
 /* ---------------------------------- a whole state searched, SPEC 11.38 */
 
@@ -632,7 +797,7 @@ header {
   border-radius: 0 6px 6px 0;
 }
 
-.unitfound > p { margin: 0 0 0.4rem; font-size: 0.9rem; }
+.unitfound > p { margin: 0 0 0.4rem; font-size: var(--card-md); }
 
 /* The list of cities inside it, which can be long: it scrolls inside its
    own box rather than pushing the rest of the panel down. */
@@ -643,11 +808,12 @@ header {
 
 /* ------------------------------------------- the welcome card, SPEC 11.38 */
 
-/* Two copies, one shown. The phone's sits over the map, where the whole of
-   its first screen was a map of colours with nothing saying what a colour
-   was; the desktop's sits in the empty panel, which is where a desktop
-   reader is already looking. Each is hidden at the other's width, so only
-   one is in the page a reader is given and a screen reader hears it once. */
+/* SPEC 11.39. One copy, in the card. There were two -- one floating over
+   the map on a phone and one in the empty panel on a desktop -- because
+   the phone's card was in a drawer and a reader with the drawer shut had
+   nowhere to be told what the site was. The card is on the page now, so
+   the copy over the map is gone, and with it the whole business of a box
+   on the canvas that had to pass taps through to the map underneath. */
 .welcome {
   background: var(--card);
   border-radius: 10px;
@@ -655,13 +821,13 @@ header {
 }
 
 .welcome h2 {
-  font-size: 1.1rem;
+  font-size: var(--card-lg);
   margin: 0 0 0.45rem;
 }
 
 .welcome p {
   margin: 0 0 0.7rem;
-  font-size: 0.95rem;
+  font-size: var(--card-md);
   color: var(--quiet);
 }
 
@@ -669,7 +835,7 @@ header {
 .welcome .prompt {
   margin: 0 0 0.5rem;
   color: var(--ink);
-  font-size: 1rem;
+  font-size: var(--card-md);
 }
 
 .welcome .howtolink {
@@ -677,27 +843,15 @@ header {
   align-items: center;
   min-height: 44px;
   color: #0b4f8a;
-  font-size: 1rem;
+  font-size: var(--card-md);
   text-decoration: underline;
 }
-
-.welcome-map {
-  position: absolute;
-  z-index: 2;
-  left: 0.6rem;
-  right: 0.6rem;
-  top: 0.6rem;
-  box-shadow: 0 6px 20px rgb(15 35 55 / 22%);
-}
-
-/* The desktop shows the panel's copy; the phone shows the map's. */
-.welcome-map { display: none; }
 
 /* ------------------------------------------------------------ a notice */
 
 /* SPEC 11.39. The link that replaced the block of explanation in the
    panel: one line, under whatever the panel is saying. */
-.readmore { margin: 0.5rem 0 0; font-size: 0.9rem; }
+.readmore { margin: 0.5rem 0 0; font-size: var(--card-md); }
 
 /* SPEC 11.30. What the panel says while a square's numbers are on their way.
    It names the square, because the fault it replaces was the panel showing
@@ -708,7 +862,7 @@ header {
   background: var(--page);
   border-left: 3px solid var(--rule);
   border-radius: 0 6px 6px 0;
-  font-size: 0.9rem;
+  font-size: var(--card-md);
   color: var(--quiet);
   font-variant-numeric: tabular-nums;
 }
@@ -722,15 +876,15 @@ header {
   border-radius: 8px;
 }
 
-.notice h2 { font-size: 0.95rem; }
-.notice p { margin: 0; font-size: 0.86rem; color: var(--quiet); }
+.notice h2 { font-size: var(--card-md); }
+.notice p { margin: 0; font-size: var(--card-sm); color: var(--quiet); }
 
 /* ------------------------------------------------------------ the counts */
 
 .counts { margin-bottom: 0.4rem; }
 
 .counts h3 {
-  font-size: 0.78rem;
+  font-size: var(--card-sm);
   font-weight: 400;
   color: var(--quiet);
   margin-bottom: 0.3rem;
@@ -760,7 +914,7 @@ header {
   color: var(--pill-ink);
   border: 0;
   border-radius: 8px;
-  font-size: 0.88rem;
+  font-size: var(--card-md);
   font-variant-numeric: tabular-nums;
 }
 
@@ -777,7 +931,7 @@ header {
 .countrow.on:hover { background: #123c63; }
 
 .rowwhat { color: var(--quiet); }
-.rowband { font-size: 0.78rem; color: var(--quiet); white-space: nowrap; }
+.rowband { font-size: var(--card-sm); color: var(--quiet); white-space: nowrap; }
 
 .rowband .swatch {
   margin-right: 0.3rem;
@@ -791,12 +945,17 @@ header {
    measured -- green 6.82, amber 7.48, grey 7.35 -- so the words clear WCAG AA
    at this size with room to spare. The chip backgrounds are near enough white
    to need a border of their own to read as chips at all. */
+/* SPEC 11.39. The chip is the label, which is as much of an answer as
+   the sentence beside it, so it is the card's middle size and not its
+   small one: `md` is the 16 pixels every line that carries an answer is
+   set at, and a label at 14 beside a sentence at 16 read as a footnote
+   to it. */
 .chip {
   display: inline-block;
   padding: 0.05rem 0.45rem;
   border: 1px solid;
   border-radius: 999px;
-  font-size: 0.8rem;
+  font-size: var(--card-md);
   line-height: 1.45;
   white-space: nowrap;
 }
@@ -811,7 +970,7 @@ header {
   grid-column: 1 / -1;
   justify-self: start;
   margin-top: 0.2rem;
-  font-size: 0.75rem;
+  font-size: var(--card-sm);
 }
 
 /* SPEC 11.33: the same size as the count above it. A record that has to be
@@ -820,7 +979,7 @@ header {
 .pastline {
   margin: 0.3rem 0 0.1rem;
   padding: 0.3rem 0.5rem 0.35rem;
-  font-size: 0.88rem;
+  font-size: var(--card-sm);
   background: var(--page);
   border-left: 3px solid var(--rule);
   border-radius: 0 6px 6px 0;
@@ -832,13 +991,13 @@ header {
 
 .trustline {
   margin: 0 0 0.35rem;
-  font-size: 0.84rem;
+  font-size: var(--card-md);
   color: var(--quiet);
 }
 
 .trustline .chip { margin-right: 0.3rem; vertical-align: 1px; }
 
-.whylabel { font-size: 0.82rem; color: var(--quiet); }
+.whylabel { font-size: var(--card-sm); color: var(--quiet); }
 .whyline { margin: 0 0 0.5rem; }
 .whylabel summary { cursor: pointer; color: #0b4f8a; }
 .whylabel[open] summary { margin-bottom: 0.4rem; }
@@ -895,9 +1054,9 @@ header {
 
 .cell.chosen { outline: 2px solid var(--picked); outline-offset: 1px; }
 /* `color` comes from the palette's own ink for that class, set inline. */
-.cellday { font-size: 0.75rem; white-space: nowrap; }
+.cellday { font-size: var(--card-sm); white-space: nowrap; }
 .cellcount {
-  font-size: 0.95rem;
+  font-size: var(--card-md);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -934,7 +1093,7 @@ header {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.78rem;
+  font-size: var(--card-sm);
   color: var(--quiet);
   font-variant-numeric: tabular-nums;
 }
@@ -944,7 +1103,7 @@ header {
 /* ------------------------------------------------------------ the members */
 
 .members { margin-top: 1rem; }
-.spread { font-size: 0.86rem; color: var(--ink); margin: 0 0 0.4rem; }
+.spread { font-size: var(--card-md); color: var(--ink); margin: 0 0 0.4rem; }
 .reveal { margin-bottom: 0.45rem; }
 
 ol.values {
@@ -967,8 +1126,8 @@ ol.values li {
 }
 
 ol.values li.control { outline: 1px solid var(--picked); }
-.who { font-size: 0.6rem; color: var(--faint); }
-.mm { font-size: 0.85rem; }
+.who { font-size: var(--card-sm); color: var(--faint); }
+.mm { font-size: var(--card-sm); }
 
 /* SPEC 11.38. The one caveat, said once, where the answer is. */
 .notpromise {
@@ -976,7 +1135,7 @@ ol.values li.control { outline: 1px solid var(--picked); }
   padding: 0.45rem 0.6rem;
   background: var(--page);
   border-radius: 6px;
-  font-size: 0.95rem;
+  font-size: var(--card-md);
   color: var(--quiet);
 }
 
@@ -990,14 +1149,14 @@ ol.values li.control { outline: 1px solid var(--picked); }
 .more > summary {
   cursor: pointer;
   color: #0b4f8a;
-  font-size: 0.9rem;
+  font-size: var(--card-md);
 }
 
 .more[open] > summary { margin-bottom: 0.6rem; }
 
 .arith {
   margin-top: 0.8rem;
-  font-size: 0.72rem;
+  font-size: var(--card-sm);
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
@@ -1017,41 +1176,63 @@ footer .credit { margin-bottom: 0.4rem; }
 footer summary { cursor: pointer; margin-bottom: 0.4rem; }
 footer p { max-width: 70ch; }
 
-/* ------------------------------------- phone and tablet: a bottom sheet */
+/* ------------------------------------------- a desktop: the card beside it */
+
+/* SPEC 11.39. The same five blocks, in the other order: the search row and
+   the two pill rows above the map, the map on the left, the card in the
+   column on the right. One grid does both, so there is one copy of every
+   control in the page and the phone's order is not a second layout. */
+@media (min-width: 1024px) {
+  :root { --gap: 1.2rem; --gap-across: 2.4rem; }
+
+  .forecast {
+    grid-template-columns: minmax(0, 1fr) var(--panel);
+    grid-template-areas:
+      "asks  asks"
+      "pills pills"
+      "map   cardcol"
+      "foot  foot";
+    column-gap: var(--gap-across);
+    padding: var(--gap) 1rem calc(var(--gap) * 2);
+  }
+
+  /* A search box the width of the page would be a search box the width of
+     a sentence nobody is typing. */
+  .search { max-width: 34rem; }
+
+  /* The two questions side by side, above the map: there is room for
+     eight pills on one line at this width and no reason for two. */
+  .pills { flex-direction: row; flex-wrap: wrap; gap: var(--gap-across); }
+  .pills .days { flex: 1 1 24rem; }
+  .pills .amounts { flex: 0 1 auto; }
+
+  /* Taller than a phone's, and still not a share of anything that could
+     push a control off the screen: the page scrolls. */
+  .mapwrap {
+    height: min(62vh, 600px);
+    min-height: 360px;
+  }
+
+  .band { padding: 0.5rem 1rem; }
+  .headwarn { padding: 0.4rem 1rem; }
+  .band .topnav { margin-left: auto; }
+}
+
+@supports (height: 1dvh) {
+  @media (min-width: 1024px) {
+    .mapwrap { height: min(62dvh, 600px); }
+  }
+}
+
+/* ----------------------------------------------- a phone: one column */
 
 @media (max-width: 1023px) {
-  :root { --gap: 0.6rem; --gap-across: 1.5rem; }
-
-  header { gap: 0.4rem; }
-
-  /* SPEC 11.38. The phone's header is three short rows and no more: the
-     name with the warning chip beside it, the tagline and the freshness
-     line under it, and the menu. The run line's three facts in two greys
-     were two of the lines that pushed the map under the fold.
-
-     A grid, because the chip has to sit beside the name while the tagline
-     and the freshness line sit under it, and the three are not siblings:
-     flex can do one of those or the other and not both. */
-  header {
-    display: grid;
-    /* The chip is given a narrow column and wraps inside it. Left to
-       `auto` it takes its own max-content width -- 250 of the 390 pixels
-       -- and the name, the tagline and the freshness line were squeezed
-       into 119, where the tagline ran to four lines. */
-    grid-template-columns: minmax(0, 1fr) minmax(5rem, 8rem);
-    align-items: start;
-    column-gap: 0.5rem;
-    row-gap: 0.25rem;
-  }
-  .titles { grid-column: 1; grid-row: 1; }
-  .headwarn { grid-column: 2; grid-row: 1; width: auto; }
-  .topnav { grid-column: 1 / -1; margin: 0; }
+  :root { --gap: 0.9rem; --gap-across: 1.5rem; }
 
   /* SPEC 11.22 is satisfied without the words: the current page is bold
      and underscored, which is not a colour, and the words are still said
      to a screen reader. On a phone they are what wraps the menu onto a
-     second line, and a second line of menu costs the map more than the
-     words are worth. */
+     second line. */
   .hereword {
     position: absolute;
     width: 1px;
@@ -1070,381 +1251,85 @@ footer p { max-width: 70ch; }
     text-decoration-thickness: 2px;
   }
 
-  .run { display: none; }
-  .fresh {
-    display: block;
-    margin: 0;
-    font-size: 0.8rem;
-    color: var(--quiet);
-  }
-
-  .fresh.old {
-    color: var(--warn-ink);
-    background: var(--warn-bg);
-    border-radius: 6px;
-    padding: 0.1rem 0.4rem;
-  }
-  .headwarn { width: 100%; }
-
-  .stage { flex-direction: column; }
-
-  /* SPEC 11.35. The map's share comes out of the stage, which is what is
-     left after the header and the controls, and never out of the viewport.
-     `0 0 52vh` with a matching min-height was a share of the whole screen
-     asked for by a box that only had 56% of the screen to spend, so the
-     panel was squeezed to twenty pixels and its handle -- the only way to
-     open the details on a phone -- was pushed off the bottom edge
-     altogether. The map can now shrink; the panel cannot shrink below its
-     handle. */
-  .mapwrap { flex: 1 1 auto; min-height: 6rem; order: 1; }
-
-  .controls { padding: 0.4rem 0.6rem; }
-
-  .radios { flex-wrap: nowrap; }
-
-  /* SPEC 11.38. 11.37 gave the panel and the bar a floor and left the
-     controls bar and the menu where they were: 12.2 pixel day buttons
-     29.8 pixels tall, and nav links of 13.6 pixels. These are the three
-     rows a reader has to hit with a thumb, so they are the three that get
-     the floor: 44 pixels tall and 15 pixel type. */
-  .radios button {
-    font-size: 0.95rem;
-    padding: 0.3rem 0.4rem;
-    min-height: 44px;
-  }
-
+  /* SPEC 11.38, kept by 11.39: the rows a thumb has to hit are 44 pixels
+     tall with 15 point type on them. These were 12.2 point buttons 29.8
+     pixels tall. Nothing is dropped to pay for it -- the page scrolls. */
+  .radios button { min-height: 44px; font-size: 0.9375rem; }
   .topnav .navlink {
     min-height: 44px;
     display: flex;
     align-items: center;
-    font-size: 0.95rem;
+    font-size: 0.9375rem;
     padding: 0.2rem 0.6rem;
   }
 
-  /* And the floor for everything else the forecast page writes: 12 pixels,
-     which is the smallest the rest of the bar may be. Nothing is dropped
-     to pay for it. */
-  .controls .grouplabel { font-size: 0.75rem; }
-  .headwarn { font-size: 0.75rem; }
-  .legend .grouplabel { font-size: 0.75rem; }
-  .legend-rows li { font-size: 0.75rem; }
-  .amounts .mmtag { font-size: 0.75rem; }
-
-  /* MapLibre's own attribution is the one piece of text on this page that
-     is not ours; it is set to the same floor rather than left at 10. */
-  .maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib a { font-size: 12px; }
-
-  /* SPEC 11.29. The five days share the width instead of scrolling off it.
-     Five buttons reading "Fri 13 Nov" come to 418 pixels on a 390 pixel
-     phone, so the row had a horizontal scrollbar and days 4 and 5 were off
-     the edge with nothing to say they existed. The labels are "Fri 13" now
-     (Controls.jsx), and each button takes a fifth of whatever width there
-     is, so the row cannot overflow however wide the words are. The full
-     window, with the month and the times and IST, is the line below. */
-  .days { flex: 1 1 100%; }
-  .days .radios { display: flex; gap: 0.2rem; }
+  /* SPEC 11.29. The five days share the width instead of scrolling off
+     it. Five pills reading "Fri 13 Nov" come to 418 pixels on a 390 pixel
+     phone, so the row used to have a horizontal scrollbar with days 4 and
+     5 off the edge and nothing to say they existed. Each pill takes a
+     fifth of whatever width there is, and the two lines on it are the
+     name and the date. */
+  .days .radios { flex-wrap: nowrap; gap: 0.3rem; }
   .days .radios button { flex: 1 1 0; min-width: 0; padding: 0.3rem 0.1rem; }
 
-  .panel {
-    order: 3;
-    /* Not `1 1 auto`: the panel takes the height its content needs, up to
-       its share of the stage, and the map takes the rest. `min-height` is
-       the guarantee the handle is on the screen -- it is a little more than
-       the handle's own height -- and `min-height: 0` would undo it. */
-    flex: 0 1 auto;
-    width: 100%;
-    min-height: 3.4rem;
-    max-height: 45%;
-    border-left: 0;
-    border-top: 1px solid var(--rule);
-    padding-top: 0;
-    overscroll-behavior: contain;
-  }
-
-  /* SPEC 11.37. Closed, the panel is this bar and nothing else: a line
-     that opens it and a button that opens it with the keyboard. The grab
-     strip sits above both, drawn by the bar rather than by either control,
-     so neither of them owns it. */
-  .sheetbar {
-    display: flex;
-    align-items: stretch;
-    gap: 0.4rem;
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    padding: 0.45rem 0.6rem 0.35rem;
-    background: var(--card);
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .sheetbar::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    top: 0.22rem;
-    transform: translateX(-50%);
-    width: 2.2rem;
-    height: 3px;
-    background: var(--rule);
-    border-radius: 2px;
-  }
-
-  .handle {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    /* The line gives way, never the button: it takes what width is left,
-       wraps to a second line, and is cut with an ellipsis after that. */
-    flex: 1 1 auto;
+  /* And the three amounts share it the same way, which is what keeps
+     "What does mm mean?" on a line of its own under them. */
+  .amounts .radios { flex-wrap: nowrap; gap: 0.3rem; }
+  .amounts .radios button {
+    flex: 1 1 0;
     min-width: 0;
-    min-height: 44px;
-    padding: 0.35rem 0.1rem 0.35rem 0.2rem;
-    background: none;
-    border: 0;
-    text-align: left;
-    font-size: 0.95rem;
-    line-height: 1.3;
-    color: var(--ink);
+    padding: 0.3rem 0.2rem;
   }
 
-  /* Closed, everything below the bar is out of the way and the map has the
-     rest of the screen: the search box, Use my location, the counts, the
-     dots and How to read this map are all things to read once the panel is
-     open, and none of them is worth two thirds of a phone. */
-  .shell:not(.open) .sheetbody { display: none; }
+  /* MapLibre's own attribution is the one piece of text on this page that
+     is not ours; it is set to the same 12 pixel floor as the rest rather
+     than left at 10. */
+  .maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib a { font-size: 12px; }
 
-  /* SPEC 11.38. Once there is an answer, the answer comes first and the
-     box that asked for it goes under it. The review measured the place
-     line 193 pixels down a 258 pixel window, behind a search box the
-     reader had just finished using. The bar's Search button still opens
-     the panel with the keyboard, so the way in is unchanged.
+  /* SPEC 11.39. There is no block of per-element type sizes here any
+     more. 11.37 raised eleven things in the card from 13 pixels to 15 on
+     a phone and left them small on a desktop; the card has three sizes
+     now and they are the same three at every width, so a phone has
+     nothing to raise. What is left is the two tap targets inside it. */
+  .matches button, .didyoumean button { min-height: 44px; }
 
-     Only on a phone: on a desktop the panel is a column beside the map
-     and the box is not in the way of anything. */
-  /* `.open` is in the selector on purpose. Without it this rule and the
-     one above it have the same specificity, this one comes later, and
-     `display: flex` beat `display: none`: closing the bar after a place
-     was answered left the whole panel on the screen and the map at its
-     80 pixel floor. */
-  .shell.open.answered .sheetbody { display: flex; flex-direction: column; }
-  .shell.open.answered .sheetbody .panel-body { order: 1; }
-  .shell.open.answered .sheetbody .finder { order: 2; margin-top: 0.8rem; }
-  .shell.open.answered .sheetbody footer { order: 3; }
-
-  /* Closed, the panel is the bar: no padding of its own under it, or
-     the map loses a line of screen to nothing at all. */
-  .shell:not(.open) .panel {
-    flex: 0 0 auto;
-    max-height: none;
-    padding: 0;
+  footer .warning, footer .credit, footer summary,
+  footer #credits p, footer #credits a, footer #credits summary {
+    font-size: 0.875rem;
   }
-
-  /* SPEC 11.38. The phone's copy of the welcome card is the one over the
-     map. It goes when the panel opens: the map is down to its floor by
-     then and the card would be taller than what is left of it. */
-  .welcome-map { display: block; }
-  .welcome-panel { display: none; }
-  .shell.open .welcome-map { display: none; }
-
-  /* The card says "or tap the map", so a tap on the card has to reach the
-     map: at 390 pixels it covers most of what is left of it, and a reader
-     who did as they were told would have hit a white rectangle. The card
-     passes taps through and its two buttons take their own. */
-  .welcome-map { pointer-events: none; }
-  .welcome-map button { pointer-events: auto; }
-
-  /* It has to fit inside the map's own box, so the type is a step smaller
-     and the padding a third less. Nothing is dropped. The last line is the
-     cap: where the map is shorter than the card can be -- a 320 by 568
-     screen leaves it 80 pixels -- the card scrolls inside itself rather
-     than running off the bottom of the screen with its button beyond the
-     edge, which is the fault of 11.35 in a different box. */
-  .welcome-map {
-    left: 0.5rem;
-    right: 0.5rem;
-    top: 0.5rem;
-    padding: 0.6rem 0.8rem;
-    max-height: calc(100% - 1rem);
-    overflow-y: auto;
-  }
-  .welcome-map h2 { font-size: 1rem; margin-bottom: 0.3rem; }
-  .welcome-map p { font-size: 0.85rem; margin-bottom: 0.4rem; }
-  .welcome-map .prompt { font-size: 0.95rem; margin-bottom: 0.3rem; }
-
-  .titles { flex: 1 1 100%; }
-
-  /* SPEC 11.37. The white line moves into How to read this map, where
-     there is room for it; in the bar it cost the map a whole line. */
-  .legend-white { display: none; }
-
-  /* SPEC 11.38. At 390 x 664 the name, the headline and the five cells of
-     the strip are all inside the open panel without scrolling. The room
-     for that comes out of margins and padding, in this order, and never
-     out of the type: the headline is allowed its two lines and the cells
-     are allowed to shrink, which is what 11.38 says gives way first. The
-     strip's note is under the cells and is the first thing below the fold,
-     because it explains the cells rather than carrying an answer. */
-  .panel .placeline h2 { font-size: 1.05rem; margin-bottom: 0; }
-  /* SPEC 11.39. The card gained the one line that says which day and how
-     much rain, and on a phone it is two lines of it. The room comes out of
-     the leading of the three context lines and out of the headline's
-     padding, in that order, and never out of the type: 11.39 says spacing
-     gives way first and the map's height second. */
-  .panel .whenline { line-height: 1.25; margin: 0 0 0.1rem; }
-  .panel .atsquare { margin-bottom: 0.1rem; line-height: 1.25; }
-  .panel .headline {
-    margin: 0.1rem 0 0.25rem;
-    padding: 0.15rem 0.5rem;
-    font-size: 1rem;
-  }
-  .panel .strip { margin-top: 0.1rem; }
-  .panel .strip h3 { font-size: 0.85rem; margin-bottom: 0; }
-  /* The cells are what 11.38 says gives way first, so they give way: the
-     padding inside them, never the type on them. */
-  .panel .strip .cell { padding: 0.1rem 0.1rem; gap: 0; }
-  .panel .strip ol { margin-bottom: 0.2rem; }
-  .panel .atsquare { font-size: 0.82rem; }
-
-  /* SPEC 11.38. Open, the panel is what the reader asked for, so the map
-     gives up the last of its floor to it -- 56 pixels rather than 80 --
-     and gets all of it back the moment the panel is closed. The map is
-     thinner and never gone (11.35). This is the last 24 pixels of the
-     five-day strip, and the alternative was taking the type below the
-     floor of this section, which 11.38 forbids. */
-  .shell.open .mapwrap { min-height: 3.5rem; }
-
-  /* SPEC 11.37, read on a Samsung A32. Nothing in the panel under 13px,
-     the lines that carry the answer at 15 or more, and the chosen row --
-     the one the map is coloured by -- larger again. */
-  .panel .countrow { font-size: 0.95rem; min-height: 44px; }
-  .panel .rowwhat { font-size: 0.95rem; }
-  .panel .rowcount { font-size: 1rem; }
-  .panel .countrow.on .rowcount { font-size: 1.15rem; }
-  .panel .rowband { font-size: 0.86rem; }
-  .panel .chip, .panel .chip.tiny { font-size: 0.95rem; }
-  .panel .pastline { font-size: 0.95rem; }
-  .panel .trustline { font-size: 0.95rem; }
-  .panel .counts > .small { font-size: 0.95rem; }
-  .panel .readmore { font-size: 0.95rem; }
-  .panel .whylabel { font-size: 0.9rem; }
-  .panel .whylabel summary { min-height: 44px; display: flex;
-    align-items: center; font-size: 0.95rem; }
-  .panel .small, .panel .note { font-size: 0.86rem; }
-  .panel .cellday { font-size: 0.82rem; }
-  .panel .who { font-size: 0.82rem; }
-  .panel .arith { font-size: 0.82rem; }
-  .panel .daysec .cell { min-height: 44px; }
-  .panel .finder button, .panel .matches button,
-  .panel .didyoumean button { min-height: 44px; }
-  .panel .search input { min-height: 44px; font-size: 1rem; }
-
-  /* The floor itself: the rest of the panel's small type, none of it
-     under 13px on a phone. Nothing here is removed or dropped -- the
-     warning, the credits and the dot key all stay and are bigger. */
-  .panel h3 { font-size: 0.9rem; }
-  .panel .search label { font-size: 0.86rem; }
-  .panel .dotkey li { font-size: 0.86rem; }
-  .panel .warning, .panel .credit, .panel footer summary,
-  .panel .creditfull { font-size: 0.86rem; }
-  .panel .conds, .panel .trustnotes { font-size: 0.86rem; }
-  .panel #credits p, .panel #credits a,
-  .panel #credits summary { font-size: 0.86rem; }
-  .panel .reveal, .panel #credits summary, .panel .more > summary {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-  }
-  .panel .moved, .panel .squareused { font-size: 0.86rem; }
-
-  /* Open, the panel takes most of the stage and the map keeps its floor.
-     `max-height: none` let the panel grow past the bottom of the screen
-     with the 51 member values beyond it and no way to scroll to them; a
-     share of the stage keeps `overflow-y: auto` doing its job. */
-  /* SPEC 11.39. 81 rather than 78: the map is at 65 pixels with a floor of
-     56, so nine of them are the panel's to take, and the card is a line
-     taller than it was. */
-  .shell.open .panel { max-height: 81%; }
-
-  /* The legend is in the bar at every width, so there is nothing to hide
-     when the sheet opens and nothing to lift clear of the attribution. It
-     spans the bar on a phone, where there is no room beside the buttons. */
-  .legend { flex: 1 1 100%; }
-  .legend-rows li { flex: 1 1 0; min-width: 0; }
-
-  .countrow { grid-template-columns: 5.8rem 1fr auto; font-size: 0.84rem; }
-  .pastline { font-size: 0.84rem; }
+  footer #credits summary { min-height: 44px; display: flex;
+    align-items: center; }
 }
 
 /* ------------------------------------------- phone: the map is the hero */
 
-/* SPEC 11.29. On a 390 by 844 screen the map used to start 367 pixels down,
-   which is 55 pixels above the middle of the screen: a reader's first sight
-   of the site was two cards of controls with a strip of India under them.
-   Nothing here is removed except the title's second clause; the rest is the
-   same information set smaller and arranged in fewer lines, and the measured
-   result is in SPEC 11.29. */
+/* SPEC 11.29, as 11.39 leaves it. On a 390 by 844 screen the map used to
+   start 367 pixels down, which is 55 pixels above the middle of the
+   screen: a reader's first sight of the site was two cards of controls
+   with a strip of India under them. The order is the search row and then
+   the map now, and the measurements are in 11.39. */
 @media (max-width: 560px) {
-  header {
-    align-items: flex-start;
-    gap: 0.15rem 0.5rem;
-    padding: 0.4rem 0.7rem;
-  }
+  .band { gap: 0.1rem 0.6rem; padding: 0.4rem 0.6rem; }
+  .sitename { font-size: 1rem; }
+  .forecast { padding: var(--gap) 0.6rem calc(var(--gap) * 2); }
+  .fcard { padding: 0.8rem 0.8rem 1rem; }
 
-  /* The name and the warning chip share the first row; the tagline, the
-     freshness line and the menu each take one of their own. */
-  .titles { flex: 1 1 100%; order: 1; }
-  h1 { flex: 0 0 auto; }
+  /* The freshness line takes the whole second row, so the name and the
+     mark have the first one to themselves. */
+  .brand { flex: 1 1 100%; }
+  .fresh { flex: 1 1 100%; }
 
-  h1 { font-size: 1.02rem; margin: 0; }
-
-  /* The warning sits beside the title rather than under it, which is one
-     line rather than two, and it is still the first thing on the page after
-     the title itself. */
-  .headwarn { width: auto; font-size: 0.75rem; padding: 0.1rem 0.4rem; }
-
-  .titles { flex: 1 1 auto; gap: 0 0.6rem; }
-  .run { font-size: 0.7rem; line-height: 1.35; }
-  .runid { margin-left: 0.4rem; font-size: 0.66rem; }
-
-  .controls { padding: 0.35rem 0.6rem; }
-
-  /* SPEC 11.38. "Which day?" is a question and it is asked out loud. The
-     label used to be the word "Day", which five dates in a row did not
-     need, so it was hidden; a question is worth its one line. */
-
-  .group { gap: 0.1rem; }
-  .grouplabel { letter-spacing: 0.02em; }
-
-  /* A thinner legend: the same seven classes and the same seven numbers,
-     in two thirds of the height. */
-  .legend { gap: 0.1rem; }
-  .legend-rows .swatch { height: 0.55rem; }
-  .legend-rows li { min-width: 0; }
-
-  /* A smaller floor on the smallest screens, so that the stage can still
-     be split when the browser's bars take a fifth of it. */
-  .mapwrap { min-height: 5rem; }
-
-  /* SPEC 11.38. The menu on one row at 320 pixels. Three links at 15
-     point come to 258 of the 320, so what gives is the padding around
-     them and not the type on them; a second row of menu costs 49 pixels
-     that a 568 pixel screen does not have. */
-  .topnav ul { gap: 0.2rem; }
-  .topnav .navlink { padding: 0.2rem 0.3rem; }
-
-  /* And the chip takes a narrower column, so the tagline has the width
-     to be two lines rather than three. */
-  header { grid-template-columns: minmax(0, 1fr) minmax(4.5rem, 7rem); }
+  .mapkey { padding: 0.4rem 0.6rem 0.45rem; }
 }
 
-/* SPEC 11.38. A 320 by 568 screen, which is the smallest this site is
-   measured on. The floors of 11.38 are 44 pixels on three rows that used
-   to be 30, and on this screen that height has to come from somewhere:
-   it comes from the map's own floor, which drops to 64 pixels while the
-   bar and the whole of the controls stay on the screen. */
+/* SPEC 11.39. A 320 by 568 screen, which is the smallest this site is
+   measured on. Nothing is dropped and nothing shrinks below its floor:
+   what gives is the padding around the menu, because three links at 15
+   point come to 258 of the 320 pixels. */
 @media (max-width: 360px) {
-  .mapwrap { min-height: 4rem; }
+  .topnav ul { gap: 0.2rem; }
+  .topnav .navlink { padding: 0.2rem 0.3rem; }
+  .radios { gap: 0.25rem; }
 }
 
 /* ------------------------------ How to read this map, SPEC 11.39 */

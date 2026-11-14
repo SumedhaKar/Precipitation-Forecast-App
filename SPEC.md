@@ -5992,6 +5992,67 @@ first way in that readers could not find. What replaces all three is the
 search row itself, with the box in it, and the card saying what to do:
 "Tap the map or search a city to see its next five days."
 
+#### One grid, two orders
+
+There is one set of blocks and one grid. The order is the only thing that
+differs between a phone and a desktop, so there is one copy of every
+control in the page and no second layout to keep in step.
+
+| | a phone (under 1024) | a desktop (1024 and over) |
+|---|---|---|
+| 1 | the search row | the search row |
+| 2 | the map card | the two pill rows |
+| 3 | the day pills | the map card, left; the forecast card, right |
+| 4 | the amount pills | |
+| 5 | the Location forecast card | |
+| 6 | the footer | the footer |
+
+The header is one band at both widths: the mark, the site's name, how old
+this run is, and the pages. Under it, across the whole width, the warning.
+Three things left it: the tagline, because what the site is for is the
+question at the top of the card where a reader who has chosen nothing is
+already looking; the run ID; and the "(00 UTC)". The last two are in More
+detail.
+
+The freshness line names the **run** time and counts the age from the time
+it has just printed. It used to print the publish time beside an age
+counted from the run time, so the two numbers on one line disagreed with
+each other by however long the pipeline had taken.
+
+The card's empty state is the page's answer to "what is this": the
+question, one sentence saying what the 51 are, what to do next, and a link
+to How to read this map. Under the card there are two links, and the How
+to read one is not drawn while the empty card is carrying it — a link to
+something already on the screen under it is noise.
+
+#### Where the colour key goes, and what it costs
+
+The key is paid for by padding the fit on the side it sits on: the left
+edge is padded by the key's own measured width, so India begins to the
+right of it and nothing of the country can be behind it. While the fit is
+limited by the map box's height, that padding costs the country nothing at
+all.
+
+Where it would cost something the key is drawn directly under the map
+instead, inside the same card. The boundary is 1280 pixels, and it was
+measured rather than chosen:
+
+| width | the map box | what a floating key would cost |
+|---|---|---|
+| 1440 x 900 | 990 x 558 | nothing: the fit is height-limited and India keeps all 482 pixels of its width |
+| 1024 x 768 | 574 x 476 | the fit becomes width-limited, India shrinks from 409 to 305 pixels, and Gujarat is behind the key anyway |
+| 390 x 844 | 358 x 464 | India fills the width; 226 pixels of padding would leave the country a third of the card |
+
+So at 1280 and over the key floats in the lower left corner, over the
+Arabian Sea, open. Below that it is under the map, shut, and what a reader
+sees without opening it is the title, the strip of the seven colours and
+the two ends in words.
+
+A check projects every one of the 4,613 forecast squares and every point
+of the drawn outline — Lakshadweep included, which has no forecast square
+at all — into the canvas's own pixels, from the bounds the map itself
+reports, and fails if one of them is behind the key.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

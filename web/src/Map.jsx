@@ -614,7 +614,7 @@ function makeLabels(container, mapFor) {
 
 export default function ForecastMap({
   counts, grid, threshold, day, square, squareName, onPick, onProblem,
-  unitBox,
+  unitBox, keyOpen,
   handcheck,
 }) {
   const holder = useRef(null);
@@ -766,11 +766,32 @@ export default function ForecastMap({
       // which is 38 N 98 E and thereabouts -- China, drawn beige, with no
       // forecast square anywhere near it. Nothing of India is under them.
       const seenRight = most(right);
+      // SPEC 11.39. And the colour key, where it is drawn over the canvas.
+      //
+      // It sits in the lower left corner, over the Arabian Sea, and the
+      // only way to be sure nothing of India is behind it is to pay for it
+      // in the fit: the left edge is padded by its width, so India starts
+      // to the right of it. Where the map box is wider than India needs --
+      // every desktop width, where the fit is limited by the height --
+      // that padding costs nothing at all.
+      //
+      // Where it would cost something, the stylesheet does not put the key
+      // over the canvas: on a phone India fills the width, and paying 226
+      // pixels of a 390 pixel map would shrink the country to a third.
+      // There the key is drawn under the map and this returns nothing.
+      const keyWidth = () => {
+        const card = created.getContainer().closest('.mapcard');
+        const found = card ? card.querySelector('.mapkey') : null;
+        if (!found) return 0;
+        if (getComputedStyle(found).position !== 'absolute') return 0;
+        const seen = box(found);
+        return seen ? seen.width : 0;
+      };
       return {
         top: gap,
         right: cap(seenRight, canvas.width),
         bottom: cap(most(bottom), canvas.height),
-        left: gap,
+        left: cap(keyWidth(), canvas.width),
       };
     };
 
@@ -1029,6 +1050,11 @@ export default function ForecastMap({
         layers: order,
       };
     };
+    // SPEC 11.39. Fit again, for the colour key: opening or shutting it
+    // changes the width the fit is padded by, and nothing else on the page
+    // can tell the map that. It does nothing while the reader has moved
+    // the map themselves, like every other refit here.
+    created.getContainer().refit = () => { if (!touched.current) refit(); };
     created.getContainer().mapView = () => {
       const box = created.getBounds();
       return { zoom: created.getZoom(),
@@ -1107,6 +1133,22 @@ export default function ForecastMap({
     if (ready.current) go();
     else created.once('load', go);
   }, [unitBox ? unitBox.join(',') : null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Fit again when the colour key opens or shuts. SPEC 11.39.
+   *
+   * The key is over the canvas at desktop widths, and the fit is padded by
+   * its width so that nothing of India is behind it. Opening it makes it
+   * taller and no wider, so the padding does not change -- but it can
+   * change the width on the first paint, when the box has not been laid
+   * out yet, and this is the one event that says so.
+   */
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !ready.current) return;
+    const again = created.getContainer().refit;
+    if (again) window.requestAnimationFrame(again);
+  }, [keyOpen]);
 
   // Changing day or threshold: one paint property, nothing else.
   useEffect(() => {
