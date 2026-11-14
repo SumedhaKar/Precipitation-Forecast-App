@@ -7306,6 +7306,23 @@ def test_the_menu_holds_all_four_pages_and_can_be_got_out_of():
     assert "{BAR.map((page) => {" in nav
     assert "export const BAR = PAGES.slice(0, 3);" in nav
 
+    # And neither list says "(you are here)". The words were in both --
+    # visible in the laptop bar, and hidden by the stylesheet in the open
+    # menu, where a screen reader still read them after `aria-current`
+    # had already said it. Both lists mark the page being read with the
+    # one `.navlink.here` rule instead: the navy, bold and underlined,
+    # which is more than a colour (SPEC 11.22), and `aria-current` is
+    # what is said. The span that carried the words is gone, so is its
+    # class, and the stylesheet has no rule left for either.
+    style = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    assert "hereword" not in nav, "the words are back in the navigation"
+    assert "(you are here)</span>" not in nav
+    assert "hereword" not in style.split("/*")[0] + "".join(
+        part.split("*/", 1)[1] for part in style.split("/*")[1:]
+        if "*/" in part), "a rule for the words is still in the stylesheet"
+    assert nav.count('aria-current={here ? \'page\' : undefined}') == 2
+    assert ".navlink.here {" in style
+
 
 @needs_node
 def test_every_page_carries_the_freshness_line_and_the_warning(viewport):

@@ -194,10 +194,15 @@ export function Menu({ path, onGo }) {
                     onGo(page.path);
                   }}
                 >
+                  {/* No "(you are here)" here either: the row's own
+                      style marks it -- the navy, bold and underlined from
+                      the one `.navlink.here` rule the bar uses too -- and
+                      `aria-current` is what a screen reader is given. The
+                      words were hidden from sight below 1024 pixels
+                      anyway, so this is what the open menu already looked
+                      like; what goes is the sentence a screen reader heard
+                      twice and the span that carried it. */}
                   {page.name}
-                  {here ? (
-                    <span className="small hereword"> (you are here)</span>
-                  ) : null}
                 </a>
               </li>
             );

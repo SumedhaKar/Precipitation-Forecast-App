@@ -1482,23 +1482,6 @@ footer p { max-width: 70ch; }
 @media (max-width: 1023px) {
   :root { --gap: 0.9rem; --gap-across: 1.5rem; }
 
-  /* SPEC 11.22 is satisfied without the words: the current page is bold
-     and underscored, which is not a colour, and the words are still said
-     to a screen reader. On a phone they are what wraps the menu onto a
-     second line. The bold and the underline moved to the base rule,
-     where every width gets them; this still hides the words, which the
-     open menu is the only thing left writing. */
-  .hereword {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   /* SPEC 11.38, kept by 11.39: the rows a thumb has to hit are 44 pixels
      tall with 15 point type on them. These were 12.2 point buttons 29.8
      pixels tall. Nothing is dropped to pay for it -- the page scrolls. */
@@ -1704,9 +1687,10 @@ footer p { max-width: 70ch; }
 .navlink:hover { background: var(--page); }
 
 /* The page being read, marked by more than its colour at every width:
-   SPEC 11.22, now that the words "(you are here)" are not in the laptop
-   bar to carry it. Bold and underlined was the phone's treatment and is
-   now everyone's. */
+   SPEC 11.22, now that the words "(you are here)" are in neither the
+   laptop bar nor the phone menu to carry it. Bold and underlined was the
+   phone's treatment and is now everyone's, in both lists, and
+   `aria-current` is what a screen reader is told. */
 .navlink.here {
   background: var(--picked);
   border-color: var(--picked);
@@ -1716,8 +1700,6 @@ footer p { max-width: 70ch; }
   text-underline-offset: 4px;
   text-decoration-thickness: 2px;
 }
-
-.navlink.here .small { color: #d8e4ef; }
 
 /* ----------------------------------------------- the menu, on a phone */
 
