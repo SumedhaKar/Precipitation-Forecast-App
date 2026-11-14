@@ -6266,7 +6266,8 @@ five, and five date pills cannot say so.
 Beside **Which day?**, and only when the first pill really does read
 "Tomorrow":
 
-> (starts tomorrow: the forecast arrives around midday)
+> (starts tomorrow, because today is already under way when the forecast
+> arrives)
 
 One string, in `Controls.jsx`, quoted by the How to read this map page,
 which explains the same thing in a paragraph. Whether it is drawn is

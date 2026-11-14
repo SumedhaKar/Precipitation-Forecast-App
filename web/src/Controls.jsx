@@ -21,12 +21,20 @@ const THRESHOLDS = [1, 10, 50];
 /**
  * Said beside "Which day?" on the mornings when today is not day one.
  *
- * SPEC 11.40. One string, because the How to read this map page explains
- * the same line and quotes it: two copies of a sentence are two sentences
- * to keep in step.
+ * SPEC 11.40, reworded by 11.41. One string, because the How to read this
+ * map page explains the same line and quotes it: two copies of a sentence
+ * are two sentences to keep in step.
+ *
+ * It used to say "the forecast arrives around midday", which answers a
+ * question a reader has not asked yet -- they want to know why today is
+ * missing, not what time a file lands. "Today is already under way" is
+ * the reason: by the time the 00 UTC run has been downloaded, added up
+ * and published, the day it would forecast has been going for hours.
+ * What time that happens is on the How to read this map page, in the
+ * fine print, where somebody who wants it will look for it.
  */
-export const STARTS_TOMORROW = '(starts tomorrow: the forecast arrives '
-  + 'around midday)';
+export const STARTS_TOMORROW = '(starts tomorrow, because today is '
+  + 'already under way when the forecast arrives)';
 
 /**
  * The day buttons. SPEC 11.38, 11.40.

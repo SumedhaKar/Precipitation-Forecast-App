@@ -4738,6 +4738,42 @@ try {
     }
     out.phone[key] = here;
   }
+
+  // SPEC 11.41. The note beside "Which day?" is drawn only on the
+  // mornings when the five days do not include today, and that is a fact
+  // about the reader's own clock -- so the only way to measure it is to
+  // set the clock. The page is opened twice with the visitor's own Date
+  // replaced: once on the first forecast day, where the first pill reads
+  // "Today" and the note must be absent, and once on the day before it,
+  // where the pill reads "Tomorrow" and the note must be there.
+  //
+  // Date is replaced rather than the run being rewritten, because the
+  // run is the same run in both cases: what changes between a reader at
+  // 9 am and the same reader at 1 pm is only which day they are in.
+  if (PLAN.clocks) {
+    out.clock = {};
+    await size(1366, 768);
+    for (const [when, at] of Object.entries(PLAN.clocks)) {
+      const shim = await send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `(() => {
+          const fixed = ${at};
+          const Real = Date;
+          const Fake = new Proxy(Real, {
+            construct: (target, args) => (args.length
+              ? new target(...args) : new target(fixed)),
+            apply: () => new Real(fixed).toString(),
+          });
+          Fake.now = () => fixed;
+          window.Date = Fake;
+        })()`,
+      }, sessionId);
+      await open('/');
+      out.clock[when] = await evaluate(LOOK);
+      await shoot(`clock-${when}`);
+      await send('Page.removeScriptToEvaluateOnNewDocument',
+        { identifier: shim.identifier }, sessionId);
+    }
+  }
   stop(out);
 } catch (error) {
   stop({ skip: `the browser check could not run: ${error.message}` });
@@ -4815,6 +4851,12 @@ def viewport(tmp_path_factory):
         manifest["run_time_ist"] = fresh.astimezone(
             dt.timezone(dt.timedelta(hours=5, minutes=30))).isoformat()
         where.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        # SPEC 11.41. The first of the five days, which is what the day
+        # note is about: the browser is opened once with its clock on
+        # that day and once on the day before it.
+        first_day = str(json.loads((live / RUN / "days.json")
+                                   .read_text(encoding="utf-8"))
+                       [0]["from_ist"])[:10]
         served = tmp / "store"
         answer = publish.publish(FakeStore(), RUN, work_dir=served,
                                  mark=False)
@@ -4859,6 +4901,18 @@ def viewport(tmp_path_factory):
             # A city inside the run a test publishes, so searching for it
             # answers with counts rather than with "not forecast".
             "city": nearest_city(target),
+            # SPEC 11.41. Two readings of the same run by two readers:
+            # 6 am IST on the run's own first day, where that day is
+            # today, and 6 am the morning before, where it is tomorrow
+            # and the day the reader is in is not one of the five.
+            "clocks": {
+                "today": int(dt.datetime.fromisoformat(
+                    f"{first_day}T06:00:00+05:30").timestamp() * 1000),
+                "tomorrow": int((dt.datetime.fromisoformat(
+                    f"{first_day}T06:00:00+05:30")
+                    - dt.timedelta(days=1)).timestamp() * 1000),
+            },
+            "firstDay": first_day,
             "shots": os.environ.get("SHOTS") or None,
         }
         done = subprocess.run(
@@ -5673,7 +5727,8 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  # SPEC 11.40: the line beside "Which day?" on the
                  # mornings when the five days do not include today, and
                  # the section of How to read this map that explains it.
-                 "(starts tomorrow: the forecast arrives around midday)",
+                 "(starts tomorrow, because today is already under way "
+                 "when the forecast arrives)",
                  "The mornings when the five days start tomorrow",
                  # SPEC 11.40: what the 51 are, said once in the empty
                  # card and once beside the dots.
@@ -7047,7 +7102,8 @@ def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
         assert exports(DAYS_JS, "startsTomorrow", [bad])[0] is False, bad
 
     # And the page itself, at every size it is measured at.
-    said = ("(starts tomorrow: the forecast arrives around midday)")
+    said = ("(starts tomorrow, because today is already under way when "
+            "the forecast arrives)")
     for size, page in viewport["phone"].items():
         first = page["first"]
         word = (first["dayPills"] or [[None]])[0][0]
@@ -7058,6 +7114,28 @@ def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
         else:
             assert first["startsNote"] is None, (size, word,
                                                  first["startsNote"])
+
+    # SPEC 11.41. Both cases, in a real browser, on one run: the same
+    # page opened by a reader whose own IST date is the first of the five
+    # days and by a reader one day earlier. The clock is the only thing
+    # that differs between them, so the note's being there is the
+    # clock's doing and nothing else's.
+    clock = viewport.get("clock")
+    assert clock, "the two clock readings were not taken"
+
+    now = clock["today"]
+    assert now["dayPills"][0][0] == "Today", now["dayPills"]
+    assert now["startsNote"] is None, now["startsNote"]
+
+    before = clock["tomorrow"]
+    assert before["dayPills"][0][0] == "Tomorrow", before["dayPills"]
+    assert before["startsNote"] is not None, "the note was not drawn"
+    assert before["startsNote"].strip() == said, before["startsNote"]
+    # The same five days either way: the run has not changed, only the
+    # reader's own day, so the dates on the pills are the same dates.
+    assert ([pill[1] for pill in now["dayPills"]]
+            == [pill[1] for pill in before["dayPills"]]), (
+        now["dayPills"], before["dayPills"])
 
 
 @needs_node
