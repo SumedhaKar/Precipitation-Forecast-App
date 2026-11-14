@@ -1622,8 +1622,11 @@ def test_the_amount_buttons_carry_the_nickname_and_the_millimetres(
                              ("A lot of rain", 50)):
             assert nickname in text, nickname
             assert f"{mm} mm+" in text, mm
-        assert ("10 mm of rain is water 1 cm deep if none of it ran away."
-                in text)
+        # SPEC 11.39. "10 mm of rain is water 1 cm deep if none of it ran
+        # away" was the line under these buttons. It is not under a control
+        # any more: what 10 mm is like is on the How to read this map page,
+        # in everyday words, and the page's own test below pins it there.
+        assert "water 1 cm deep" not in text
         seen += 1
     assert seen >= 3, seen
 
@@ -1649,9 +1652,10 @@ def test_the_nicknames_are_ours_and_are_written_down():
     # enough that the specification says why these three were chosen.
     for banned in ("wet", "heavy"):
         assert banned in section.lower(), banned
-    # The page says they are ours, where it says them.
-    panel = PANEL.read_text("utf-8")
-    assert "not an official category" in panel.lower()
+    # The page says they are ours, where it says them: SPEC 11.39 moved
+    # that from the panel to How to read this map.
+    said = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
+    assert "not an official category" in said.lower()
 
 
 # ------------------------- SPEC 11.38: the search box, states and old names
@@ -2586,10 +2590,12 @@ def test_a_colour_swatch_is_not_a_control():
     assert (".dotkey .swatch { width: 0.8rem; height: 0.8rem; "
             "border-radius: 50%; }") in css
 
-    # Two in the legend, and three in the panel since the white line moved
-    # into How to read this map (SPEC 11.37). Every one of them, wherever
-    # they are, is a hidden span with nothing pressable near it.
-    for name, many in (("Legend.jsx", 3), ("Panel.jsx", 4)):
+    # Six in the legend -- its own three, and the three of the nine-row key
+    # that SPEC 11.39 shares with How to read this map -- and two in the
+    # card, since the white and beige lines left the panel with the rest of
+    # the explanation (11.39). Every one of them, wherever they are, is a
+    # hidden span with nothing pressable near it.
+    for name, many in (("Legend.jsx", 6), ("Panel.jsx", 2)):
         text = (ROOT / "web" / "src" / name).read_text("utf-8")
         parts = text.split('className="swatch"')
         assert len(parts) == many + 1, name
@@ -4314,50 +4320,50 @@ try {
       // Where a square is on the screen, worked out from the map's own
       // bounds: the view is all of India and the run a test publishes
       // covers a two degree box inside it, so the middle of the map is
-      // open sea. The spots below are only a fallback.
-      const want = PLAN.target;
-      if (want) {
-        const view = await evaluate(
-          "document.querySelector('.map').mapView()");
-        const seen = await evaluate(
-          "(() => { const b = document.querySelector('.map')"
-          + ".getBoundingClientRect(); return { left: b.left, top: b.top,"
-          + " width: b.width, height: b.height }; })()");
-        const [west, south, east, north] = view.bounds;
+      // open sea and only a published square will do.
+      //
+      // The square tapped is the first of that run's own squares that
+      // nothing is covering. The spots used to be the middle of the map
+      // and eight offsets from it, which landed on sea; and the one
+      // square the fixture named could land under something drawn on the
+      // map — the welcome card's button, or a zoom control — in which
+      // case the tap went to that instead and the test measured a panel
+      // nobody had chosen anything in. Which square it was, and what was
+      // in the way of the others, is reported, so a check can say that
+      // none was reachable rather than quietly passing.
+      const wanted = PLAN.squares && PLAN.squares.length
+        ? PLAN.squares : (PLAN.target ? [PLAN.target] : []);
+      const pick = await evaluate(`(() => {
+        const el = document.querySelector('.map');
+        if (!el || !el.mapView) return { at: null, blocked: [] };
+        const b = el.getBoundingClientRect();
+        const [west, south, east, north] = el.mapView().bounds;
         const m = (lat) => Math.log(Math.tan(Math.PI / 4
           + (lat * Math.PI) / 360));
-        const x = seen.left
-          + ((want[1] - west) / (east - west)) * seen.width;
-        const y = seen.top
-          + ((m(north) - m(want[0])) / (m(north) - m(south))) * seen.height;
-        here.tappedFor = { want, at: [Math.round(x), Math.round(y)] };
-        if (x > seen.left && x < seen.left + seen.width
-            && y > seen.top && y < seen.top + seen.height) {
-          await tap(Math.round(x), Math.round(y));
-        }
-      }
-      if (!await evaluate("!!document.querySelector('.countrow')")) {
-        // A tap at the middle of the map may land on sea, and on the small
-        // run a test publishes it usually does. The spots are tried in order
-        // until one answers with counts; which one answered is reported, so
-        // a test can say that none did rather than quietly passing.
-        const spots = [[0, 0], [0, -0.2], [0, 0.2], [-0.2, 0], [0.2, 0],
-          [-0.2, -0.2], [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2]];
-        for (const [dx, dy] of spots) {
-          await tap(Math.round(width * (0.5 + dx)),
-            Math.round(map.top + map.height * (0.5 + dy)));
-          here.tappedAt = [dx, dy];
-          const got = await evaluate(
-            "!!document.querySelector('.countrow')");
-          if (got) break;
-          // Shut it again before the next try, so each tap is the first one.
-          if (await evaluate(
-            "document.querySelector('.shell').className.includes('open')")) {
-            await evaluate("document.querySelector('.handle').click()");
-            await new Promise((go) => setTimeout(go, 500));
+        const blocked = [];
+        for (const [lat, lon] of ${JSON.stringify(wanted)}) {
+          const x = b.left + ((lon - west) / (east - west)) * b.width;
+          const y = b.top
+            + ((m(north) - m(lat)) / (m(north) - m(south))) * b.height;
+          if (x < b.left + 2 || x > b.right - 2
+            || y < b.top + 2 || y > b.bottom - 2) {
+            blocked.push([lat, lon, 'off the map']);
+            continue;
           }
+          const over = document.elementFromPoint(x, y);
+          const free = over && over.closest('.mapwrap')
+            && !over.closest('.welcome') && !over.closest('.maplibregl-ctrl');
+          if (free) {
+            return { square: [lat, lon],
+              at: [Math.round(x), Math.round(y)], blocked };
+          }
+          blocked.push([lat, lon,
+            over ? String(over.className || over.tagName) : null]);
         }
-      }
+        return { square: null, at: null, blocked };
+      })()`);
+      here.tappedFor = pick;
+      if (pick.at) await tap(pick.at[0], pick.at[1]);
       here.afterMapTap = await evaluate(LOOK);
       here.inside = await evaluate(INSIDE);
       // And the map gets its size back when the panel closes.
@@ -4415,11 +4421,17 @@ def viewport(tmp_path_factory):
         mp.setattr(publish, "LIVE", live)
         mp.setattr(publish, "run_dir", lambda run_id: live / run_id)
         write_run(live, RUN, india)
-        # One India square of that run, for the tap on the map to aim at.
+        # Every India square of that run, for the tap on the map to aim
+        # at: the harness takes the first of them that nothing on the map
+        # is covering, and says what was over the others (SPEC 11.39).
         rows, cols = np.nonzero(india)
-        middle = len(rows) // 2
-        target = [float(cfg.INDIA_LATS[rows[middle]]),
-                  float(cfg.INDIA_LONS[cols[middle]])]
+        every = [[float(cfg.INDIA_LATS[row]), float(cfg.INDIA_LONS[col])]
+                 for row, col in zip(rows, cols)]
+        middle = len(every) // 2
+        target = every[middle]
+        # The middle one first, so the square tapped is the same square it
+        # has always been wherever nothing is in the way of it.
+        squares = [target] + [one for one in every if one != target]
         # The run is given a run time two hours ago. Everything else about
         # it is the fixture's own, but a run time from last week would put
         # the stale banner of 11.8 across the page, and this is a
@@ -4470,6 +4482,7 @@ def viewport(tmp_path_factory):
             "sizes": [[390, 664], [390, 844], [320, 568], [1440, 900]],
             "longest": longest_bar_line(),
             "target": target,
+            "squares": squares,
         }
         done = subprocess.run(
             [node, str(runner), str(out), json.dumps(plan)],
@@ -5037,12 +5050,26 @@ def test_the_answer_is_on_the_screen_without_scrolling_at_390_by_664(
 
 @needs_node
 def test_the_white_line_is_in_how_to_read_the_map_on_a_phone(viewport):
-    """SPEC 11.37, item 5: moved, not dropped, and never in both places."""
-    # How to read this map is what a reader sees before they choose a
-    # place, which is where this line belongs.
+    """SPEC 11.37 item 5, as SPEC 11.39 leaves it: moved, never dropped.
+
+    The line was in the legend, where a phone had no room for it, and
+    11.37 moved it into the block of explanation in the panel. 11.39 made
+    that block a page, so the line is on the page -- in the nine-row key,
+    with the beige one beside it -- and the legend still carries both at
+    desktop width and neither on a phone.
+    """
     seen = viewport["phone"]["390x664"]["afterLine"]
-    assert seen["whiteHere"] is True
     assert seen["legendWhite"] == "none", seen["legendWhite"]
+    # Nothing in the panel claims to explain a colour any more.
+    assert seen["whiteHere"] is False
+    # And the page that does say it is a page a reader can reach from here.
+    said = (ROOT / "web" / "src" / "Legend.jsx").read_text("utf-8")
+    assert "White: no forecast for this spot" in said
+    assert "Beige: land outside India, not forecast" in said
+    page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
+    assert "<KeyRows />" in page
+    panel = PANEL.read_text("utf-8")
+    assert 'href={to}' in panel and "/how-to-read" in panel
 
 
 def test_the_closed_bar_is_a_phone_rule_and_the_desktop_keeps_its_panel():
@@ -5050,7 +5077,6 @@ def test_the_closed_bar_is_a_phone_rule_and_the_desktop_keeps_its_panel():
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     desktop = css.split("@media (max-width: 1023px)")[0]
     assert ".handle, .sheetbar { display: none; }" in desktop
-    assert ".whitehere { display: none; }" in desktop
     # The blocks themselves are indented, which is to say inside the media
     # query; the only mention above it is the one that hides them.
     for rule in ("  .sheetbar {", "  .sheetsearch {",
@@ -5411,9 +5437,20 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "A lot of rain", "Runs bringing", "All 51",
                  "Land outside India, which this site does not forecast",
                  "Today", "Tomorrow",
-                 "10 mm of rain is water 1 cm deep if none of it ran away.",
-                 "Each day runs from 5:30 am to 5:30 am the next morning "
-                 "(IST).",
+                 # SPEC 11.39: the help sentences are on the How to read
+                 # this map page, in these words, and the page is rendered
+                 # into this sweep so they are still checked.
+                 "Each day runs from 5:30 am to 5:30 am the next morning, "
+                 "IST.",
+                 "Enough to leave the ground damp.",
+                 "A proper shower: you would want an umbrella.",
+                 "A very rainy day: water can collect on roads.",
+                 "This is the total over the whole day, averaged over the "
+                 "square, so it can be one short burst or hours of "
+                 "drizzle.",
+                 "1-10 runs", "41-50 runs", "All 51 runs",
+                 "White: no forecast for this spot",
+                 "Beige: land outside India, not forecast",
                  # SPEC 11.38: the search box's own two new answers.
                  "Kerala is too big for one forecast",
                  "We don't have Ooty yet."):
@@ -5528,3 +5565,125 @@ def test_the_two_lines_of_a_day_pill_are_the_published_date(exports):
         None, None, "14"]
     assert exports(DAYS_JS, "dayWord",
                    [["", "2026-11-14", None]]) == [None]
+
+
+
+# ---------------------------- SPEC 11.39: How to read this map, as a page
+
+HOWTOREAD = ROOT / "web" / "src" / "HowToRead.jsx"
+
+# What the page holds, word for word. The forecast page may not say any of
+# these: that is the point of moving them.
+HOW_TO_READ_HOLDS = (
+    "Each day runs from 5:30 am to 5:30 am the next morning, IST.",
+    "Enough to leave the ground damp.",
+    "A proper shower: you would want an umbrella.",
+    "A very rainy day: water can collect on roads.",
+    "This is the total over the whole day, averaged over the square, so it "
+    "can be one short burst or hours of drizzle.",
+    "One square is 0.25 degrees, about 28 km across.",
+    "It is not a probability.",
+    "White: no forecast for this spot",
+    "Beige: land outside India, not forecast",
+)
+
+
+@needs_node
+def test_how_to_read_this_map_holds_what_the_spec_says_it_holds(
+        forecast_words):
+    """SPEC 11.39. The page, rendered, with every sentence it must carry."""
+    pages = [html for html in forecast_words
+             if isinstance(html, str) and 'class="page howtoread"' in html]
+    assert len(pages) == 1, len(pages)
+    text = words_of(pages[0])
+    for said in HOW_TO_READ_HOLDS:
+        assert said in text, said
+    # The nine rows of the key, in plain words, with "runs" on every one of
+    # the seven that is a count.
+    for row in ("None", "1-10 runs", "11-20 runs", "21-30 runs",
+                "31-40 runs", "41-50 runs", "All 51 runs"):
+        assert row in text, row
+    # And the three amounts with their millimetres beside them, always.
+    for nickname, mm in (("Some rain", 1), ("A rainy day", 10),
+                         ("A lot of rain", 50)):
+        assert nickname in text, nickname
+        assert f"{mm} mm or more" in text, mm
+
+
+def test_the_amount_words_are_ours_and_are_written_down():
+    """SPEC 11.39. Everyday words, in the page and in the specification.
+
+    One of the three could not be written as it was asked for. "Enough to
+    wet the ground" says it best in English and "wet" is on 11.20's list,
+    which is there because "a wet day" forecasts what a day will be like
+    and this site does not do that. "Damp" says the same thing about the
+    ground and claims nothing about the day.
+    """
+    said = HOWTOREAD.read_text("utf-8")
+    spec = (ROOT / "SPEC.md").read_text("utf-8")
+    section = spec.split("### 11.39")[1].split("## The hand checks")[0]
+    for words in ("Enough to leave the ground damp.",
+                  "A proper shower: you would want an umbrella.",
+                  "A very rainy day: water can collect on roads."):
+        assert words in said, words
+        assert words in section, words
+    # The specification says why the first one is not the obvious English.
+    assert "wet" in section.lower()
+    # The millimetres are the rule and the words are not.
+    assert "not an official category" in said.lower()
+    assert "millimetres are the rule" in said
+
+
+def test_the_fourth_page_is_a_real_path_with_its_own_tab():
+    """SPEC 11.39. Linked to, bookmarked, and sent to somebody.
+
+    It was a block inside the forecast panel, which is to say it had no
+    address: a reader could not send it to anybody and could not come back
+    to it. The header writes out three links and this is not one of them
+    -- the band has room for three -- so it is reached from the page it
+    explains, from the menu, and from "What does mm mean?".
+    """
+    nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
+    site = (ROOT / "web" / "src" / "Site.jsx").read_text("utf-8")
+    assert "path: '/how-to-read'," in nav
+    assert "title: `How to read this map · ${SITE}`" in nav
+    # Four pages, three of them written out in the header band.
+    assert "export const BAR = PAGES.slice(0, 3);" in nav
+    assert "{BAR.map((page) => {" in nav
+    # The page itself is lazy, like the other two documents, so none of it
+    # is in the forecast's download.
+    assert "lazy(() => import('./HowToRead'))" in site
+    # Every path in the list resolves to itself and nothing else.
+    config = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
+    pattern = re.compile("^" + config["rewrites"][0]["source"] + "$")
+    assert pattern.match("/how-to-read")
+
+
+@needs_node
+def test_the_forecast_page_keeps_no_help_sentence_of_its_own(forecast_words):
+    """SPEC 11.39. One line explains the answer; the rest is on the page.
+
+    Three reviews called the forecast page too textual. Most of the words
+    were help: a line under the day buttons, a line under the amount
+    buttons, a line under the five-day strip, three bullets and two colour
+    lines in the panel. The one that stays is the line under the place
+    name, which says what the count in front of the reader is a count of.
+    """
+    gone = ("10 mm of rain is water 1 cm deep",
+            "Each day runs from 5:30 am to 5:30 am the next morning (IST)",
+            "Each cell is that day's count of runs",
+            "One square is 0.25 degrees, about 28 km across",
+            "Tap a square or search a city.")
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="page howtoread"' in html:
+            continue
+        text = words_of(html)
+        for said in gone:
+            assert said not in text, (said, text[:160])
+    # And the line that stays is on every answered card: its own test
+    # above pins its shape, this one pins that it is the only one left.
+    cards = [html for html in forecast_words
+             if isinstance(html, str) and 'class="placeline"' in html]
+    assert len(cards) > 20, len(cards)
+    for html in cards:
+        assert html.count('class="whenline"') == 1

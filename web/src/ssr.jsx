@@ -19,6 +19,7 @@ import ReportCard, { Bands } from './ReportCard';
 import HowWeChecked, {
   Blocks, Decomposition, Maps, Sensitivities,
 } from './HowWeChecked';
+import HowToRead from './HowToRead';
 import TopNav from './TopNav';
 import Panel, { Welcome, summaryLine } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
@@ -142,9 +143,14 @@ export function forecastWords(answers) {
   const days = answers.length ? answers[0].days : [];
   const run = answers.length ? answers[0].run : null;
   out.push(renderToStaticMarkup(
-    <Welcome where="map" onFind={nothing} onHowTo={nothing} />));
+    <Welcome where="map" onFind={nothing} onGo={nothing} />));
   out.push(renderToStaticMarkup(
-    <Welcome where="panel" onFind={nothing} onHowTo={nothing} />));
+    <Welcome where="panel" onFind={nothing} onGo={nothing} />));
+  // SPEC 11.39. How to read this map, which is a page of its own now. It
+  // is swept with the forecast page and not with the two document pages,
+  // because it is the one page that may say "it is not a probability" --
+  // refusing that reading is the whole point of the sentence.
+  out.push(renderToStaticMarkup(<HowToRead />));
   // Every day chosen, and with the reader's own date on each of the five,
   // so "Today" and "Tomorrow" are both rendered and both swept.
   days.forEach((entry) => {

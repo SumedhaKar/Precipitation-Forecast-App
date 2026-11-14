@@ -269,7 +269,6 @@ header {
   color: #ffffff;
 }
 
-.window { margin: 0; font-size: 0.75rem; color: var(--quiet); }
 
 /* ----------------------------------------------------- the place labels */
 
@@ -363,10 +362,6 @@ header {
 }
 
 
-/* SPEC 11.37: the legend carries this line at desktop width and the
-   panel carries it on a phone, where the legend has no room; never
-   both. */
-.whitehere { display: none; }
 
 /* SPEC 11.30. The white squares inside the outline: inside India, and not
    forecast, because the model's own land fraction for them is under a half.
@@ -601,16 +596,6 @@ header {
 .amounts .mmtag { font-size: 0.75rem; color: var(--quiet); }
 .amounts .radios button.on .mmtag { color: inherit; }
 
-/* The nicknames again, in How to read this map, with what they are not. */
-.nicknames {
-  margin: 0 0 0.6rem;
-  padding-left: 1.1rem;
-  font-size: 0.86rem;
-  color: var(--quiet);
-}
-
-.nicknames li { margin-bottom: 0.3rem; }
-
 /* ---------------------------------- a whole state searched, SPEC 11.38 */
 
 .unitfound {
@@ -702,28 +687,11 @@ header {
 /* The desktop shows the panel's copy; the phone shows the map's. */
 .welcome-map { display: none; }
 
-/* --------------------------------------- how to read this, and a notice */
+/* ------------------------------------------------------------ a notice */
 
-.howto h2 { font-size: 1rem; }
-
-.howto ul {
-  margin: 0 0 0.6rem;
-  padding-left: 1.1rem;
-  font-size: 0.86rem;
-  color: var(--quiet);
-}
-
-.howto li { margin-bottom: 0.45rem; }
-.howto strong { color: var(--ink); }
-
-.prompt {
-  margin: 0;
-  padding: 0.45rem 0.6rem;
-  background: var(--page);
-  border-left: 3px solid var(--picked);
-  border-radius: 0 6px 6px 0;
-  font-size: 0.9rem;
-}
+/* SPEC 11.39. The link that replaced the block of explanation in the
+   panel: one line, under whatever the panel is saying. */
+.readmore { margin: 0.5rem 0 0; font-size: 0.9rem; }
 
 /* SPEC 11.30. What the panel says while a square's numbers are on their way.
    It names the square, because the fault it replaces was the panel showing
@@ -1144,7 +1112,6 @@ footer p { max-width: 70ch; }
      which is the smallest the rest of the bar may be. Nothing is dropped
      to pay for it. */
   .controls .grouplabel { font-size: 0.75rem; }
-  .controls .window { font-size: 0.75rem; }
   .headwarn { font-size: 0.75rem; }
   .legend .grouplabel { font-size: 0.75rem; }
   .legend-rows li { font-size: 0.75rem; }
@@ -1359,18 +1326,11 @@ footer p { max-width: 70ch; }
   .panel .pastline { font-size: 0.95rem; }
   .panel .trustline { font-size: 0.95rem; }
   .panel .counts > .small { font-size: 0.95rem; }
-  .panel .howto li { font-size: 0.95rem; }
-  .panel .whitehere {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.9rem;
-    color: var(--quiet);
-  }
+  .panel .readmore { font-size: 0.95rem; }
   .panel .whylabel { font-size: 0.9rem; }
   .panel .whylabel summary { min-height: 44px; display: flex;
     align-items: center; font-size: 0.95rem; }
-  .panel .small, .panel .note, .panel .prompt { font-size: 0.86rem; }
+  .panel .small, .panel .note { font-size: 0.86rem; }
   .panel .cellday { font-size: 0.82rem; }
   .panel .who { font-size: 0.82rem; }
   .panel .arith { font-size: 0.82rem; }
@@ -1452,7 +1412,6 @@ footer p { max-width: 70ch; }
   /* SPEC 11.38. "Which day?" is a question and it is asked out loud. The
      label used to be the word "Day", which five dates in a row did not
      need, so it was hidden; a question is worth its one line. */
-  .window { line-height: 1.3; }
 
   .group { gap: 0.1rem; }
   .grouplabel { letter-spacing: 0.02em; }
@@ -1486,6 +1445,65 @@ footer p { max-width: 70ch; }
    bar and the whole of the controls stay on the screen. */
 @media (max-width: 360px) {
   .mapwrap { min-height: 4rem; }
+}
+
+/* ------------------------------ How to read this map, SPEC 11.39 */
+
+/* The nine rows of the colour key, in words: seven classes, the white
+   squares inside India that are not forecast, and the land outside it.
+   One list, read by this page and by the key on the map. */
+.keyrows {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9375rem;
+}
+
+.keyrows li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.keyrows .swatch { width: 1.6rem; height: 0.9rem; border-radius: 2px; }
+.keyrows .keywhite .swatch { background: var(--card); }
+
+/* The three amounts, our own words, with the millimetres beside every
+   one of them. */
+.amountwords {
+  margin: 0 0 0.8rem;
+  padding: 0;
+  list-style: none;
+}
+
+.amountwords li {
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) minmax(6rem, auto) 1fr;
+  gap: 0.2rem 0.8rem;
+  align-items: baseline;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.amountwords .mmtag {
+  font-variant-numeric: tabular-nums;
+  color: var(--quiet);
+}
+
+.amountwords .meaning { color: var(--ink); }
+
+.inlineswatch {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
+@media (max-width: 560px) {
+  .amountwords li { grid-template-columns: 1fr; gap: 0.1rem; }
 }
 
 /* --------------------------------- the three pages, SPEC 11.34 */

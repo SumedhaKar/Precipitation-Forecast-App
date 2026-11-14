@@ -11,7 +11,7 @@
 
 import { Fragment, useState } from 'react';
 
-import { colourOf, inkOf, labelOf, notProbability } from './palette';
+import { colourOf, inkOf, labelOf } from './palette';
 import { squareText } from './snap';
 import { placeName } from './places';
 import { sameSquare } from './answers';
@@ -534,61 +534,30 @@ export function MoreDetail({ place, day, threshold, onThreshold }) {
 }
 
 /**
- * What the panel says before anything has been chosen. SPEC 11.28.
+ * A link to How to read this map. SPEC 11.39.
  *
- * The page opens on day 1 at 1 mm with no square chosen, so this is the first
- * thing a reader sees, and it has to explain the only three ideas the map
- * uses. It says what a square is, what a colour is, and what the number is
- * not.
+ * The explanation used to be a block drawn here, in the panel, under
+ * whatever else the panel was saying: three bullets, two colour lines and
+ * the three amount nicknames, on the same screen as the answer. It is a
+ * page of its own now, and this is how the forecast page points at it.
+ *
+ * A plain <a href>, like the report card's link: a middle click opens a
+ * tab, the keyboard reaches it with no handler of ours, and a plain left
+ * click becomes the pushState the menu uses where the page has one.
  */
-export function HowToRead() {
+export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
   return (
-    <div className="howto" id="howtoread" tabIndex={-1}>
-      <h2>How to read this map</h2>
-      <ul>
-        <li>
-          <strong>One square is 0.25 degrees</strong>, about 28 km across. The
-          forecast has no detail finer than that, so a square is the smallest
-          place this site can answer about.
-        </li>
-        <li>
-          <strong>The colour is a count.</strong> The model is run 51 times
-          from slightly different starting points, and a square&apos;s colour
-          is how many of those 51 runs bring at least the chosen amount of
-          rain in the chosen day. Darker is more runs.
-        </li>
-        <li>
-          <strong>It is not a probability.</strong> {notProbability()} Nothing
-          on this site is calibrated against what actually happened until the
-          track record exists.
-        </li>
-      </ul>
-      {/* SPEC 11.37. On a phone the legend has no room for this line, so it
-          is here instead, where the rest of the reading of the map is. The
-          legend still carries it at desktop width. */}
-      {/* SPEC 11.37. On a phone the legend has no room for these, so they
-          are here, where the rest of the reading of the map is. */}
-      <p className="whitehere">
-        <span className="swatch" aria-hidden="true" />
-        White: no forecast for this spot
-      </p>
-      <p className="whitehere around">
-        <span className="swatch" aria-hidden="true" />
-        Land outside India, which this site does not forecast
-      </p>
-      {/* SPEC 11.38. The three amounts and this site's own nicknames for
-          them, written down here and in the specification and nowhere
-          else. They are not anybody's official categories. */}
-      <ul className="nicknames">
-        {AMOUNTS.map((amount) => (
-          <li key={amount.mm}>
-            <strong>{amount.nickname}</strong>: {amount.mm} mm or more in the
-            day. Our own words, not an official category.
-          </li>
-        ))}
-      </ul>
-      <p className="prompt">Tap a square or search a city.</p>
-    </div>
+    <a
+      href={to}
+      className="howtolink"
+      onClick={(event) => {
+        if (!onGo || !plainClick(event)) return;
+        event.preventDefault();
+        onGo(to);
+      }}
+    >
+      {children || 'How to read this map'}
+    </a>
   );
 }
 
@@ -608,7 +577,7 @@ export function HowToRead() {
  * It never covers the "Not an official warning" chip, which is in the header
  * above the map and on the screen whatever else is.
  */
-export function Welcome({ onFind, onHowTo, where }) {
+export function Welcome({ onFind, onGo, where }) {
   return (
     <div className={`welcome welcome-${where || 'panel'}`}>
       <h2>Will it rain where you are in the next 5 days?</h2>
@@ -622,11 +591,10 @@ export function Welcome({ onFind, onHowTo, where }) {
       </button>
       <p className="ortap">
         or tap the map
-        {/* A button and not a link: on a phone this has to open the panel,
-            which is a thing the page does and not a place to go. */}
-        <button type="button" className="howtolink" onClick={onHowTo}>
-          How to read this map
-        </button>
+        {/* SPEC 11.39. A link to a page now, not a button that opened a
+            drawer: the explanation is its own page and can be linked to,
+            bookmarked and sent to somebody. */}
+        <HowToReadLink onGo={onGo} />
       </p>
     </div>
   );
@@ -634,7 +602,7 @@ export function Welcome({ onFind, onHowTo, where }) {
 
 export default function Panel({
   place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
-  onFind, onHowTo, onGo,
+  onFind, onGo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
   // are shown for the chosen square or not at all. `place.square.asked` is
@@ -652,7 +620,7 @@ export default function Panel({
           <p>{notice.note}</p>
           {notice.why ? <p className="small">{notice.why}</p> : null}
         </div>
-        <HowToRead />
+        <p className="readmore"><HowToReadLink onGo={onGo} /></p>
       </div>
     );
   }
@@ -663,7 +631,7 @@ export default function Panel({
           <p>{error.said}</p>
           {error.detail ? <p className="why">{error.detail}</p> : null}
         </div>
-        <HowToRead />
+        <p className="readmore"><HowToReadLink onGo={onGo} /></p>
       </div>
     );
   }
@@ -681,8 +649,7 @@ export default function Panel({
         ) : null}
         {!square && !busy ? (
           <>
-            <Welcome where="panel" onFind={onFind} onHowTo={onHowTo} />
-            <HowToRead />
+            <Welcome where="panel" onFind={onFind} onGo={onGo} />
           </>
         ) : null}
       </div>

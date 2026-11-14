@@ -26,7 +26,19 @@ export const PAGES = [
   { path: '/how-we-checked',
     name: 'How we checked',
     title: `How we checked · ${SITE}` },
+  // SPEC 11.39. The fourth page: everything that explains the map, which
+  // used to be a block inside the forecast panel. It is reached by name
+  // from the menu and from "What does mm mean?" under the amount buttons,
+  // and it is not one of the three links the header writes out in full:
+  // the header band has room for three, and this one is linked from the
+  // page it explains.
+  { path: '/how-to-read',
+    name: 'How to read this map',
+    title: `How to read this map · ${SITE}` },
 ];
+
+// The three the header writes out as text. SPEC 11.39.
+export const BAR = PAGES.slice(0, 3);
 
 /** The browser tab for a path, with anything unknown reading as the forecast. */
 export function titleOf(path) {
@@ -67,9 +79,9 @@ export function usePath() {
 
 export default function TopNav({ path, onGo }) {
   return (
-    <nav className="topnav" aria-label="The three pages">
+    <nav className="topnav" aria-label="The main pages">
       <ul>
-        {PAGES.map((page) => {
+        {BAR.map((page) => {
           const here = page.path === path;
           return (
             <li key={page.path}>

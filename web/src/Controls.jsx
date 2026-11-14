@@ -23,8 +23,8 @@ const THRESHOLDS = [1, 10, 50];
  * "Tomorrow" would be wrong for the hour and a half before 5:30 every
  * morning.
  *
- * The line under them is the one thing about these five days a reader has
- * to be told once and never again: where a day starts and ends.
+ * SPEC 11.39: the line under them, which said where a day starts and ends,
+ * is on the How to read this map page now.
  */
 export function DayChoice({ days, day, onDay, today }) {
   const now = today || istToday();
@@ -47,9 +47,11 @@ export function DayChoice({ days, day, onDay, today }) {
           </button>
         ))}
       </div>
-      <p className="window">
-        Each day runs from 5:30 am to 5:30 am the next morning (IST).
-      </p>
+      {/* SPEC 11.39. The line that said where a day starts and ends is on
+          the How to read this map page, with every other help sentence this
+          page used to carry. What a reader needs beside an answer is the
+          one line under the place name, which says the day, the window and
+          the amount together. */}
     </div>
   );
 }
@@ -93,11 +95,10 @@ export function ThresholdChoice({ threshold, onThreshold }) {
           </button>
         ))}
       </div>
-      {/* The only scale a reader needs, and the one thing that makes 10 mm
-          mean anything to somebody who has never read a rain figure. */}
-      <p className="window">
-        10 mm of rain is water 1 cm deep if none of it ran away.
-      </p>
+      {/* SPEC 11.39. "10 mm of rain is water 1 cm deep if none of it ran
+          away" was true, and it was a sentence under a control. What 10 mm
+          is like is on the How to read this map page in everyday words, and
+          11.39's own item 5 puts the link to it under these buttons. */}
     </div>
   );
 }

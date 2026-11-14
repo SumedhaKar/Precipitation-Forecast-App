@@ -27,6 +27,59 @@ import { CLASSES, MEMBERS, NEIGHBOURS } from './palette';
  * would read as a name for what that colour means on the ground, which is
  * a forecast this site does not make.
  */
+/**
+ * The nine rows of the colour key, in plain words. SPEC 11.39.
+ *
+ * Seven colours and two more things a reader can see on the map: the white
+ * squares inside India that are not forecast, and the land outside it. They
+ * were a strip of bare numbers with "0" at one end and "51" at the other,
+ * plus two lines that were hidden on a phone for want of room.
+ *
+ * Every row says "runs", which is the page's one name for the 51 (11.38),
+ * and no row carries a band word: beside a colour, "a few" would read as a
+ * name for what that colour means on the ground.
+ */
+export function rowLabel(band, index, last) {
+  if (index === 0) return 'None';
+  if (index === last) return `All ${MEMBERS} runs`;
+  return `${band.label} runs`;
+}
+
+export function KeyRows() {
+  const last = CLASSES.length - 1;
+  return (
+    <ul className="keyrows">
+      {CLASSES.map((band, index) => (
+        <li key={band.label}>
+          <span
+            className="swatch"
+            aria-hidden="true"
+            style={{ background: band.colour }}
+          />
+          {rowLabel(band, index, last)}
+        </li>
+      ))}
+      {/* SPEC 11.30. Some squares inside the outline are white: they are
+          inside India and not forecast, because the model's own land
+          fraction for them is under the half SPEC 3.5 asks for. */}
+      <li className="keywhite">
+        <span className="swatch" aria-hidden="true" />
+        White: no forecast for this spot
+      </li>
+      {/* SPEC 11.38. The beige had no entry at all, so a reader who tapped
+          Nepal got a red error about a colour the page had never named. */}
+      <li>
+        <span
+          className="swatch"
+          aria-hidden="true"
+          style={{ background: NEIGHBOURS }}
+        />
+        Beige: land outside India, not forecast
+      </li>
+    </ul>
+  );
+}
+
 export function endLabel(band, index, last) {
   if (index === 0) return 'None';
   if (index === last) return `All ${MEMBERS}`;

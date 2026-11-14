@@ -5886,6 +5886,70 @@ a full sentence each to a screen reader, and what that sentence said, the
 colours, the amount, and that the dates are IST, is line 2 and How to read
 this map.
 
+#### How to read this map: a page, not a block in the panel
+
+Every help sentence on this site had collected on the forecast page: three
+bullets and two colour lines in the panel, one under the day buttons, one
+under the amount buttons, one under the five-day strip, one under the
+legend and two under the dots. A reader who wanted the forecast read past
+all of it; a reader who wanted the explanation opened a drawer to find it,
+and could not send anybody a link to it.
+
+So it is the site's fourth page, at `/how-to-read`, lazily loaded like the
+report card and How we checked, and it holds:
+
+- "Each day runs from 5:30 am to 5:30 am the next morning, IST." The
+  published window, which is not the calendar day.
+- What one square is: 0.25 degrees, about 28 km, and the smallest place
+  this site can answer about.
+- The three amounts, in this site's own everyday words, at `#amounts`,
+  which is where "What does mm mean?" lands.
+- "This is the total over the whole day, averaged over the square, so it
+  can be one short burst or hours of drizzle."
+- The full colour ranges, as the nine rows below.
+- "It is not a probability", with the sentence of 11.21.
+
+| amount | our words |
+|---|---|
+| 1 mm or more | Enough to leave the ground damp. |
+| 10 mm or more | A proper shower: you would want an umbrella. |
+| 50 mm or more | A very rainy day: water can collect on roads. |
+
+The first of those was "enough to wet the ground" as it was asked for, and
+could not be: "wet" is on the forbidden list of 11.20, and that list is
+there because "a wet day" is a forecast of what a day will be like, which
+this site does not make. "Damp" says the same thing about the ground and
+claims nothing about the day. The millimetres are the rule; these words are
+only there to make a number mean something, and the page says so.
+
+The nine rows of the colour key are one list, read by this page and by the
+key on the map, so the two cannot disagree:
+
+| row | |
+|---|---|
+| 1 | None |
+| 2 | 1-10 runs |
+| 3 | 11-20 runs |
+| 4 | 21-30 runs |
+| 5 | 31-40 runs |
+| 6 | 41-50 runs |
+| 7 | All 51 runs |
+| 8 | White: no forecast for this spot |
+| 9 | Beige: land outside India, not forecast |
+
+Every row says "runs", which is the page's one name for the 51 (11.38), and
+no row carries a band word: beside a colour, "a few" would read as a name
+for what that colour means on the ground, which is a forecast this site
+does not make.
+
+The header band writes out three page links and this is not one of them:
+the band has room for three, and this page is reached from the page it
+explains, from the menu, and from "What does mm mean?" under the amount
+buttons.
+
+What the forecast page keeps is one explanatory line, the one under the
+place name. Nothing else on it explains anything.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

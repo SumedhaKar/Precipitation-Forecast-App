@@ -15,6 +15,14 @@ import TopNav, { SITE, plainClick, titleOf, usePath } from './TopNav';
 
 const ReportCard = lazy(() => import('./ReportCard'));
 const HowWeChecked = lazy(() => import('./HowWeChecked'));
+const HowToRead = lazy(() => import('./HowToRead'));
+
+/** Which document page a path is. SPEC 11.39. */
+function docFor(path) {
+  if (path === '/report-card') return <ReportCard />;
+  if (path === '/how-we-checked') return <HowWeChecked />;
+  return <HowToRead />;
+}
 
 export default function Site() {
   const [path, go] = usePath();
@@ -42,9 +50,14 @@ export default function Site() {
       </header>
       <main>
         <Suspense
-          fallback={<p className="loading">Reading the track record…</p>}
+          fallback={(
+            <p className="loading">
+              {path === '/how-to-read' ? 'Opening the page…'
+                : 'Reading the track record…'}
+            </p>
+          )}
         >
-          {path === '/report-card' ? <ReportCard /> : <HowWeChecked />}
+          {docFor(path)}
         </Suspense>
       </main>
       <Footer />

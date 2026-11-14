@@ -490,24 +490,12 @@ export default function App({ nav, onGo }) {
     setUnitBox(unit && unit.box ? unit.box : null);
   }, []);
 
-  // SPEC 11.38. The welcome card's two buttons. "Find my city" opens the
-  // panel and gives the search box the keyboard; "How to read this map"
-  // opens the panel and puts How to read this map on the screen, which on a
-  // phone it otherwise is not — the panel is shut and the card is over the
-  // map, so a link that only scrolled would scroll to nothing.
+  // SPEC 11.38. "Find my city" opens the panel and gives the search box
+  // the keyboard. SPEC 11.39: the card's other way on is a link to the How
+  // to read this map page, which needs nothing of the page at all.
   const findCity = useCallback(() => {
     setSheetOpen(true);
     setAskSearch((before) => before + 1);
-  }, []);
-
-  const howToRead = useCallback(() => {
-    setSheetOpen(true);
-    // After the panel has been given its height, or there is nothing to
-    // scroll to yet.
-    window.requestAnimationFrame(() => {
-      const found = document.getElementById('howtoread');
-      if (found) found.scrollIntoView({ block: 'start' });
-    });
   }, []);
 
   // SPEC 11.38. Nothing chosen at all: no square, no island note and no
@@ -622,7 +610,7 @@ export default function App({ nav, onGo }) {
               hides it at desktop widths, where the panel's copy is shown
               instead, so only one of the two is ever in the page. */}
           {nothingChosen ? (
-            <Welcome where="map" onFind={findCity} onHowTo={howToRead} />
+            <Welcome where="map" onFind={findCity} onGo={onGo} />
           ) : null}
         </div>
 
@@ -681,7 +669,6 @@ export default function App({ nav, onGo }) {
             onThreshold={setThreshold}
             from={from}
             onFind={findCity}
-            onHowTo={howToRead}
             onGo={onGo}
           />
           <Footer />
