@@ -526,9 +526,25 @@ export function MoreDetail({ place, day, threshold, onThreshold }) {
   const count = day.counts_by_threshold[k].count;
   const trust = trustFor(place.square.region, day.lead_day, threshold, count,
     place.members);
+  // SPEC 11.40. The label says what the next tap does. A disclosure whose
+  // handle reads "More detail" while the detail is open is asking a reader
+  // to work out that a second tap on the same words does the opposite of
+  // the first; the triangle beside it says so and a triangle is 8 pixels
+  // of grey. So the words change with it.
+  //
+  // Controlled, which is the only way the summary can know: the browser
+  // flips `open` itself on a click, the toggle event hands that back, and
+  // React draws the label the state asks for. It is still a real
+  // <details>, so it opens with no script of ours and a screen reader is
+  // told whether it is open.
+  const [open, setOpen] = useState(false);
   return (
-    <details className="more">
-      <summary>More detail</summary>
+    <details
+      className="more"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>{open ? 'Hide detail' : 'More detail'}</summary>
       <Counts
         place={place}
         day={day}

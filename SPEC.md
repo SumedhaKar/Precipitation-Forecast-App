@@ -6226,6 +6226,33 @@ fix handed to the page by the browser, and a tap on the canvas.
 | sideways | no document wider than its screen, at any of the six |
 | the words | the forbidden-word and no-percentage sweep over every component the page draws, the header and the menu included |
 
+### 11.40 The fixes after the rebuild: one row of days, and each fact once
+
+11.39 rebuilt the forecast page as a page that scrolls. Ten things were
+wrong with it when it was read on a real phone and a real laptop, and
+every one of them is the same mistake in a different place: the page says
+something twice, or says it in a way that only makes sense to somebody who
+already knows what the site does.
+
+Nothing here changes a rule. Counts are out of 51, there are no
+percentages, the forbidden words of 11.20 hold, "runs" is the one noun,
+the theme is light, the map's colours are the palette of 11.17 unchanged,
+every row a thumb has to hit is 44 pixels and every sentence is at least
+15 pixels.
+
+#### A handle that says what the next tap does
+
+The card's one closed section read **More detail** whether or not the
+detail was already open. The triangle beside it says which way it is
+pointing, and a triangle is eight pixels of grey.
+
+So the words change with the state: **More detail** shut, **Hide detail**
+open. It is still a real `<details>` — it opens with no script of ours and
+a screen reader is told whether it is open — but `open` is now controlled,
+because a `<summary>` cannot otherwise know what to say. The label is
+measured in the browser both ways round, at a phone's width and at a
+desktop's.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

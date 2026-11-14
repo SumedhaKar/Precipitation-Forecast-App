@@ -3388,8 +3388,12 @@ def test_the_panel_shows_the_chip_the_sentence_and_the_expander():
         "export function MoreDetail")[0]
     assert 'className="pastline"' in why
     assert '<summary>Why this label?</summary>' in why
-    more = panel.split('<details className="more">')[1]
+    # SPEC 11.40. The section is controlled now, so that its handle can
+    # read "Hide detail" while it is open: the component is what is split
+    # on rather than the opening tag.
+    more = panel.split("export function MoreDetail")[1]
     assert "<TrustWhy trust={trust} />" in more
+    assert "{open ? 'Hide detail' : 'More detail'}" in more
 
     # Nothing in the panel decides a label or a frequency.
     for word in ("Good track record", "Treat as a rough guide",
@@ -4255,6 +4259,12 @@ const LOOK = `(async () => {
       };
     })(),
     card: box('.fcard'),
+    // SPEC 11.40. The one closed section: what its handle says, and
+    // whether it is open, so a check can say the words follow the state.
+    moreLabel: (document.querySelector('.more > summary') || {})
+      .textContent || null,
+    moreOpen: document.querySelector('.more')
+      ? document.querySelector('.more').open : null,
     backlink: box('.backtomap a'),
     cardLinks: [...document.querySelectorAll('.cardlinks a')]
       .map((e) => [e.textContent.trim(), e.getAttribute('href')]),
@@ -4526,6 +4536,18 @@ try {
     here.afterSearch = await evaluate(LOOK);
     here.searchCard = await evaluate(INSIDE);
     await shoot(`${key}-searched`);
+
+    // SPEC 11.40. The handle of the one closed section, both ways
+    // round. It is opened and shut again, so everything measured after
+    // this is measured on the card as a reader first meets it.
+    if (here.afterSearch.moreLabel) {
+      await evaluate("document.querySelector('.more > summary').click()");
+      await new Promise((go) => setTimeout(go, 500));
+      here.moreShown = await evaluate(LOOK);
+      await evaluate("document.querySelector('.more > summary').click()");
+      await new Promise((go) => setTimeout(go, 500));
+      here.moreHidden = await evaluate(LOOK);
+    }
 
     // SPEC 11.39. And the way back to the map, from the card.
     const back = await evaluate(
@@ -6648,3 +6670,32 @@ def test_the_sweep_covers_the_header_and_the_menu(forecast_words):
                  "Enough to leave the ground damp.",
                  "hours old; a newer one has not arrived yet."):
         assert must in every, must
+# ------------------------------ SPEC 11.40: the fixes after the rebuild
+
+
+@needs_node
+def test_the_detail_handle_says_what_the_next_tap_does(viewport):
+    """SPEC 11.40. "More detail" shut, "Hide detail" open.
+
+    The one closed section is the page's only disclosure, and its handle
+    read "More detail" whether or not the detail was already there. The
+    triangle beside it says which way it is pointing and a triangle is
+    eight pixels of grey.
+
+    Measured in the browser, both ways round: the card as a reader meets
+    it, after one tap on the handle, and after a second.
+    """
+    for size in ("390x664", "1440x900"):
+        page = viewport["phone"][size]
+        shut = page["afterSearch"]
+        assert shut["moreOpen"] is False, size
+        assert shut["moreLabel"].strip() == "More detail", (
+            size, shut["moreLabel"])
+        shown = page["moreShown"]
+        assert shown["moreOpen"] is True, size
+        assert shown["moreLabel"].strip() == "Hide detail", (
+            size, shown["moreLabel"])
+        again = page["moreHidden"]
+        assert again["moreOpen"] is False, size
+        assert again["moreLabel"].strip() == "More detail", (
+            size, again["moreLabel"])
