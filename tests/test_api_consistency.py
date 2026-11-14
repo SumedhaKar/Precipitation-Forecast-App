@@ -7085,7 +7085,12 @@ def test_the_key_is_the_whole_key_over_the_map_at_1280_and_over(viewport,
     width, height = seen["keyOver"]["map"]
     assert left >= 0, seen["keyOver"]
     assert right <= width / 2, seen["keyOver"]
+    # The whole box is inside the canvas, top edge included. The card
+    # clips what overflows it, so a key taller than the map loses its
+    # first row rather than spilling over the pills: at 1366 by 650 the
+    # canvas is 340 pixels tall and the box was 339 with its top at -10.
     assert bottom <= height + 1, seen["keyOver"]
+    assert top >= 0, seen["keyOver"]
     # The country is clear of it, in the view the page opens with. The
     # projection is the same one test_the_key_covers_no_india_square
     # uses, and Lakshadweep is in india_points() with everything else.

@@ -717,7 +717,26 @@ button {
     margin: 0 0 0.35rem;
   }
 
-  .mapkey.overmap .keyrows { margin-top: 0.45rem; }
+  /* Nine rows have to fit the shortest canvas this key is drawn on. At
+     1366 by 650 the map is 340 pixels tall and the box was 339: its top
+     row was clipped by the card's own overflow. The rows are set tight
+     and from their top, so the two long ones -- "White: no forecast for
+     this spot" and "Beige: land outside India, not forecast" -- wrap to
+     a second line of their own height instead of to a second 24 pixel
+     row. 13 pixels is above the page's floor of 12 (11.38). */
+  .mapkey.overmap .keyrows {
+    margin: 0.4rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+  }
+
+  .mapkey.overmap .keyrows li {
+    align-items: flex-start;
+    gap: 0.4rem;
+    min-height: 0;
+  }
+
+  .mapkey.overmap .keyrows .swatch { margin-top: 0.1rem; }
 }
 
 /* SPEC 11.31. A colour, and nothing that can be pressed.
