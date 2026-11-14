@@ -4194,6 +4194,7 @@ const LOOK = `(async () => {
     // check can say so rather than assume it.
     scrollY: Math.round(window.scrollY),
     docHeight: document.documentElement.scrollHeight,
+    maxScroll: document.documentElement.scrollHeight - window.innerHeight,
     header: box('.pagehead'),
     band: box('.band'),
     brand: box('.brand'),
@@ -6028,7 +6029,9 @@ def test_the_header_is_one_band_with_nothing_extra_in_it():
         assert gone not in code, gone
     # The run's own name and its UTC time are in the card's closed section.
     panel = PANEL.read_text("utf-8")
-    more = panel.split('<details className="more">')[1]
+    # SPEC 11.40: the section is controlled, so its handle can say what
+    # the next tap does. The component is what is split on.
+    more = panel.split("export function MoreDetail")[1]
     assert "<RunDetail run={place.run} />" in more
     assert "the 00 UTC run of {run.run_time_utc}" in panel
 
@@ -6692,9 +6695,16 @@ def test_choosing_a_place_scrolls_to_the_pills_and_the_card(viewport, how):
     assert page, f"{how} was never measured"
     # The page moved, and the pills and the card's top are on the screen.
     assert page["scrollY"] > 0, page["scrollY"]
-    assert 0 <= page["pillrow"]["top"] <= 80, page["pillrow"]
+    assert page["pillrow"]["top"] >= 0, page["pillrow"]
     assert page["pillrow"]["bottom"] <= 664, page["pillrow"]
     assert 0 < page["card"]["top"] < 664, page["card"]
+    # The pills are at the top of the screen. SPEC 11.40: this was 123
+    # pixels out, because `scrollIntoView` clamps to the height the page
+    # has when it is asked -- and when it is asked the card still says
+    # "Reading the 51 runs for this square". The scroll is a measured
+    # target now, and it is made again when the answer has arrived.
+    assert page["pillrow"]["top"] <= 80, (
+        page["pillrow"], page["scrollY"], page["docHeight"])
     # And the card holds an answer rather than the prompt.
     card = here.get({"afterSearch": "searchCard",
                      "afterLocate": "locateCard"}.get(how, "card"))
@@ -6706,8 +6716,10 @@ def test_nothing_scrolls_on_a_desktop_because_nothing_has_to(viewport):
     """SPEC 11.39, item 6. The card is the column beside the map there.
 
     The same rule, written once: the page scrolls only when the card is
-    not already on the screen. Nothing in the code asks how wide the
-    screen is.
+    under the map, which on a desktop it is not. SPEC 11.40 reads that
+    off the two boxes rather than off the card being on the screen --
+    after a scroll that fell short the card is on the screen and still
+    under the map -- and nothing in the code asks how wide the screen is.
     """
     here = viewport["phone"]["1440x900"]
     for how in ("afterSearch", "afterLocate", "afterMapTap"):
@@ -6717,7 +6729,11 @@ def test_nothing_scrolls_on_a_desktop_because_nothing_has_to(viewport):
         assert page["card"]["top"] < 900, (how, page["card"])
     app = APP.read_text("utf-8")
     bring = app.split("const bringCardUp")[1].split("}, []);")[0]
-    assert "innerHeight" in bring and "matchMedia" not in bring
+    assert "matchMedia" not in bring
+    assert "innerWidth" not in bring
+    # The question it asks is where the card is in relation to the map.
+    assert "document.querySelector('.mapcard')" in bring
+    assert "getBoundingClientRect().bottom" in bring
 
 
 @needs_node

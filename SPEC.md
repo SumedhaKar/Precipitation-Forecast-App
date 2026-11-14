@@ -6292,6 +6292,25 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### The scroll that was clamped by a page still loading
+
+Choosing a place scrolls the day pills to the top of the screen (11.39).
+It stopped 123 pixels short, measured at 390 by 664, and the reason is
+that `scrollIntoView` clamps the scroll it is asked for to the height the
+page has **when it is asked** — and when it is asked the card still says
+"Reading the 51 runs for this square". The page was about to grow by
+exactly the height the card was about to gain.
+
+So the scroll is `window.scrollTo` on a measured target, and it is made
+twice: once on the choice, so something happens under the reader's thumb
+straight away, and once when the answer has arrived and the page is its
+full height. The second call does nothing if the first one landed.
+
+Whether to scroll at all is read off the layout rather than off the
+width — if the card's top is above the map's bottom the two are side by
+side and nothing has to move — so the desktop rule is a fact about the
+boxes and not a second place where a width is written down.
+
 #### One footer, inside the panel
 
 Two things in the footer were said twice. 11.39 made the warning a bar

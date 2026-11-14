@@ -504,17 +504,32 @@ export default function App({ health, healthError, onGo }) {
   }, []);
 
   /**
-   * Bring the answer onto the screen. SPEC 11.39.
+   * Bring the answer onto the screen. SPEC 11.39, mended by 11.40.
    *
    * On a phone the card is the last block of the page, so choosing a
-   * place fills in something a reader cannot see. The page scrolls to the
-   * day pills, which puts the pills, the amounts and the top of the card
-   * on the screen together: the answer, and the two controls that change
-   * it, which is what a reader reaches for next.
+   * place fills in something a reader cannot see. The page scrolls so
+   * that the day pills are at the top of the screen, which puts the
+   * pills, the amounts and the top of the card on the screen together:
+   * the answer, and the two controls that change it, which is what a
+   * reader reaches for next.
    *
-   * It scrolls only when the card is not already on the screen, which is
-   * what makes it a phone rule without being written as one: on a desktop
-   * the card is the column beside the map and nothing moves.
+   * Whether to scroll at all is read off the layout rather than off the
+   * width: on a desktop the card is the column beside the map, so its top
+   * is above the map's bottom and there is nothing to bring up. One rule,
+   * and no second place where the width of a desktop is written down.
+   *
+   * The scroll is `window.scrollTo` on a measured target, and 11.40 made
+   * it so. `pills.scrollIntoView` asks the browser for a scroll it
+   * clamps to the page's height **at that moment** -- and at that moment
+   * the card still says "Reading the 51 runs for this square", so the
+   * page is a few hundred pixels shorter than it is about to be and the
+   * scroll stopped short by exactly the height the card was about to
+   * gain. It was measured: 123 pixels short at 390 by 664.
+   *
+   * Which is also why it is called twice -- once on the choice, so
+   * something happens under the reader's thumb straight away, and once
+   * when the answer has arrived and the page is its full height. The
+   * second call does nothing if the first one landed.
    *
    * `smooth`, unless the reader has asked for less movement, because a
    * page that jumps on a tap is a page that has lost its place.
@@ -524,15 +539,28 @@ export default function App({ health, healthError, onGo }) {
     window.requestAnimationFrame(() => {
       const card = document.querySelector('.fcard');
       const pills = document.querySelector('.pills');
-      if (!card || !pills || !pills.scrollIntoView) return;
-      const seen = card.getBoundingClientRect();
-      if (seen.top < window.innerHeight - 80) return;
-      pills.scrollIntoView({
+      const map = document.querySelector('.mapcard');
+      if (!card || !pills || !map) return;
+      // Side by side: the card is not under the map, so nothing has to
+      // move. This is the desktop, said as a fact about the layout.
+      if (card.getBoundingClientRect().top
+        < map.getBoundingClientRect().bottom - 40) return;
+      const want = Math.round(pills.getBoundingClientRect().top
+        + window.scrollY);
+      if (Math.abs(window.scrollY - want) < 4) return;
+      window.scrollTo({
+        top: want,
         behavior: stillness() ? 'auto' : 'smooth',
-        block: 'start',
       });
     });
   }, []);
+
+  // SPEC 11.40. The second call, in the page the answer has filled in.
+  // An effect rather than a line in `load`, because what it waits for is
+  // the card being drawn and not the fetch returning.
+  useEffect(() => {
+    if (place || notice) bringCardUp();
+  }, [place, notice, bringCardUp]);
 
   /**
    * Every way of choosing a place ends up here. SPEC 11.19 and 11.28.
