@@ -11,7 +11,15 @@
       name="description"
       content="One weather model from ECMWF, run 51 times. See how many of the 51 runs bring 1 mm, 10 mm and 50 mm of rain over the next five days, for one place in India. Counts of runs, not probabilities. Not an official warning."
     />
-    <link rel="icon" href="data:," />
+    <!-- SPEC 11.39. The site's own mark, as the tab icon: the same cloud
+         and the same three drops as the <Logo> of src/Icons.jsx, written
+         out here as a data URI so there is no second file to fetch and
+         nothing to 404. A test compares the two paths and fails if they
+         drift apart. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 14.5h9.5a3.5 3.5 0 0 0 .2-7 5 5 0 0 0-9.5-.8A3.9 3.9 0 0 0 7 14.5Z' fill='%230b2b4a'/%3E%3Cg stroke='%230b2b4a' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M9 17.5v2.2'/%3E%3Cpath d='M12.5 17.5v3.2'/%3E%3Cpath d='M16 17.5v2.2'/%3E%3C/g%3E%3C/svg%3E"
+    />
   </head>
   <body>
     <div id="root"></div>

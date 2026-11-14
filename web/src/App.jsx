@@ -210,6 +210,58 @@ export function Freshness({ run }) {
   );
 }
 
+/**
+ * The header, on every page. SPEC 11.39.
+ *
+ * The mark, the site's name, how old this run is, and the pages, in one
+ * band; under it, across the whole width, the warning. It is drawn by
+ * Site.jsx above whichever page is being read, because the two rules it
+ * carries -- freshness, and "not an official warning" -- are rules about
+ * every page and not about the forecast.
+ *
+ * The mark and the name are the way back to the forecast, which is what
+ * the back link on the two document pages used to be.
+ */
+export function PageHead({ run, nav, onGo }) {
+  return (
+    <header className="pagehead">
+      <div className="band">
+        <a
+          className="brand"
+          href="/"
+          onClick={(event) => {
+            if (!onGo || !plainClick(event)) return;
+            event.preventDefault();
+            onGo('/');
+          }}
+        >
+          <Logo />
+          {/* The page's one h1. The card's question is an h2 under it, and
+              the place name takes that h2 once there is an answer, so the
+              document has one outline either way. */}
+          <h1 className="sitename">{SITE}</h1>
+        </a>
+        <Freshness run={run} />
+        {/* SPEC 11.34 and 11.39: the pages, in the header of all four.
+            Three of them are written out as text where there is width for
+            it; a phone gets the Menu button, which holds all four. */}
+        {nav}
+      </div>
+      {/* SPEC 11.28: this was in the footer only, below the fold on every
+          screen. The footer still carries it; this is the copy a reader
+          cannot miss, and 11.39 makes it a bar across the width rather
+          than a chip squeezed in beside the name. */}
+      <p className="headwarn">
+        <Warn />
+        <span>
+          <strong>Not an official warning.</strong> For alerts:{' '}
+          <a href="https://mausam.imd.gov.in/">IMD</a>
+        </span>
+      </p>
+    </header>
+  );
+}
+
 export function Footer() {
   return (
     <footer>
@@ -306,9 +358,7 @@ class MapFrame extends Component {
   }
 }
 
-export default function App({ nav, onGo }) {
-  const [health, setHealth] = useState(null);
-  const [healthError, setHealthError] = useState(null);
+export default function App({ health, healthError, onGo }) {
   const [counts, setCounts] = useState(null);
   const [countsError, setCountsError] = useState(null);
   const [place, setPlace] = useState(null);
@@ -334,21 +384,6 @@ export default function App({ nav, onGo }) {
   useEffect(() => { setKeyOpen(wide); }, [wide]);
   // The number of the most recent request for a square's numbers (11.30).
   const asked = useRef(0);
-
-  // One request to our own origin: the run, the day labels, the staleness,
-  // and where the store is.
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/health')
-      .then((response) => response.json())
-      .then((body) => {
-        if (!alive) return;
-        if (body.ok) setHealth(body);
-        else setHealthError(body.store || 'the store could not be read');
-      })
-      .catch((error) => alive && setHealthError(error.message));
-    return () => { alive = false; };
-  }, []);
 
   // All fifteen counts files, in parallel, straight from the store: 14,441
   // bytes on the wire measured on the real run (SPEC 11.13). After this,
@@ -556,49 +591,7 @@ export default function App({ nav, onGo }) {
     : null;
 
   return (
-    <div className="shell">
-      {/* SPEC 11.39. The header is one band -- the mark, the name, how old
-          this run is, and the pages -- with the warning across the width
-          under it. No tagline: what the site is for is the question at the
-          top of the card, where a reader who has not chosen anything yet is
-          looking. No run ID and no "(00 UTC)" either; both are in More
-          detail, which is where a reader who wants them goes. */}
-      <header className="pagehead">
-        <div className="band">
-          <a
-            className="brand"
-            href="/"
-            onClick={(event) => {
-              if (!onGo || !plainClick(event)) return;
-              event.preventDefault();
-              onGo('/');
-            }}
-          >
-            <Logo />
-            {/* The page's one h1. The card's question is an h2 under
-                it, and the place name takes that h2 once there is an
-                answer, so the document has one outline either way. */}
-            <h1 className="sitename">{SITE}</h1>
-          </a>
-          <Freshness run={run} />
-          {/* SPEC 11.34 and 11.39: the pages, in the header of all four.
-              Three of them are written out as text here; the fourth, How
-              to read this map, is linked from the page it explains. */}
-          {nav}
-        </div>
-        {/* SPEC 11.28: this was in the footer only, below the fold on every
-            screen. The footer still carries it; this is the copy a reader
-            cannot miss, and 11.39 makes it a bar across the width rather
-            than a chip squeezed in beside the name. */}
-        <p className="headwarn">
-          <Warn />
-          <span>
-            <strong>Not an official warning.</strong> For alerts:{' '}
-            <a href="https://mausam.imd.gov.in/">IMD</a>
-          </span>
-        </p>
-      </header>
-
+    <>
       <StaleBanner run={run} />
       {healthError ? (
         <p className="stale" role="status">
@@ -718,6 +711,6 @@ export default function App({ nav, onGo }) {
 
         <Footer />
       </main>
-    </div>
+    </>
   );
 }

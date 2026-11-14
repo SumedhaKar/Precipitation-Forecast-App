@@ -4276,9 +4276,13 @@ const LOOK = `(async () => {
     // SPEC 11.38: the three rows a thumb has to hit, and the page's own
     // 12 pixel floor over everything it writes. MapLibre's controls are
     // its own and are not ours to set, so they are named and skipped.
+    // Every row a thumb has to hit, as drawn: the ones the stylesheet
+    // has hidden at this width are not rows a reader can hit, and the
+    // menu button and the three links are each other's copy.
     rows: [...document.querySelectorAll(
       '.days .radios button, .amounts .radios button, .topnav .navlink,'
-      + ' .locate, .searchrow input')]
+      + ' .menubutton, .locate, .searchrow input')]
+      .filter((e) => e.getBoundingClientRect().height > 0)
       .map((e) => {
         const r = e.getBoundingClientRect();
         return [e.className || e.tagName, Math.round(r.height * 10) / 10,
@@ -4960,14 +4964,17 @@ def test_the_card_can_be_read_on_a_phone(viewport, size):
 @pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
 def test_the_three_rows_a_thumb_hits_are_44_pixels_and_15_point(
         viewport, size):
-    """SPEC 11.38. 11.37 gave the panel a floor and left these behind.
+    """SPEC 11.38, as SPEC 11.39 leaves it. Every control above the card.
 
     The review measured the day buttons at 12.2 point and 29.8 pixels tall
     and the menu links at 13.6 and 30.4 -- on the one bar a reader has to
-    use before they can read anything at all.
+    use before they can read anything at all. The rows are the five days,
+    the three amounts, the search box, the location button and the menu;
+    on a desktop the menu is three links instead, and the sweep takes
+    whichever of the two the stylesheet has drawn.
     """
     rows = viewport["phone"][size]["first"]["rows"]
-    assert len(rows) >= 8, rows  # five days, three amounts, three links
+    assert len(rows) >= 11, rows
     for name, height, size_px, text in rows:
         assert height >= 43.5, (size, name, height, text)
         assert size_px >= 15, (size, name, size_px, text)
@@ -5970,3 +5977,106 @@ def test_the_key_really_does_float_at_a_desktop_width(viewport):
     for size in ("390x664", "390x844", "320x568", "1024x768"):
         where = viewport["phone"][size]["first"]["keyOver"]
         assert where["position"] == "static", (size, where)
+
+
+# ------------------------------- SPEC 11.39: the header, on every page
+
+def test_the_mark_is_the_favicon_and_the_favicon_is_the_mark():
+    """SPEC 11.39. One drawing, in two places, and a test between them.
+
+    The tab icon is the same cloud and the same three drops as the logo in
+    the band, written out as a data URI so there is no second file to
+    fetch and nothing to 404. Two copies of a drawing drift apart unless
+    something compares them.
+    """
+    icons = (ROOT / "web" / "src" / "Icons.jsx").read_text("utf-8")
+    html = INDEX_HTML.read_text("utf-8")
+    cloud = ("M7 14.5h9.5a3.5 3.5 0 0 0 .2-7 5 5 0 0 0-9.5-.8A3.9 3.9 0 0 0 "
+             "7\n           14.5Z")
+    assert cloud in icons, "the logo's own path changed"
+    flat = " ".join(cloud.split())
+    assert flat in html.replace("%20", " "), "the favicon is not the logo"
+    for drop in ("M9 17.5v2.2", "M12.5 17.5v3.2", "M16 17.5v2.2"):
+        assert drop in icons, drop
+        assert drop in html, drop
+    # An SVG data URI, so nothing is fetched and nothing can 404.
+    assert 'href="data:image/svg+xml,' in html
+    # And no emoji anywhere in the five icons, or in the page that draws
+    # them: a rain cloud is a different picture on every platform, which
+    # a site's own mark may not be. An em dash in a comment is not an
+    # emoji, so this asks about the blocks the emoji are in.
+    for where, text in (("Icons.jsx", icons), ("index.html", html)):
+        for ch in text:
+            assert not (0x1F000 <= ord(ch) <= 0x1FAFF
+                        or 0x2600 <= ord(ch) <= 0x27BF), (where, ch)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "320x568"])
+def test_a_phone_gets_a_menu_button_and_a_desktop_gets_the_links(
+        viewport, size):
+    """SPEC 11.39, item 1. One word wide, and four pages behind it.
+
+    Three links written out are a row 44 pixels tall across the top of a
+    390 pixel screen, and on the forecast page that row was the fourth
+    thing above the map.
+    """
+    seen = viewport["phone"][size]["first"]
+    rows = dict((name, height) for name, height, _, _ in seen["rows"])
+    assert "menubutton" in rows, seen["rows"]
+    assert rows["menubutton"] >= 43.5, rows["menubutton"]
+    assert "navlink" not in rows and "navlink here" not in rows, seen["rows"]
+    # The mark, the name, the freshness line and the warning are all above
+    # the fold, in that order, with nothing between them.
+    assert seen["brand"]["top"] >= 0
+    assert seen["fresh"]["top"] >= seen["brand"]["top"]
+    assert seen["warn"]["top"] >= seen["fresh"]["top"]
+    assert seen["warn"]["bottom"] <= int(size.split("x")[1])
+    # Two rows and not three: the mark, the name and the button share one.
+    assert abs(seen["brand"]["top"] - seen["mapkey"]["top"]) > 0
+    assert seen["brand"]["bottom"] <= seen["fresh"]["top"] + 1
+    assert seen["overlapping"] == [], seen["overlapping"]
+
+
+def test_the_menu_holds_all_four_pages_and_can_be_got_out_of():
+    """SPEC 11.39. Four entries, and three ways to shut it.
+
+    A menu a reader cannot get out of is worse than no menu, so it shuts
+    on Escape, on a tap anywhere outside it, and on following a link.
+    """
+    nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
+    menu = nav.split("export function Menu(")[1].split(
+        "export default function")[0]
+    assert "{PAGES.map((page) => {" in menu, "the menu is not all the pages"
+    assert "aria-expanded={open}" in menu
+    assert "<Bars />" in menu and "Menu\n      </button>" in menu
+    assert "'Escape'" in menu
+    assert "document.addEventListener('pointerdown', away);" in menu
+    assert "setOpen(false);" in menu
+    # The three links the header writes out are the other half of the same
+    # list, so a page cannot be in one and not the other.
+    assert "{BAR.map((page) => {" in nav
+    assert "export const BAR = PAGES.slice(0, 3);" in nav
+
+
+@needs_node
+def test_every_page_carries_the_freshness_line_and_the_warning(viewport):
+    """SPEC 11.39. Both rules are rules about every page.
+
+    They were the forecast page's: the report card and How we checked
+    carried the warning in the footer only, which on either page is
+    several screens down. The header is one component now, drawn above
+    whichever page is being read.
+    """
+    for path, page in viewport["pages"].items():
+        assert page["warn"], (path, "no warning bar")
+        assert page["warnText"].startswith("Not an official warning."), path
+        assert "For alerts:" in page["warnText"], path
+        assert page["warn"]["top"] < 300, (path, page["warn"])
+        assert page["fresh"], (path, "no freshness line")
+        assert page["fresh"]["top"] < 300, (path, page["fresh"])
+        assert page["brand"], (path, "no way back to the forecast")
+    # And the forecast page itself.
+    seen = viewport["phone"]["390x664"]["first"]
+    assert seen["warnText"].startswith("Not an official warning.")
+    assert seen["freshText"].startswith("Forecast from ")

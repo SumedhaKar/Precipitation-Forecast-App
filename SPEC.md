@@ -6053,6 +6053,37 @@ of the drawn outline — Lakshadweep included, which has no forecast square
 at all — into the canvas's own pixels, from the bounds the map itself
 reports, and fails if one of them is behind the key.
 
+#### The header, on every page
+
+Five icons, drawn inline in `src/Icons.jsx`: the mark, a clock, a warning
+triangle, a location pin and the menu bars. No icon library, which would
+be a download for five shapes, and no emoji, because a rain cloud is a
+different picture on every platform and a site's own mark may not be. Each
+one is 24 by 24, takes its colour from `currentColor`, and is
+`aria-hidden`: every one of them sits beside a word that says the same
+thing, which is SPEC 11.22 and why the clock is next to the time rather
+than instead of it.
+
+The mark is the favicon too, written into `index.html` as an SVG data URI
+with the same path, and a test compares the two.
+
+| | |
+|---|---|
+| the band | the mark and the name (the page's one `h1`, and the way back to the forecast), the freshness line, and the pages |
+| the pages | three links as text at 1024 and over; a **Menu** button under it, holding all four |
+| under the band | the warning, across the whole width |
+
+The Menu is a real button with `aria-expanded` and real links behind it. It
+shuts on Escape, on a pointer down anywhere outside it, and on following a
+link: a menu a reader cannot get out of is worse than no menu.
+
+All of it is drawn once, in `Site.jsx`, above whichever page is being
+read. Freshness and "not an official warning" are rules about every page
+and not about the forecast, and the report card and How we checked used to
+carry the warning in the footer only, which on either page is several
+screens down. The back link those two pages had is the mark and the name,
+which is the same way back from everywhere.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

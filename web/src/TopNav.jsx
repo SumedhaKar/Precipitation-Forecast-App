@@ -10,7 +10,9 @@
 // paths. A plain left click is intercepted and becomes history.pushState,
 // which is the only thing here that needs script at all.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { Bars } from './Icons';
 
 // SPEC 11.38. The site's name, used wherever the site names itself: the
 // heading, the back link on the two document pages, and all three browser
@@ -133,10 +135,88 @@ export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
   );
 }
 
+/**
+ * The menu, on a phone. SPEC 11.39.
+ *
+ * Three links written out as text are a row 44 pixels tall across the top
+ * of a 390 pixel screen, and on the forecast page that row was the fourth
+ * thing above the map. A button is one word wide, and behind it are all
+ * four pages -- including How to read this map, which the header band has
+ * no room to write out at any width.
+ *
+ * It is a real button with aria-expanded, and the list is real links. It
+ * shuts on Escape, on a tap anywhere outside it, and on following a link,
+ * because a menu a reader cannot get out of is worse than no menu.
+ */
+export function Menu({ path, onGo }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (event) => {
+      if (box.current && !box.current.contains(event.target)) setOpen(false);
+    };
+    const key = (event) => { if (event.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', key);
+    };
+  }, [open]);
+
+  return (
+    <div className="menu" ref={box}>
+      <button
+        type="button"
+        className="menubutton"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        <Bars />
+        Menu
+      </button>
+      {open ? (
+        <ul className="menulist">
+          {PAGES.map((page) => {
+            const here = page.path === path;
+            return (
+              <li key={page.path}>
+                <a
+                  href={page.path}
+                  className={here ? 'navlink here' : 'navlink'}
+                  aria-current={here ? 'page' : undefined}
+                  onClick={(event) => {
+                    setOpen(false);
+                    if (!plainClick(event)) return;
+                    event.preventDefault();
+                    onGo(page.path);
+                  }}
+                >
+                  {page.name}
+                  {here ? (
+                    <span className="small hereword"> (you are here)</span>
+                  ) : null}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export default function TopNav({ path, onGo }) {
+  // SPEC 11.39. Both are in the page and the stylesheet shows one: the
+  // three links as text where there is width for them, the button where
+  // there is not. One of the two is always display: none, so a screen
+  // reader is given one list of pages and not two.
   return (
     <nav className="topnav" aria-label="The main pages">
-      <ul>
+      <Menu path={path} onGo={onGo} />
+      <ul className="navlinks">
         {BAR.map((page) => {
           const here = page.path === path;
           return (

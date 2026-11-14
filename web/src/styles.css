@@ -1314,10 +1314,12 @@ footer p { max-width: 70ch; }
   .forecast { padding: var(--gap) 0.6rem calc(var(--gap) * 2); }
   .fcard { padding: 0.8rem 0.8rem 1rem; }
 
-  /* The freshness line takes the whole second row, so the name and the
-     mark have the first one to themselves. */
-  .brand { flex: 1 1 100%; }
-  .fresh { flex: 1 1 100%; }
+  /* SPEC 11.39. Two rows and not three: the mark, the name and the Menu
+     button share the first, and the freshness line takes the second. The
+     menu is one word wide, which is the whole reason it is a button. */
+  .brand { flex: 1 1 auto; order: 1; }
+  .topnav { order: 2; margin-left: auto; }
+  .fresh { order: 3; flex: 1 1 100%; }
 
   .mapkey { padding: 0.4rem 0.6rem 0.45rem; }
 }
@@ -1393,9 +1395,9 @@ footer p { max-width: 70ch; }
 
 /* --------------------------------- the three pages, SPEC 11.34 */
 
-.topnav { margin: 0.2rem 0 0; }
+.topnav { margin: 0; position: relative; }
 
-.topnav ul {
+.navlinks {
   list-style: none;
   display: flex;
   flex-wrap: wrap;
@@ -1408,9 +1410,9 @@ footer p { max-width: 70ch; }
   display: inline-block;
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--card);
-  font-size: 0.85rem;
+  font-size: 0.9375rem;
   text-decoration: none;
   color: #0b4f8a;
 }
@@ -1426,6 +1428,61 @@ footer p { max-width: 70ch; }
 
 .navlink.here .small { color: #d8e4ef; }
 
+/* ----------------------------------------------- the menu, on a phone */
+
+/* SPEC 11.39. Three links written out are a row 44 pixels tall across a
+   390 pixel screen, and on the forecast page that row was the fourth
+   thing above the map. The button is one word wide and holds four pages,
+   including the one the header band has no room to write out at any
+   width. The stylesheet shows one of the two; both are in the page. */
+.menu { display: none; }
+
+.menubutton {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.2rem 0.7rem;
+  background: var(--pill);
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.menulist {
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  min-width: 13rem;
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgb(15 35 55 / 22%);
+}
+
+.menulist .navlink {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: 100%;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+}
+
+.menulist .navlink.here { background: var(--picked); }
+
+@media (max-width: 1023px) {
+  .menu { display: block; }
+  .navlinks { display: none; }
+  /* The band's last item, at the end of its first row. */
+  .topnav { margin-left: auto; }
+}
+
 /* The two document pages. A column of text, not a map that fills the
    window, so they scroll like any other page. */
 .doc {
@@ -1434,20 +1491,11 @@ footer p { max-width: 70ch; }
   padding: 0.8rem 1rem 2rem;
 }
 
-.dochead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0 0 0.6rem;
-  border-bottom: 1px solid var(--rule);
-}
+/* SPEC 11.39. The back link that stood at the top of these pages is the
+   mark and the name in the band above them, which is the same way back
+   from every page and is on the screen before anything else. */
 
-.docback { margin: 0; font-weight: 600; }
-.docback a { text-decoration: none; }
-
-.page h1 { font-size: 1.5rem; margin: 1rem 0 0.6rem; }
+.page h1 { font-size: 1.5rem; margin: 0.6rem 0 0.6rem; }
 .page h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
 .page h3 { font-size: 0.95rem; margin: 1rem 0 0.4rem; }
 .page p { max-width: 42rem; }
