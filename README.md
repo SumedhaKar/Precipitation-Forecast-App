@@ -102,7 +102,7 @@ geocoder, so a reader's browser talks only to this site and to the store.
 
 ## Checks
 
-`python -m pytest` runs 552 tests from 446 test functions in 11 files. They
+`python -m pytest` runs 563 tests from 450 test functions in 11 files. They
 need no network, no token and no data: the API tests build a small run,
 publish it through a fake store into a temporary directory, serve it on
 127.0.0.1 and call the real functions against it, and the page's own pure

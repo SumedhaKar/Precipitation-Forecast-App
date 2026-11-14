@@ -5464,12 +5464,13 @@ def test_every_viewport_height_is_the_map_and_has_a_dvh_pair():
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
     # Nothing but the map's own height token asks for a share of the
-    # viewport. SPEC 11.40: the panel beside the map is exactly as tall
-    # as the map -- the key at its top stays put and the card under it
-    # scrolls -- so the height is one token, `--maph`, set on .forecast
-    # and read by the two boxes that are the map's height and nothing
-    # else. Two copies of one height would be two heights to keep in
-    # step, which is how 11.35 happened in the first place.
+    # viewport, and SPEC 11.41 leaves one box reading it. 11.40 had two:
+    # the panel beside the map was exactly as tall as the map, so that
+    # the key at its top could stay put while the card under it scrolled
+    # inside itself. That was the second scrollbar item 8 took out -- the
+    # panel is as tall as its own contents now and the map keeps its
+    # place by being sticky -- so the only box whose height is a share of
+    # the screen is the map's own.
     for rule in re.findall(r"[^{}]*\{[^{}]*?\d+d?vh[^{}]*\}", bare):
         head = rule.split("{")[0].strip().split("\n")[-1].strip()
         assert head == ".forecast", head
@@ -5478,7 +5479,7 @@ def test_every_viewport_height_is_the_map_and_has_a_dvh_pair():
     readers = set()
     for rule in re.findall(r"[^{}]*\{[^{}]*?var\(--maph\)[^{}]*\}", bare):
         readers.add(rule.split("{")[0].strip().split("\n")[-1].strip())
-    assert readers == {".mapwrap", ".panelcol"}, readers
+    assert readers == {".mapwrap"}, readers
     vh = re.findall(r"min\((\d+)vh", bare)
     dvh = re.findall(r"min\((\d+)dvh", bare)
     assert vh and vh == dvh, (vh, dvh)
