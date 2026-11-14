@@ -4420,6 +4420,31 @@ const LOOK = `(async () => {
     keyInPanel: !!document.querySelector('.panelcol > .mapkey'),
     keyOverMap: !!document.querySelector('.mapcard .mapkey'),
     keyHandles: document.querySelectorAll('.mapkey summary').length,
+    // SPEC 11.41. Anything on the page with a scrollbar of its own, and
+    // how the map card and the key are positioned: the desktop page has
+    // one scrollbar, the window's, and the map keeps its place by being
+    // sticky rather than by boxing the card in.
+    scrollers: [...document.querySelectorAll('.panelcol, .panelcol *')]
+      .filter((e) => {
+        const how = getComputedStyle(e).overflowY;
+        return (how === 'auto' || how === 'scroll')
+          && e.scrollHeight > e.clientHeight + 1;
+      })
+      .map((e) => String(e.className || e.tagName)),
+    canScroll: [...document.querySelectorAll('.panelcol, .panelcol *')]
+      .filter((e) => {
+        const how = getComputedStyle(e).overflowY;
+        return how === 'auto' || how === 'scroll';
+      })
+      .map((e) => String(e.className || e.tagName)),
+    stick: {
+      mapcard: document.querySelector('.mapcard')
+        ? getComputedStyle(document.querySelector('.mapcard')).position
+        : null,
+      mapkey: document.querySelector('.mapkey')
+        ? getComputedStyle(document.querySelector('.mapkey')).position
+        : null,
+    },
     keyEnds: [...document.querySelectorAll('.mapkey .keyends span')]
       .map((e) => e.textContent.trim()),
     keyTitle: (document.querySelector('.mapkey .keytitle') || {})
@@ -4792,6 +4817,63 @@ try {
       await evaluate("document.querySelector('.more > summary').click()");
       await new Promise((go) => setTimeout(go, 500));
       here.moreHidden = await evaluate(LOOK);
+    }
+
+    // SPEC 11.41. The page scrolled to the end of itself with the one
+    // closed section open, which is the tallest the card ever is: on a
+    // desktop the map card is sticky and has to be whole on the screen
+    // there too.
+    if (here.afterSearch.moreLabel) {
+      await evaluate("document.querySelector('.more > summary').click()");
+      await new Promise((go) => setTimeout(go, 400));
+      await evaluate(
+        'window.scrollTo(0, document.documentElement.scrollHeight)');
+      await new Promise((go) => setTimeout(go, 800));
+      here.atBottom = await evaluate(LOOK);
+      await evaluate("document.querySelector('.more > summary').click()");
+      await evaluate('window.scrollTo(0, 0)');
+      await new Promise((go) => setTimeout(go, 400));
+    }
+
+    // SPEC 11.41. The wheel over the map. On a desktop a wheel is how a
+    // reader scrolls a page, so it scrolls the page; Ctrl and the wheel
+    // together are what zooms, which is MapLibre's own cooperative
+    // gestures and its own hint.
+    if (width >= 1024 && here.first.map && here.first.map.height > 40) {
+      // Where the canvas is now, not where it was when the page opened:
+      // choosing a place makes the row above the map taller (item 10 of
+      // the last batch), so the middle of the map has moved down.
+      const at = await evaluate(`(() => {
+        const b = document.querySelector('.map').getBoundingClientRect();
+        return { x: Math.round(b.left + b.width / 2),
+                 y: Math.round(b.top + b.height / 2) };
+      })()`);
+      const state = `(() => ({
+        scrollY: Math.round(window.scrollY),
+        max: document.documentElement.scrollHeight - window.innerHeight,
+        bounds: document.querySelector('.map').mapView().bounds,
+        hint: (document.querySelector(
+          '.maplibregl-cooperative-gesture-screen') || {}).textContent
+          || null,
+      }))()`;
+      const before = await evaluate(state);
+      await send('Input.dispatchMouseEvent', {
+        type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY: 240,
+        modifiers: 0,
+      }, sessionId);
+      await new Promise((go) => setTimeout(go, 900));
+      const plain = await evaluate(state);
+      await evaluate('window.scrollTo(0, 0)');
+      await new Promise((go) => setTimeout(go, 400));
+      await send('Input.dispatchMouseEvent', {
+        type: 'mouseWheel', x: at.x, y: at.y, deltaX: 0, deltaY: -240,
+        modifiers: 2,
+      }, sessionId);
+      await new Promise((go) => setTimeout(go, 1200));
+      const ctrl = await evaluate(state);
+      here.wheels = { before, plain, ctrl };
+      // Put the view and the page back where they were.
+      await open('/');
     }
 
     // SPEC 11.39. And the way back to the map, from the card.
@@ -6780,7 +6862,10 @@ def test_the_key_covers_no_india_square_at_any_width(viewport, size):
         assert seen["overTheMap"] == ["mapkey overmap"], (
             size, seen["overTheMap"])
     else:
-        assert over["position"] == "static", over
+        # Not over the canvas: in the flow of the page, where SPEC 11.41
+        # makes it sticky inside the panel on a desktop so that it stays
+        # on the screen while the card scrolls past.
+        assert over["position"] in ("static", "sticky"), over
         assert seen["overTheMap"] == [], (size, seen["overTheMap"])
     # And the box it does occupy is clear of every point of the country,
     # which for a box outside the canvas is true by where it is -- said
@@ -6817,6 +6902,8 @@ def test_the_key_sits_under_the_map_on_a_phone(viewport, size):
     """
     seen = viewport["phone"][size]["first"]
     over = seen["keyOver"]
+    # On a phone it is in the flow of the page and sticks to nothing: the
+    # page is one column and the key is a block of it.
     assert over and over["position"] == "static", over
     # Under the map, inside the card, and on the screen.
     assert seen["mapkey"]["top"] >= seen["map"]["bottom"] - 1, (
@@ -6857,7 +6944,9 @@ def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
     page = viewport["phone"][size]
     seen = page["first"]
     assert seen["keyInPanel"] is True, size
-    assert seen["keyOver"]["position"] == "static", seen["keyOver"]
+    # Sticky, so it stays on the screen while the card scrolls past it
+    # (SPEC 11.41 item 8), and not over the canvas.
+    assert seen["keyOver"]["position"] == "sticky", seen["keyOver"]
     assert seen["overTheMap"] == [], (size, seen["overTheMap"])
     # At the top of the panel: above the card, and beside the map.
     assert seen["mapkey"]["top"] <= seen["card"]["top"] + 1, (
@@ -6898,6 +6987,19 @@ def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
         assert later["mapkey"]["top"] <= later["card"]["top"] + 1, (
             how, later["mapkey"], later["card"])
         assert later["overTheMap"] == [], (how, later["overTheMap"])
+
+    # SPEC 11.41 item 8. And it is still on the screen at the bottom of
+    # the page: the panel is as tall as its own contents now and the page
+    # is what scrolls, so the strip is sticky and stays where a reader
+    # looking for what a colour means can find it.
+    bottom = page.get("atBottom")
+    assert bottom, "the bottom of the page was not measured"
+    assert bottom["scrollY"] > 0, bottom["scrollY"]
+    assert bottom["keyInPanel"] is True
+    assert bottom["mapkey"]["top"] >= 0, bottom["mapkey"]
+    assert bottom["mapkey"]["bottom"] <= int(size.split("x")[1]), (
+        bottom["mapkey"], size)
+    assert bottom["mapkey"]["height"] > 20, bottom["mapkey"]
 
 
 @needs_node
@@ -7010,6 +7112,92 @@ def test_the_key_is_the_whole_key_over_the_map_at_1280_and_over(viewport,
     zoom = page.get("afterZoom")
     assert zoom and zoom["view"]["bounds"] != seen["view"]["bounds"], (
         zoom["view"]["bounds"] if zoom else None)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1366x768", "1440x900"])
+def test_the_desktop_page_has_one_scrollbar_and_a_sticky_map(viewport, size):
+    """SPEC 11.41. The window scrolls; nothing inside the page does.
+
+    11.40 made the right-hand panel exactly as tall as the map and gave
+    the card its own scrollbar, so the colour key above it could not
+    scroll away. That is two scrollbars on one screen: a wheel over the
+    card moved one and a wheel two pixels to the left moved the other,
+    and a reader who reached the bottom of the card's box had no way of
+    knowing the page went on.
+
+    Now the page scrolls once and the map keeps its place by being
+    sticky. Measured: nothing in the page has a scrollbar of its own
+    before or after a place is chosen, and with the card at its tallest
+    -- a place chosen, More detail open -- and the page scrolled to its
+    end, the whole map card is still inside the window.
+    """
+    page = viewport["phone"][size]
+    height = int(size.split("x")[1])
+    for how in ("first", "afterSearch", "afterLocate", "afterMapTap",
+                "atBottom"):
+        seen = page.get(how)
+        if not seen:
+            continue
+        assert seen["scrollers"] == [], (how, seen["scrollers"])
+        assert seen["canScroll"] == [], (how, seen["canScroll"])
+        assert seen["stick"]["mapcard"] == "sticky", (how, seen["stick"])
+
+    # The page really does scroll once a place is chosen: a panel as tall
+    # as its own contents is what makes that true, and it is the thing
+    # 11.40 was avoiding.
+    bottom = page.get("atBottom")
+    assert bottom, "the bottom of the page was not measured"
+    assert bottom["maxScroll"] > 0, bottom["maxScroll"]
+    assert bottom["scrollY"] >= bottom["maxScroll"] - 2, (
+        bottom["scrollY"], bottom["maxScroll"])
+    assert bottom["moreOpen"] is True, "More detail was not open"
+    # And the map is whole on the screen there, a little below the top.
+    assert bottom["mapcard"]["top"] >= 0, bottom["mapcard"]
+    assert bottom["mapcard"]["top"] <= 12, bottom["mapcard"]
+    assert bottom["mapcard"]["bottom"] <= height, (
+        bottom["mapcard"], height)
+    # The map inside it is the same height it was at the top of the page:
+    # sticky moves a box, it does not resize it.
+    assert abs(bottom["map"]["height"]
+               - page["first"]["map"]["height"]) <= 1, (
+        bottom["map"], page["first"]["map"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1366x768", "1440x900", "1024x768"])
+def test_a_wheel_over_the_desktop_map_scrolls_the_page(viewport, size):
+    """SPEC 11.41. The wheel is how a page scrolls, so it scrolls.
+
+    A map that eats the wheel traps a reader on a page it occupies most
+    of: they turn the wheel to read the card and the map zooms instead.
+    MapLibre's own cooperative gestures answer exactly this -- the wheel
+    passes through and Ctrl with the wheel zooms -- and this measures it
+    with real wheel events through the DevTools protocol, which is the
+    only way to tell a handled wheel from an unhandled one.
+    """
+    page = viewport["phone"][size]
+    wheels = page.get("wheels")
+    assert wheels, f"no wheel was sent at {size}"
+    before, plain, ctrl = wheels["before"], wheels["plain"], wheels["ctrl"]
+    # The plain wheel did not zoom.
+    assert plain["bounds"] == before["bounds"], (
+        before["bounds"], plain["bounds"])
+    # And it scrolled the page, wherever there was any page to scroll.
+    if before["max"] > 4:
+        assert plain["scrollY"] > before["scrollY"], (
+            before["scrollY"], plain["scrollY"], before["max"])
+    # MapLibre's own hint says what to do instead, which is how a reader
+    # finds out that Ctrl is the other half of it.
+    if plain["hint"]:
+        assert "ctrl" in plain["hint"].lower(), plain["hint"]
+    # Ctrl and the wheel together zoomed, from the top of the page.
+    assert ctrl["bounds"] != before["bounds"], (
+        before["bounds"], ctrl["bounds"])
+    west, south, east, north = ctrl["bounds"]
+    was = before["bounds"]
+    assert east - west < was[2] - was[0], (was, ctrl["bounds"])
+    assert north - south < was[3] - was[1], (was, ctrl["bounds"])
 
 
 # ------------------------------- SPEC 11.39: the header, on every page

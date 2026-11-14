@@ -700,8 +700,6 @@ button {
    the document, and `position: absolute` here is what Map.jsx reads to
    know whether the fit owes it anything. */
 @media (min-width: 1280px) {
-  .mapcard { position: relative; }
-
   .mapkey.overmap {
     position: absolute;
     left: 0.7rem;
@@ -1369,30 +1367,50 @@ footer p { max-width: 70ch; }
      drops a declaration the next one overrides (SPEC 11.35). */
   .mapwrap { min-height: 320px; }
 
-  /* SPEC 11.40. The right-hand panel: the colour key at the top, always
-     on the screen, and the card under it taking the rest and scrolling
-     inside itself. It is exactly as tall as the map beside it, from the
-     one token both of them read, so a long card cannot push the page
-     taller than the screen and the key cannot scroll away from under a
-     reader looking for what a colour means. */
+  /* SPEC 11.41. The right-hand panel is as tall as its own contents and
+     nothing inside it scrolls.
+
+     11.40 made it exactly as tall as the map and gave the card its own
+     scrollbar, so that the key above it could not scroll away. That is
+     two scrollbars on one screen -- the window's and the card's -- and a
+     wheel over the card moved one of them while a wheel two pixels to
+     the left moved the other. A reader who reached the bottom of the
+     card's own box had no way of knowing that the page itself went on.
+
+     So the page scrolls, once, and the map keeps its place by being
+     sticky: it stays whole on the screen a little below the top of the
+     window while the card beside it goes past. The key is sticky too
+     wherever it is in the panel, which is below 1280 pixels; at 1280 and
+     over it is over the map and goes with it (11.41 item 7). */
   .panelcol {
     display: flex;
     grid-area: panel;
     flex-direction: column;
     gap: var(--gap);
-    height: var(--maph);
-    min-height: 320px;
     min-width: 0;
   }
 
-  .mapkey { flex: 0 0 auto; }
-
-  .cardcol {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+  /* The map stays in view while the card scrolls past it. `sticky` and
+     not `fixed`: it keeps its place in the grid, so the column beside it
+     is still the column beside it, and it stops at the bottom of its own
+     cell rather than following the page for ever. It is also the
+     containing block for the colour key over it at 1280 and over, which
+     is why that rule no longer needs `position: relative`. */
+  .mapcard {
+    position: sticky;
+    top: 0.5rem;
+    align-self: start;
   }
+
+  .panelcol > .mapkey {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 1;
+    flex: 0 0 auto;
+    box-shadow: 0 1px 6px rgba(31, 41, 51, 0.08);
+  }
+
+  .cardcol { min-width: 0; }
 
   /* SPEC 11.41. The header's contents sit in the same centred column
      as everything under them: 1280 pixels at most, with the same 1rem
