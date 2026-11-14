@@ -1,4 +1,4 @@
-// What the colours mean. SPEC 11.17, moved by 11.28, remade by 11.39.
+// What the colours mean. SPEC 11.17, moved by 11.28, 11.39 and 11.40.
 //
 // Three homes in three batches, and each move was paid for by something
 // measured. It began floating over the map, bottom right, where it covered
@@ -9,12 +9,17 @@
 // plus two colour lines, it was the largest single block of the controls and
 // the thing that pushed the map down a phone.
 //
-// 11.39 makes it a key again, on the map and over the sea, and small: shut
-// it is a title and a strip of the seven colours, and opened it is nine
-// plain rows. The room it needs on the map is paid for by padding the fit on
-// the side it sits on, which costs nothing where the map box is wider than
-// India needs; where it cannot be paid for — a phone, where India fills the
-// width — the key sits directly under the map instead.
+// 11.39 made it a key again, small: shut it is a title and a strip of the
+// seven colours, and opened it is nine plain rows. It floated in the map's
+// lower left corner over the Arabian Sea at 1280 pixels and over, paid for
+// by padding the fit on that side, and sat under the map at every width
+// where that padding would have cost the country anything.
+//
+// 11.40 takes it off the map everywhere. Nothing is drawn over the canvas
+// now but MapLibre's own zoom buttons: on a desktop the key is the top of
+// the right-hand panel, above the card and always on the screen, and on a
+// phone it is directly under the map as it was. So nothing of the fit is
+// spent on it, which is the width the whole country was competing for.
 //
 // It is a module of its own rather than part of Map.jsx so that it is in the
 // first chunk: the key paints with the controls, before MapLibre's 325 KB
@@ -79,36 +84,46 @@ export function KeyRows() {
 export const KEY_TITLE = `How many of the ${MEMBERS} runs bring rain?`;
 
 /**
- * The key, on the map. SPEC 11.39.
+ * The three places on the strip that are worth a word. SPEC 11.40.
  *
- * A real <details>, so it opens with no script of ours, the keyboard
- * reaches it, and a screen reader is told whether it is open. `open` is
- * controlled -- expanded on a desktop and shut on a phone, which is where
- * the map has no room to spare -- and `onToggle` hands the reader's own
- * click back, because the fit is padded by this box's width and has to be
- * done again when the box changes size.
- *
- * The title is a question and does not name the amount; the summary's
- * accessible name does, because the amount is what the colours are counts
- * of and a reader using a screen reader cannot see the chosen pill.
+ * The shut strip named its two ends. The middle of a scale of counts is
+ * the one other place a reader looks, and "About half" is a position on
+ * the strip rather than a word for what a colour means on the ground --
+ * which is why no row of the open key carries a band word (11.39).
  */
-export default function MapKey({ threshold, open, onToggle }) {
-  const last = CLASSES.length - 1;
+export const KEY_ENDS = ['None', 'About half', `All ${MEMBERS}`];
+
+/**
+ * The key. SPEC 11.39, moved off the map by 11.40.
+ *
+ * A real <details>, shut, with nothing controlling it: it opens with no
+ * script of ours, the keyboard reaches it, a screen reader is told
+ * whether it is open, and one tap either way is the whole of it. It was
+ * controlled while it floated over the canvas -- open on a desktop, shut
+ * on a phone, with the map refitting around it -- and off the map there
+ * is nothing for the page to know about it.
+ *
+ * The title names the amount, because the colours are counts of
+ * something and the chosen pill is a row of controls away; the strip's
+ * three words are its two ends and its middle.
+ */
+export default function MapKey({ threshold }) {
   return (
-    <details className="mapkey" open={open} onToggle={onToggle}>
+    <details className="mapkey">
       <summary
         aria-label={`${KEY_TITLE} At ${threshold} mm or more. `
           + 'The colours, in words.'}
       >
-        <span className="keytitle">{KEY_TITLE}</span>
+        <span className="keytitle">
+          {KEY_TITLE} ({threshold} mm+)
+        </span>
         <span className="ministrip" aria-hidden="true">
           {CLASSES.map((band) => (
             <span key={band.label} style={{ background: band.colour }} />
           ))}
         </span>
         <span className="keyends" aria-hidden="true">
-          <span>None</span>
-          <span>All {MEMBERS}</span>
+          {KEY_ENDS.map((word) => <span key={word}>{word}</span>)}
         </span>
       </summary>
       <KeyRows />

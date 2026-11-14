@@ -1618,15 +1618,26 @@ def test_the_legend_names_both_ends_and_both_other_colours(forecast_words):
         # counts of it and a reader using a screen reader cannot see which
         # pill is filled.
         assert "mm or more. The colours, in words." in html
-        # And no band word of 11.38 is drawn beside a colour.
+        # And no band word of 11.38 is drawn beside a colour. SPEC 11.40
+        # puts "About half" on the shut strip, where it names the middle
+        # of a scale of counts as "None" and "All 51" name its ends --
+        # not a colour, and not what a colour means on the ground. So it
+        # is allowed there and checked to be there and nowhere else.
+        ends = html.split('class="keyends"')[1].split("</span></span>")[0]
+        assert "About half" in ends, ends
+        rest = text.lower().replace("about half", "", 1)
         for word in ("a few", "about half", "almost all"):
-            assert word not in text.lower(), (word, text)
-        if ' open=""' in html:
-            opened += 1
-        else:
-            shut += 1
+            assert word not in rest, (word, text)
+        # SPEC 11.40. The key is shut, and nothing controls it: one tap
+        # either way is the whole of it, and there is no `open` for a
+        # renderer to pass. Which is the state that matters here -- the
+        # nine rows are in the page while it is shut, reachable and
+        # searchable -- and the opened state is measured in a browser,
+        # where a reader's own tap opens it.
+        assert ' open=""' not in html, html[:120]
+        shut += 1
     assert shut >= 3, shut
-    assert opened >= 3, opened
+    assert opened == 0, opened
 
 
 @needs_node
@@ -4260,6 +4271,21 @@ const LOOK = `(async () => {
       /(^| )on( |$)/.test(e.className)]),
     mapcard: box('.mapcard'),
     mapkey: box('.mapkey'),
+    // SPEC 11.40. The key is the top of the panel on a desktop and
+    // directly under the map on a phone, and over the canvas nowhere.
+    keyInPanel: !!document.querySelector('.panelcol > .mapkey'),
+    keyEnds: [...document.querySelectorAll('.mapkey .keyends span')]
+      .map((e) => e.textContent.trim()),
+    keyTitle: (document.querySelector('.mapkey .keytitle') || {})
+      .textContent || null,
+    // Anything of ours drawn over the canvas. MapLibre's own controls are
+    // its own and are named, not counted.
+    overTheMap: [...document.querySelectorAll('.mapcard *')]
+      .filter((e) => !e.closest('.maplibregl-control-container')
+        && !e.closest('.map')
+        && getComputedStyle(e).position === 'absolute'
+        && e.getBoundingClientRect().height > 0)
+      .map((e) => String(e.className || e.tagName)),
     keyOpen: document.querySelector('.mapkey')
       ? document.querySelector('.mapkey').open : null,
     keyText: (document.querySelector('.mapkey') || {}).textContent || null,
@@ -4935,10 +4961,22 @@ def test_every_viewport_height_is_the_map_and_has_a_dvh_pair():
     """
     css = (ROOT / "web" / "src" / "styles.css").read_text(encoding="utf-8")
     bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
-    # Nothing but the map asks for a share of the viewport.
+    # Nothing but the map's own height token asks for a share of the
+    # viewport. SPEC 11.40: the panel beside the map is exactly as tall
+    # as the map -- the key at its top stays put and the card under it
+    # scrolls -- so the height is one token, `--maph`, set on .forecast
+    # and read by the two boxes that are the map's height and nothing
+    # else. Two copies of one height would be two heights to keep in
+    # step, which is how 11.35 happened in the first place.
     for rule in re.findall(r"[^{}]*\{[^{}]*?\d+d?vh[^{}]*\}", bare):
         head = rule.split("{")[0].strip().split("\n")[-1].strip()
-        assert head == ".mapwrap", head
+        assert head == ".forecast", head
+        assert "--maph:" in rule, rule
+    # And the token is read by those two boxes and by nothing else.
+    readers = set()
+    for rule in re.findall(r"[^{}]*\{[^{}]*?var\(--maph\)[^{}]*\}", bare):
+        readers.add(rule.split("{")[0].strip().split("\n")[-1].strip())
+    assert readers == {".mapwrap", ".panelcol"}, readers
     vh = re.findall(r"min\((\d+)vh", bare)
     dvh = re.findall(r"min\((\d+)dvh", bare)
     assert vh and vh == dvh, (vh, dvh)
@@ -6195,25 +6233,27 @@ def test_the_key_covers_no_india_square_at_any_width(viewport, size):
     of it, and while the fit is limited by the height that padding costs
     the country nothing at all.
 
-    Where it cannot be paid for the key is drawn under the map instead and
-    this check passes without measuring anything, so the test below says
-    which widths those are and the one after it proves the floating case
-    really is floating.
+    SPEC 11.40 settles it by taking the key off the canvas at every
+    width: it is the top of the panel on a desktop and directly under the
+    map on a phone, so no square can be behind it and the fit pays
+    nothing for it. What is checked here is that -- the key is laid out
+    in the flow of the page and not over the canvas -- and that nothing
+    else of ours is drawn over the map either.
 
-    What is checked is every one of the 4,613 forecast squares and every
-    point of the drawn outline, Lakshadweep included, projected into the
-    canvas's own pixels from the bounds the map itself reports.
+    The 4,613 squares and every point of the drawn outline are still
+    projected, against the box the key occupies, so that a key put back
+    over the canvas would have to clear the country to pass.
     """
     seen = viewport["phone"][size]["first"]
     over = seen["keyOver"]
     assert over, "the key was not measured"
-    if over["position"] != "absolute":
-        # Drawn under the map, which is what 11.39 allows where the room
-        # on it cannot be paid for. Its own test says where it is.
-        assert over["position"] == "static", over
-        return
-    # Where it is over the map it is open, and it is clear of the country.
-    assert seen["keyOpen"] is True, "the key is over the map and shut"
+    assert over["position"] == "static", over
+    # Nothing of ours is drawn over the canvas: MapLibre's own zoom
+    # buttons and attribution are its own, and are not in this list.
+    assert seen["overTheMap"] == [], (size, seen["overTheMap"])
+    # And the box it does occupy is clear of every point of the country,
+    # which for a box outside the canvas is true by where it is -- said
+    # as a measurement so that moving it back would be caught here.
     left, top, right, bottom = over["box"]
     width, height = over["map"]
     hidden = []
@@ -6250,11 +6290,15 @@ def test_the_key_sits_under_the_map_on_a_phone(viewport, size):
     # Under the map, inside the card, and on the screen.
     assert seen["mapkey"]["top"] >= seen["map"]["bottom"] - 1, (
         seen["mapkey"], seen["map"])
-    assert seen["mapkey"]["bottom"] <= seen["mapcard"]["bottom"] + 1
-    # Shut, and the two ends of the ramp are readable without opening it.
+    # SPEC 11.40: under the map and under the card it used to be inside,
+    # which is one block of the page now.
+    assert seen["mapkey"]["top"] >= seen["mapcard"]["bottom"] - 1, (
+        seen["mapkey"], seen["mapcard"])
+    # Shut, and the strip's three words are readable without opening it.
     assert seen["keyOpen"] is False
     assert "How many of the 51 runs bring rain?" in seen["keyText"]
-    assert "None" in seen["keyText"] and "All 51" in seen["keyText"]
+    assert seen["keyEnds"] == ["None", "About half", "All 51"], (
+        seen["keyEnds"])
     # And opening it does not move the map.
     opened = viewport["phone"][size]["keyToggled"]
     assert opened["keyOpen"] is True
@@ -6263,15 +6307,59 @@ def test_the_key_sits_under_the_map_on_a_phone(viewport, size):
 
 
 @needs_node
-def test_the_key_really_does_float_at_a_desktop_width(viewport):
-    """A fallback that is always taken is not a fallback. SPEC 11.39."""
-    over = viewport["phone"]["1440x900"]["first"]["keyOver"]
-    assert over["position"] == "absolute", over
-    assert viewport["phone"]["1440x900"]["first"]["keyOpen"] is True
-    # And under the map at every other width this site is measured at.
-    for size in ("390x664", "390x844", "320x568", "1024x768"):
-        where = viewport["phone"][size]["first"]["keyOver"]
-        assert where["position"] == "static", (size, where)
+@pytest.mark.parametrize("size", ["1440x900", "1366x768", "1366x650",
+                                  "1024x768"])
+def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
+    """SPEC 11.40. Above the card, always on the screen, off the map.
+
+    11.39 floated it in the map's lower left corner at 1280 pixels and
+    over, and paid for it by padding the fit on that side. The payment
+    was free only while the fit was limited by the height, and the width
+    of the map is what the country was short of.
+
+    It is the top of the right-hand panel now: the same collapsed strip
+    the phone has, in the flow of the page, with the card under it taking
+    the rest of the panel's height and scrolling inside itself. So it
+    stays where it is when a place is chosen, when a search is made and
+    when the map moves.
+    """
+    page = viewport["phone"][size]
+    seen = page["first"]
+    assert seen["keyInPanel"] is True, size
+    assert seen["keyOver"]["position"] == "static", seen["keyOver"]
+    assert seen["overTheMap"] == [], (size, seen["overTheMap"])
+    # At the top of the panel: above the card, and beside the map.
+    assert seen["mapkey"]["top"] <= seen["card"]["top"] + 1, (
+        seen["mapkey"], seen["card"])
+    assert seen["mapkey"]["top"] >= seen["mapcard"]["top"] - 1, (
+        seen["mapkey"], seen["mapcard"])
+    assert seen["mapkey"]["right"] > seen["mapcard"]["right"], (
+        seen["mapkey"], seen["mapcard"])
+    # Shut, with the three words of the strip, and the amount in its
+    # title because the chosen pill is a row of controls away.
+    assert seen["keyOpen"] is False, size
+    assert seen["keyEnds"] == ["None", "About half", "All 51"], (
+        seen["keyEnds"])
+    assert seen["keyTitle"].strip() == (
+        "How many of the 51 runs bring rain? (1 mm+)"), seen["keyTitle"]
+    # One tap opens the nine rows, and another shuts them.
+    opened = page["keyToggled"]
+    assert opened["keyOpen"] is True
+    assert len(opened["keyRows"]) == 9, opened["keyRows"]
+    assert page["keyBack"]["keyOpen"] is False
+    # Opening it does not move the map: it is not in the map's fit.
+    assert opened["map"]["height"] == seen["map"]["height"]
+    assert opened["view"]["bounds"] == seen["view"]["bounds"], (
+        opened["view"]["bounds"], seen["view"]["bounds"])
+    # And it stays where it is when a place is chosen three ways.
+    for how in ("afterSearch", "afterLocate", "afterMapTap"):
+        later = page.get(how)
+        if not later:
+            continue
+        assert later["keyInPanel"] is True, how
+        assert abs(later["mapkey"]["top"] - seen["mapkey"]["top"]) <= 1, (
+            how, later["mapkey"], seen["mapkey"])
+        assert later["overTheMap"] == [], (how, later["overTheMap"])
 
 
 # ------------------------------- SPEC 11.39: the header, on every page
@@ -6494,9 +6582,13 @@ def test_the_map_card_is_the_size_the_spec_says(viewport, size):
     # third of a pixel and the measurement is rounded to a tenth.
     assert abs(seen["map"]["height"] - want) <= 1, (
         size, seen["map"], want)
-    # The whole card, the key included, and nothing over the canvas.
-    assert seen["mapcard"]["bottom"] >= seen["mapkey"]["bottom"] - 1
+    # SPEC 11.40. The card is the map and nothing else: the key is the
+    # block under it, not a corner of it, and nothing of ours is over
+    # the canvas at any width.
+    assert seen["mapkey"]["top"] >= seen["mapcard"]["bottom"] - 1, (
+        seen["mapkey"], seen["mapcard"])
     assert seen["keyOver"]["position"] == "static"
+    assert seen["overTheMap"] == [], seen["overTheMap"]
 
 
 @needs_node

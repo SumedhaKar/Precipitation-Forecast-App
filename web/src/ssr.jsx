@@ -179,11 +179,10 @@ export function forecastWords(answers) {
   [1, 10, 50].forEach((threshold) => {
     out.push(renderToStaticMarkup(
       <ThresholdChoice threshold={threshold} onThreshold={nothing} />));
-    // SPEC 11.39. The colour key, shut and open, for all three amounts.
-    out.push(renderToStaticMarkup(
-      <MapKey threshold={threshold} open={false} onToggle={nothing} />));
-    out.push(renderToStaticMarkup(
-      <MapKey threshold={threshold} open onToggle={nothing} />));
+    // SPEC 11.40. The colour key, for all three amounts. Its nine rows
+    // are in the page whether or not a reader has opened them, so the
+    // sweep reads them either way.
+    out.push(renderToStaticMarkup(<MapKey threshold={threshold} />));
   });
   out.push(renderToStaticMarkup(
     <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}

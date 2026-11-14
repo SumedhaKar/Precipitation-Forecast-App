@@ -6292,6 +6292,50 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### The colour key comes off the map
+
+11.39 floated the key in the map's lower left corner, over the Arabian
+Sea, at 1280 pixels and over, and paid for it by padding the fit on that
+side. The payment is free only while the fit is limited by the height —
+and the width of the map is exactly what the country was short of, which
+is why the key was already under the map at every narrower width.
+
+So it comes off the canvas everywhere. **Nothing of ours is drawn over the
+map at any width**: what is over it is MapLibre's own zoom buttons and its
+attribution, which the fit still pads for. The key is:
+
+- on a desktop, the top of the right-hand panel — above the card, always
+  on the screen, and it stays there when a place is chosen, when a search
+  is made and when the map moves, because only the card under it scrolls;
+- on a phone, directly under the map, as it was.
+
+It is the same collapsed strip in both: the title with the amount in it —
+"How many of the 51 runs bring rain? (10 mm+)", because the colours are
+counts of something and the chosen pill is a row of controls away — the
+strip of seven colours, and three words under it. One tap opens the nine
+plain rows and another shuts them.
+
+The three words are **None**, **About half** and **All 51**. "About half"
+is one of the band words of 11.38, which may not be drawn beside a
+colour; on the strip it is not beside a colour but under the middle of a
+scale of counts, which is the same job "None" and "All 51" do at its ends.
+The test allows it in the strip's own three words and nowhere else in the
+key.
+
+Two things go with the float. The `<details>` is uncontrolled — nothing
+in the page decides when it is open, so one tap either way is the whole of
+it — and with it goes the one media query this page asked the width for,
+which existed only because the map had to know the key's size in order to
+pad its fit. `Map.jsx` pads the left edge by nothing now.
+
+The panel's height is the map's height, from one token: `--maph`, set on
+`.forecast` in four places (a phone, a desktop, a narrow desktop, and the
+`dvh` pair of each) and read by `.mapwrap` and `.panelcol` and nothing
+else. Two copies of one height are two heights to keep in step, which is
+how 11.35 happened. The test that says only the map may be sized from the
+viewport now says: only `--maph` may be, and only those two boxes may
+read it.
+
 #### A desktop: one row of questions, and the map takes the rest
 
 The desktop had the search box on one row, "Which day?" and its five

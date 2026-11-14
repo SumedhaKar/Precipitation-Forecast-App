@@ -238,6 +238,7 @@ button {
   grid-template-areas:
     "asks"
     "map"
+    "key"
     "pills"
     "cardcol";
   gap: var(--gap);
@@ -250,12 +251,14 @@ button {
   padding: var(--gap) 0.7rem calc(var(--gap) * 2);
 }
 
-/* SPEC 11.40. The box around the search row and the two questions. A
-   phone sees through it -- the map goes between them there, and a grid
-   can only place a child of its own -- and a desktop lays its children
-   out in one row. `display: contents` is how one copy of a control can
-   be in two orders (11.39). */
-.controls { display: contents; }
+/* SPEC 11.40. The box around the search row and the two questions, and
+   the box around the colour key and the card. A phone sees through both
+   -- the map goes between the search row and the questions there, and a
+   grid can only place a child of its own -- and a desktop lays each box
+   out itself: the questions in one row, the key and the card in one
+   column. `display: contents` is how one copy of a control can be in two
+   orders (11.39). */
+.controls, .panelcol { display: contents; }
 
 .asks { grid-area: asks; }
 .pills {
@@ -267,12 +270,14 @@ button {
 
 .mapcard { grid-area: map; }
 .cardcol { grid-area: cardcol; min-width: 0; }
+.mapkey { grid-area: key; }
 
 /* ---------------------------------------------------------- the map card */
 
-/* SPEC 11.39. A card with the map in it and the colour key in its corner.
-   Nothing else is ever drawn over the canvas: MapLibre's zoom buttons and
-   its attribution are its own, and the fit is padded by all three. */
+/* SPEC 11.40. A card with the map in it, and nothing else at all.
+   MapLibre's zoom buttons and its attribution are its own and the fit is
+   padded for them; the colour key was the one thing of ours ever drawn
+   over the canvas, and it is in the panel beside the map now. */
 .mapcard {
   position: relative;
   background: var(--card);
@@ -286,19 +291,27 @@ button {
    is 280 pixels, measured: under that the fit of SPEC 1.4's box cannot
    hold both coasts and the whole of the north at a phone's width.
 
+   SPEC 11.40 makes it a token, `--maph`, because the panel beside the map
+   on a desktop is the same height as the map -- the key at its top stays
+   put and the card under it scrolls -- and two copies of one height are
+   two heights to keep in step. `--maph` is set in four places, all of
+   them `.forecast`, and read in two: here and `.panelcol`.
+
    The vh line and the dvh line are in two rules on purpose. A minifier
    drops a declaration the next one overrides, and written as two lines in
    one rule the built stylesheet carried the dvh alone -- so a browser that
    had never heard of dvh got no height at all (SPEC 11.35). */
-.mapwrap {
-  position: relative;
-  height: min(55vh, 480px);
-  min-height: 280px;
-  background: var(--sea);
-}
+.forecast { --maph: min(55vh, 480px); }
 
 @supports (height: 1dvh) {
-  .mapwrap { height: min(55dvh, 480px); }
+  .forecast { --maph: min(55dvh, 480px); }
+}
+
+.mapwrap {
+  position: relative;
+  height: var(--maph);
+  min-height: 280px;
+  background: var(--sea);
 }
 
 /* Not `position: absolute; inset: 0`. MapLibre's own stylesheet sets
@@ -579,18 +592,21 @@ button {
 
 /* --------------------------------------------------------- the colour key */
 
-/* SPEC 11.39. Shut it is a title, a strip of the seven colours and the two
-   ends in words; opened it is nine plain rows. On a desktop it sits in the
-   map's lower left corner, over the Arabian Sea, open; the fit is padded by
-   its width so that nothing of India is ever behind it. On a phone it is
-   directly under the map instead, because there India fills the width and
-   the only way to pay for a box over the canvas would be to shrink the
-   country to a third of it. 11.39 writes that measurement down. */
+/* SPEC 11.39, moved by 11.40. Shut it is a title with the amount in it,
+   a strip of the seven colours and three words -- its two ends and its
+   middle; opened it is nine plain rows.
+
+   It is directly under the map on a phone and the top of the panel on a
+   desktop, and it is over the canvas nowhere. 11.39 had it floating in
+   the map's lower left corner at 1280 pixels and over, paid for by
+   padding the fit on that side; the payment was free only while the fit
+   was limited by the height, and it is the width of the map that the
+   country was short of. */
 .mapkey {
   margin: 0;
   padding: 0.45rem 0.6rem 0.5rem;
   background: var(--card);
-  border-top: 1px solid var(--rule);
+  border-radius: 10px;
 }
 
 .mapkey summary {
@@ -632,23 +648,11 @@ button {
 
 .mapkey .keyrows li { min-height: 1.5rem; }
 
-/* 1280 and not the 1024 the two columns begin at: the width is measured
-   in App.jsx, beside the query the page reads for the same boundary. At
-   1024 by 768 the map box is 574 by 476 and padding 234 pixels of it away
-   for the key makes the fit width-limited, which shrinks India to 305
-   pixels and puts Gujarat behind the key regardless. */
-@media (min-width: 1280px) {
-  .mapkey {
-    position: absolute;
-    left: 0.75rem;
-    bottom: 0.75rem;
-    width: 14rem;
-    border: 0;
-    border-radius: 10px;
-    background: rgba(255, 255, 255, 0.93);
-    box-shadow: 0 1px 3px rgba(31, 41, 51, 0.18);
-  }
-}
+/* SPEC 11.40. The floating key of 11.39 is gone, and with it the one
+   query this page asked the width for. What it bought was never worth
+   the width: at 1024 by 768 the map box was 574 by 476, and padding 234
+   pixels of it away made the fit width-limited, shrank India from 409
+   pixels to 305, and put Gujarat behind the key regardless. */
 
 /* SPEC 11.31. A colour, and nothing that can be pressed.
    These were 0.95rem squares with a hairline border and a 2px radius, which
@@ -1250,10 +1254,11 @@ footer p { max-width: 70ch; }
   :root { --gap: 0.8rem; --gap-across: 1.4rem; }
 
   .forecast {
+    --maph: min(100vh - 260px, 640px);
     grid-template-columns: minmax(0, 1fr) var(--panel);
     grid-template-areas:
       "controls controls"
-      "map      cardcol";
+      "map      panel";
     column-gap: var(--gap-across);
     padding: var(--gap) 1rem var(--gap);
   }
@@ -1313,9 +1318,31 @@ footer p { max-width: 70ch; }
 
      The vh line and the dvh line are two rules on purpose: a minifier
      drops a declaration the next one overrides (SPEC 11.35). */
-  .mapwrap {
-    height: min(100vh - 260px, 640px);
+  .mapwrap { min-height: 320px; }
+
+  /* SPEC 11.40. The right-hand panel: the colour key at the top, always
+     on the screen, and the card under it taking the rest and scrolling
+     inside itself. It is exactly as tall as the map beside it, from the
+     one token both of them read, so a long card cannot push the page
+     taller than the screen and the key cannot scroll away from under a
+     reader looking for what a colour means. */
+  .panelcol {
+    display: flex;
+    grid-area: panel;
+    flex-direction: column;
+    gap: var(--gap);
+    height: var(--maph);
     min-height: 320px;
+    min-width: 0;
+  }
+
+  .mapkey { flex: 0 0 auto; }
+
+  .cardcol {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .band { padding: 0.5rem 1rem; }
@@ -1325,7 +1352,7 @@ footer p { max-width: 70ch; }
 
 @supports (height: 1dvh) {
   @media (min-width: 1024px) {
-    .mapwrap { height: min(100dvh - 260px, 640px); }
+    .forecast { --maph: min(100dvh - 260px, 640px); }
   }
 }
 
@@ -1336,12 +1363,12 @@ footer p { max-width: 70ch; }
    with no page scrolled. 1152 is the top of the range because the three
    groups' own content comes to about 1135 pixels at this type size. */
 @media (min-width: 1024px) and (max-width: 1151px) {
-  .mapwrap { height: min(100vh - 345px, 640px); }
+  .forecast { --maph: min(100vh - 345px, 640px); }
 }
 
 @supports (height: 1dvh) {
   @media (min-width: 1024px) and (max-width: 1151px) {
-    .mapwrap { height: min(100dvh - 345px, 640px); }
+    .forecast { --maph: min(100dvh - 345px, 640px); }
   }
 }
 

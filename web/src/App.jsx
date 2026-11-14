@@ -49,42 +49,13 @@ const STALE_HOURS = 36; // SPEC 11.8
 const FIRST_DAY = 1;
 const FIRST_THRESHOLD = 1;
 
-/**
- * Is this a screen with room on the map for the colour key? SPEC 11.39.
- *
- * The one thing the page asks the width for. Everything else about the
- * layout is the stylesheet's, as it should be; the colour key cannot be,
- * because whether it is open on first sight is a fact the map has to know
- * in order to pad the fit for it, and a stylesheet cannot tell it.
- *
- * `matchMedia` and not an `innerWidth` read: the same query the stylesheet
- * uses, so the two cannot disagree about where the boundary is.
- *
- * 1280 and not the 1024 the two-column layout begins at, and the
- * difference was measured. The key is paid for by padding the fit on the
- * side it sits on, which costs nothing while the fit is limited by the
- * height. At 1024 by 768 the map box is 574 by 476: padding 234 pixels of
- * it away makes the fit width-limited instead, India shrinks to 305
- * pixels, and Gujarat ends up behind the key anyway. So below 1280 the
- * key is drawn under the map, which is what 11.39 allows for a phone and
- * for the same reason.
- */
-export const WIDE = '(min-width: 1280px)';
-
-export function useWide(query = WIDE) {
-  const [wide, setWide] = useState(() => (
-    typeof window !== 'undefined' && window.matchMedia
-      ? window.matchMedia(query).matches : false));
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-    const watch = window.matchMedia(query);
-    const seen = () => setWide(watch.matches);
-    seen();
-    watch.addEventListener('change', seen);
-    return () => watch.removeEventListener('change', seen);
-  }, [query]);
-  return wide;
-}
+/* SPEC 11.40. The one thing this page used to ask the width for is gone
+   with the floating key. It asked because whether the key was open on
+   first sight was a fact the map had to know in order to pad its fit for
+   it, and a stylesheet cannot tell a map anything; the key is off the
+   canvas now, the fit pays nothing for it, and when it opens is the
+   reader's business and the <details> element's. Nothing in this file
+   asks how wide the screen is. */
 
 const search = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -371,12 +342,6 @@ export default function App({ health, healthError, onGo }) {
   const [unitBox, setUnitBox] = useState(null);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
-  // SPEC 11.39. The colour key: expanded where there is room beside the
-  // map and shut where there is not, and the reader's own click wins over
-  // both until the width changes.
-  const wide = useWide();
-  const [keyOpen, setKeyOpen] = useState(wide);
-  useEffect(() => { setKeyOpen(wide); }, [wide]);
   // The number of the most recent request for a square's numbers (11.30).
   const asked = useRef(0);
 
@@ -722,7 +687,6 @@ export default function App({ health, healthError, onGo }) {
                     onPick={pick}
                     onProblem={setNoMap}
                     unitBox={unitBox}
-                    keyOpen={keyOpen}
                     handcheck={handcheck}
                   />
                 </Suspense>
@@ -736,19 +700,17 @@ export default function App({ health, healthError, onGo }) {
               </p>
             ) : null}
           </div>
-          {/* SPEC 11.39. The colour key, in the map's lower left corner
-              over the sea where there is room for it there, and directly
-              under the map where there is not. The stylesheet decides
-              which; the map pads its fit by this box's width whenever it
-              is over the canvas. */}
-          <MapKey
-            threshold={threshold}
-            open={keyOpen}
-            onToggle={(event) => setKeyOpen(event.currentTarget.open)}
-          />
         </div>
 
-        <div className="cardcol">
+        {/* SPEC 11.40. The colour key and the card, in one box. On a
+            desktop the box is the right-hand panel: the key is its top
+            and stays there, and the card under it is what scrolls. On a
+            phone the box is seen through, and the grid puts the key
+            directly under the map and the card at the end of the page. */}
+        <div className="panelcol">
+          <MapKey threshold={threshold} />
+
+          <div className="cardcol">
           <section className="fcard" aria-label="Location forecast">
             <Panel
               square={square}
@@ -771,11 +733,12 @@ export default function App({ health, healthError, onGo }) {
             {nothingChosen ? null : <HowToReadLink onGo={onGo} />}
             <ReportCardLink onGo={onGo}>Report card</ReportCardLink>
           </p>
-          {/* SPEC 11.40. Inside the card's own column, under those two
-              links: on a phone that is the last block of the page, where
-              a footer goes, and on a desktop it is the bottom of the
-              right-hand panel rather than a band under the map. */}
-          <Footer />
+            {/* SPEC 11.40. Inside the card's own column, under those
+                two links: on a phone that is the last block of the page,
+                where a footer goes, and on a desktop it is the bottom of
+                the right-hand panel rather than a band under the map. */}
+            <Footer />
+          </div>
         </div>
       </main>
     </>
