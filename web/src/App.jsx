@@ -656,11 +656,7 @@ export default function App({ health, healthError, onGo }) {
           {days.length ? (
             <DayChoice days={days} day={day} onDay={setDay} />
           ) : null}
-          <ThresholdChoice
-            threshold={threshold}
-            onThreshold={setThreshold}
-            onGo={onGo}
-          />
+          <ThresholdChoice threshold={threshold} onThreshold={setThreshold} />
         </div>
 
         <div className="mapcard" id="map">

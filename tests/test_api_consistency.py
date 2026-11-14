@@ -4225,9 +4225,17 @@ const LOOK = `(async () => {
       '.days .radios button, .amounts .radios button')]
       .map((e) => [e.parentElement.parentElement.className,
         Math.round(e.getBoundingClientRect().width)]),
-    mmlink: box('.mmlink'),
-    mmHref: document.querySelector('.mmlink a')
-      ? document.querySelector('.mmlink a').getAttribute('href') : null,
+    // SPEC 11.40. "What does mm mean?" is a disclosure now: the handle,
+    // whether it is open, the four lines it opens, and whether there is a
+    // link in it at all -- there must not be, because nothing navigates.
+    path: window.location.pathname,
+    mmwhat: box('.mmwhat'),
+    mmSummary: box('.mmwhat > summary'),
+    mmOpen: document.querySelector('.mmwhat')
+      ? document.querySelector('.mmwhat').open : null,
+    mmLinks: document.querySelectorAll('.mmwhat a').length,
+    mmLines: [...document.querySelectorAll('.mmwhat .amountwords li')]
+      .map((e) => e.textContent.replace(/[ ]+/g, ' ').trim()),
     dayPills: [...document.querySelectorAll('.days .radios button')]
       .map((e) => [e.querySelector('.pilltop')
         ? e.querySelector('.pilltop').textContent : null,
@@ -4282,7 +4290,7 @@ const LOOK = `(async () => {
     // every pair of controls, measured against every other.
     overlapping: (() => {
       const items = [...document.querySelectorAll(
-        '.searchrow input, .locate, .radios button, .mmlink a,'
+        '.searchrow input, .locate, .radios button, .mmwhat > summary,'
         + ' .topnav .navlink, .cardlinks a, .mapkey summary, .brand')];
       const bad = [];
       for (let i = 0; i < items.length; i += 1) {
@@ -4482,6 +4490,18 @@ try {
     await evaluate("document.querySelector('.mapkey summary').click()");
     await new Promise((go) => setTimeout(go, 1200));
     here.keyBack = await evaluate(LOOK);
+
+    // SPEC 11.40. "What does mm mean?", opened and shut again. Every
+    // measurement after this is made with it shut, which is how the page
+    // opens and the state the map's own height is measured in.
+    if (here.first.mmSummary && here.first.mmSummary.height) {
+      await evaluate("document.querySelector('.mmwhat > summary').click()");
+      await new Promise((go) => setTimeout(go, 600));
+      here.mmShown = await evaluate(LOOK);
+      await evaluate("document.querySelector('.mmwhat > summary').click()");
+      await new Promise((go) => setTimeout(go, 600));
+      here.mmHidden = await evaluate(LOOK);
+    }
 
     // SPEC 11.39. One finger scrolls the page and two move the map.
     //
@@ -5585,12 +5605,15 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  # into this sweep so they are still checked.
                  "Each day runs from 5:30 am to 5:30 am the next morning, "
                  "IST.",
-                 "Enough to leave the ground damp.",
-                 "A proper shower: you would want an umbrella.",
-                 "A very rainy day: water can collect on roads.",
-                 "This is the total over the whole day, averaged over the "
-                 "square, so it can be one short burst or hours of "
-                 "drizzle.",
+                 # SPEC 11.40: the four lines "What does mm mean?" opens,
+                 # which the How to read this map page also draws.
+                 "Some rain (1 mm+): enough to leave the ground damp.",
+                 "A rainy day (10 mm+): a proper shower; you would want "
+                 "an umbrella.",
+                 "A lot of rain (50 mm+): a very rainy day; water can "
+                 "collect on roads.",
+                 "Each is the total over the whole day, averaged over the "
+                 "square.",
                  "1-10 runs", "41-50 runs", "All 51 runs",
                  "White: no forecast for this spot",
                  "Beige: land outside India, not forecast",
@@ -5719,11 +5742,12 @@ HOWTOREAD = ROOT / "web" / "src" / "HowToRead.jsx"
 # these: that is the point of moving them.
 HOW_TO_READ_HOLDS = (
     "Each day runs from 5:30 am to 5:30 am the next morning, IST.",
-    "Enough to leave the ground damp.",
-    "A proper shower: you would want an umbrella.",
-    "A very rainy day: water can collect on roads.",
-    "This is the total over the whole day, averaged over the square, so it "
-    "can be one short burst or hours of drizzle.",
+    # SPEC 11.40: the four lines, in the words "What does mm mean?" opens
+    # under the pills. One component draws them in both places.
+    "Some rain (1 mm+): enough to leave the ground damp.",
+    "A rainy day (10 mm+): a proper shower; you would want an umbrella.",
+    "A lot of rain (50 mm+): a very rainy day; water can collect on roads.",
+    "Each is the total over the whole day, averaged over the square.",
     "One square is 0.25 degrees, about 28 km across.",
     "It is not a probability.",
     "White: no forecast for this spot",
@@ -5750,31 +5774,36 @@ def test_how_to_read_this_map_holds_what_the_spec_says_it_holds(
     for nickname, mm in (("Some rain", 1), ("A rainy day", 10),
                          ("A lot of rain", 50)):
         assert nickname in text, nickname
-        assert f"{mm} mm or more" in text, mm
+        assert f"{nickname} ({mm} mm+)" in text, mm
 
 
 def test_the_amount_words_are_ours_and_are_written_down():
-    """SPEC 11.39. Everyday words, in the page and in the specification.
+    """SPEC 11.39, moved by 11.40. Our words, in the code and in the spec.
 
     One of the three could not be written as it was asked for. "Enough to
     wet the ground" says it best in English and "wet" is on 11.20's list,
     which is there because "a wet day" forecasts what a day will be like
     and this site does not do that. "Damp" says the same thing about the
     ground and claims nothing about the day.
+
+    The words are in Controls.jsx now, beside the nicknames they explain,
+    because the same four lines are drawn under the amount pills as well
+    as on the page.
     """
-    said = HOWTOREAD.read_text("utf-8")
+    said = (ROOT / "web" / "src" / "Controls.jsx").read_text("utf-8")
+    page = HOWTOREAD.read_text("utf-8")
     spec = (ROOT / "SPEC.md").read_text("utf-8")
     section = spec.split("### 11.39")[1].split("## The hand checks")[0]
-    for words in ("Enough to leave the ground damp.",
-                  "A proper shower: you would want an umbrella.",
-                  "A very rainy day: water can collect on roads."):
+    for words in ("enough to leave the ground damp.",
+                  "a proper shower; you would want an umbrella.",
+                  "a very rainy day; water can collect on roads."):
         assert words in said, words
         assert words in section, words
     # The specification says why the first one is not the obvious English.
     assert "wet" in section.lower()
     # The millimetres are the rule and the words are not.
-    assert "not an official category" in said.lower()
-    assert "millimetres are the rule" in said
+    assert "not an official category" in page.lower()
+    assert "millimetres are the rule" in page
 
 
 def test_the_fourth_page_is_a_real_path_with_its_own_tab():
@@ -6506,21 +6535,22 @@ def test_the_amount_pills_are_two_lines_and_share_the_row(viewport, size):
 @needs_node
 @pytest.mark.parametrize("size", ["390x664", "320x568", "1440x900"])
 def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
-    """SPEC 11.39, item 5. On its own line, at the end of it, no divider.
+    """SPEC 11.39 item 5, remade by 11.40. On its own line, at the end.
 
-    It lands on the amounts rather than at the top of the page, because a
-    reader who asks what a millimetre of rain is wants the three
-    sentences and not the whole of How to read this map.
+    A reader who asks what a millimetre of rain is wants three
+    sentences, and was given a page: the link took them off the forecast
+    to a document that opens with its own heading, and on a phone the
+    three sentences were below the fold of a page they had not asked
+    for. It opens under the pills now.
     """
     seen = viewport["phone"][size]["first"]
-    assert seen["mmlink"], "the link is not there"
-    assert seen["mmHref"] == "/how-to-read#amounts", seen["mmHref"]
+    assert seen["mmwhat"], "the handle is not there"
     # Under the pills, and not beside them.
-    assert seen["mmlink"]["top"] >= seen["amountRow"]["bottom"] - 1, (
-        seen["mmlink"], seen["amountRow"])
+    assert seen["mmwhat"]["top"] >= seen["amountRow"]["bottom"] - 1, (
+        seen["mmwhat"], seen["amountRow"])
     # At the end of the line, within a few pixels of the pills' own edge.
-    assert abs(seen["mmlink"]["right"] - seen["amountRow"]["right"]) <= 6, (
-        seen["mmlink"], seen["amountRow"])
+    assert abs(seen["mmwhat"]["right"] - seen["amountRow"]["right"]) <= 6, (
+        seen["mmwhat"], seen["amountRow"])
     # It is a link to a real page, and that page has that anchor.
     page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
     assert '<h2 id="amounts">How much rain</h2>' in page
@@ -6528,10 +6558,75 @@ def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
     assert "path: '/how-to-read'," in nav
     # And nothing is drawn between the pills and the link.
     css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
-    rule = css.split("\n.mmlink {")[1].split("}")[0]
+    rule = css.split("\n.mmwhat {")[1].split("}")[0]
     assert "border" not in rule, rule
     assert "text-align: right;" in rule
 
+    # SPEC 11.40. It is a disclosure, not a link: shut as the page opens,
+    # open on one tap, shut again on a second, and nothing navigates.
+    page = viewport["phone"][size]
+    assert page["first"]["mmOpen"] is False, size
+    assert page["first"]["mmLinks"] == 0, "there is a link in it"
+    assert page["first"]["mmSummary"]["height"] >= 43.5, (
+        size, page["first"]["mmSummary"])
+    shown = page["mmShown"]
+    assert shown["mmOpen"] is True, size
+    assert shown["path"] == "/", shown["path"]
+    # The four lines, in our own words, with the millimetres in every one.
+    assert shown["mmLines"] == [
+        "Some rain (1 mm+): enough to leave the ground damp.",
+        "A rainy day (10 mm+): a proper shower; you would want an "
+        "umbrella.",
+        "A lot of rain (50 mm+): a very rainy day; water can collect on "
+        "roads.",
+        "Each is the total over the whole day, averaged over the square.",
+    ], shown["mmLines"]
+    # They are under the amount pills and above the map on a phone, which
+    # is where the question was asked.
+    assert shown["mmwhat"]["top"] >= shown["amountRow"]["bottom"] - 1, (
+        shown["mmwhat"], shown["amountRow"])
+    # And a second tap shuts it, with the page where it was.
+    assert page["mmHidden"]["mmOpen"] is False, size
+    assert page["mmHidden"]["path"] == "/", page["mmHidden"]["path"]
+
+
+@needs_node
+def test_the_amount_words_are_the_same_four_lines_in_both_places(
+        forecast_words):
+    """SPEC 11.40. One component under the pills and on the page.
+
+    The three sentences were on the How to read this map page and the
+    pills linked to them. They open under the pills now, and the page
+    keeps the same words -- which is only true by construction if there
+    is one copy of them, so there is: `AmountWords` in Controls.jsx,
+    drawn in both places, reading one table of words.
+    """
+    controls = (ROOT / "web" / "src" / "Controls.jsx").read_text("utf-8")
+    assert "export const AMOUNT_WORDS = {" in controls
+    assert "export const WHOLE_DAY = " in controls
+    assert "export function AmountWords()" in controls
+    page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
+    assert "<AmountWords />" in page
+    assert "AMOUNT_WORDS" not in page, "the page has its own copy"
+
+    # And in the rendered page the four lines appear wherever the pills
+    # or the page are drawn, in those words.
+    lines = [
+        "Some rain (1 mm+): enough to leave the ground damp.",
+        "A rainy day (10 mm+): a proper shower; you would want an umbrella.",
+        "A lot of rain (50 mm+): a very rainy day; water can collect on "
+        "roads.",
+        "Each is the total over the whole day, averaged over the square.",
+    ]
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or "amountwords" not in html:
+            continue
+        text = " ".join(words_of(html).split())
+        for line in lines:
+            assert line in text, (line, text[:200])
+        seen += 1
+    assert seen >= 2, seen
 
 
 # ----------------------- SPEC 11.39: choosing a place brings the card up
@@ -6694,7 +6789,7 @@ def test_the_sweep_covers_the_header_and_the_menu(forecast_words):
                  "Not an official warning.", "For alerts:",
                  "How many of the 51 runs bring rain?", "Back to map",
                  "Will it rain where you are?",
-                 "Enough to leave the ground damp.",
+                 "enough to leave the ground damp.",
                  "hours old; a newer one has not arrived yet."):
         assert must in every, must
 # ------------------------------ SPEC 11.40: the fixes after the rebuild

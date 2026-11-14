@@ -20,28 +20,14 @@
 import {
   CLASSES, GUESSES, MEMBERS, NEIGHBOURS, notProbability,
 } from './palette';
-import { AMOUNTS, STARTS_TOMORROW } from './Controls';
+import { AmountWords, STARTS_TOMORROW } from './Controls';
 import { KeyRows } from './Legend';
 
-/**
- * This site's own words for the three amounts. SPEC 11.39.
- *
- * Everyday English, written down here and in the specification and nowhere
- * else. They are nobody's official categories -- in particular not IMD's,
- * whose "heavy rain" names a band this site does not measure -- and the
- * millimetres are beside every one of them, always.
- *
- * The first of them was "enough to wet the ground" in the brief and could
- * not be: "wet" is on the forbidden list of 11.20, which is there because
- * "a wet day" is a forecast of what the day will be like and this site does
- * not make one. "Damp" says the same thing about the ground and claims
- * nothing about the day.
- */
-export const AMOUNT_WORDS = {
-  1: 'Enough to leave the ground damp.',
-  10: 'A proper shower: you would want an umbrella.',
-  50: 'A very rainy day: water can collect on roads.',
-};
+/* SPEC 11.40. The three amounts in our own words are in Controls.jsx
+   now, next to the nicknames they explain, and the four lines are one
+   component drawn in two places: here, and under the amount pills, where
+   "What does mm mean?" opens them in place. Two copies of three
+   sentences are three sentences to keep in step. */
 
 export default function HowToRead() {
   return (
@@ -80,23 +66,15 @@ export default function HowToRead() {
       </p>
 
       <h2 id="amounts">How much rain</h2>
-      <ul className="amountwords">
-        {AMOUNTS.map((amount) => (
-          <li key={amount.mm}>
-            <strong>{amount.nickname}</strong>
-            <span className="mmtag">{amount.mm} mm or more</span>
-            <span className="meaning">{AMOUNT_WORDS[amount.mm]}</span>
-          </li>
-        ))}
-      </ul>
+      <AmountWords />
       <p>
         Those are our own everyday words and not an official category. The
         millimetres are the rule; the words are only there to make a number
         mean something.
       </p>
       <p>
-        This is the total over the whole day, averaged over the square, so it
-        can be one short burst or hours of drizzle.
+        A whole day&apos;s total can be one short burst or hours of drizzle:
+        the number does not say which.
       </p>
 
       <h2>The colours</h2>

@@ -178,8 +178,7 @@ export function forecastWords(answers) {
   }
   [1, 10, 50].forEach((threshold) => {
     out.push(renderToStaticMarkup(
-      <ThresholdChoice threshold={threshold} onThreshold={nothing}
-      onGo={nothing} />));
+      <ThresholdChoice threshold={threshold} onThreshold={nothing} />));
     // SPEC 11.39. The colour key, shut and open, for all three amounts.
     out.push(renderToStaticMarkup(
       <MapKey threshold={threshold} open={false} onToggle={nothing} />));

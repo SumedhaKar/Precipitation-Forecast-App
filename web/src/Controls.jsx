@@ -10,7 +10,6 @@ import {
   townsIn,
 } from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
-import { HowToReadLink } from './TopNav';
 import { Pin } from './Icons';
 import {
   dayDate, dayName, dayWord, istToday, startsTomorrow,
@@ -106,7 +105,58 @@ export const AMOUNTS = [
   { mm: 50, nickname: 'A lot of rain' },
 ];
 
-export function ThresholdChoice({ threshold, onThreshold, onGo }) {
+/**
+ * This site's own words for the three amounts. SPEC 11.39, moved by 11.40.
+ *
+ * Everyday English, written down here and in the specification and nowhere
+ * else. They are nobody's official categories -- in particular not IMD's,
+ * whose "heavy rain" names a band this site does not measure -- and the
+ * millimetres are beside every one of them, always.
+ *
+ * The first of them was "enough to wet the ground" in the brief and could
+ * not be: "wet" is on the forbidden list of 11.20, which is there because
+ * "a wet day" is a forecast of what the day will be like and this site
+ * does not make one. "Damp" says the same thing about the ground and
+ * claims nothing about the day.
+ *
+ * They were on the How to read this map page and are here now, beside the
+ * nicknames they explain, because the answer opens under the pills as well
+ * as appearing on that page and the two may not drift apart.
+ */
+export const AMOUNT_WORDS = {
+  1: 'enough to leave the ground damp.',
+  10: 'a proper shower; you would want an umbrella.',
+  50: 'a very rainy day; water can collect on roads.',
+};
+
+/** The one thing true of all three: what is added up, and over what. */
+export const WHOLE_DAY = 'Each is the total over the whole day, averaged '
+  + 'over the square.';
+
+/**
+ * The four lines that answer "What does mm mean?". SPEC 11.40.
+ *
+ * One component, drawn under the amount pills and on the How to read this
+ * map page, so a reader who opens it under the pills and a reader who
+ * reads the page are given the same words.
+ */
+export function AmountWords() {
+  return (
+    <ul className="amountwords">
+      {AMOUNTS.map((amount) => (
+        <li key={amount.mm}>
+          <strong>
+            {amount.nickname} ({amount.mm} mm+):
+          </strong>{' '}
+          <span className="meaning">{AMOUNT_WORDS[amount.mm]}</span>
+        </li>
+      ))}
+      <li className="wholeday">{WHOLE_DAY}</li>
+    </ul>
+  );
+}
+
+export function ThresholdChoice({ threshold, onThreshold }) {
   return (
     <div className="group amounts">
       <span className="grouplabel" id="amountlabel">How much rain?</span>
@@ -126,20 +176,27 @@ export function ThresholdChoice({ threshold, onThreshold, onGo }) {
           </button>
         ))}
       </div>
-      {/* SPEC 11.39. "10 mm of rain is water 1 cm deep if none of it ran
-          away" was true, and it was a sentence under a control. What 10 mm
-          is like is on the How to read this map page, in everyday words,
-          and this is the link to exactly that part of it.
+      {/* SPEC 11.40. The question is answered where it is asked.
+
+          It was a link to the How to read this map page, which took a
+          reader off the forecast to read three lines and left them to
+          find their way back -- and on a phone the page it landed on
+          opens with the map, so the answer was below the fold of a page
+          the reader had not asked for.
+
+          A real <details>: it opens under the pills, it shuts on a second
+          tap, nothing navigates, and the page it used to point at keeps
+          the same four lines in the same words. The lines are in the page
+          either way, so the forbidden-word sweep reads them whether or
+          not a reader has opened them.
 
           On its own line under the pills, at the end of it, with no rule
-          above it and no icon beside it: a reader who wants the question
-          answered will find it, and the three pills keep the whole width
-          between them. */}
-      <p className="mmlink">
-        <HowToReadLink onGo={onGo} to="/how-to-read#amounts">
-          What does mm mean?
-        </HowToReadLink>
-      </p>
+          above it and no icon beside it: the three pills keep the whole
+          width between them. */}
+      <details className="mmwhat">
+        <summary>What does mm mean?</summary>
+        <AmountWords />
+      </details>
     </div>
   );
 }

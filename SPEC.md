@@ -5902,18 +5902,20 @@ report card and How we checked, and it holds:
   published window, which is not the calendar day.
 - What one square is: 0.25 degrees, about 28 km, and the smallest place
   this site can answer about.
-- The three amounts, in this site's own everyday words, at `#amounts`,
-  which is where "What does mm mean?" lands.
-- "This is the total over the whole day, averaged over the square, so it
-  can be one short burst or hours of drizzle."
+- The three amounts, in this site's own everyday words, at `#amounts`.
+- What a whole day's total can be: one short burst or hours of drizzle.
 - The full colour ranges, as the nine rows below.
 - "It is not a probability", with the sentence of 11.21.
 
-| amount | our words |
+The three amounts, as 11.40 leaves them — four lines, drawn here and
+under the amount pills by one component, `AmountWords` in `Controls.jsx`:
+
+| line | |
 |---|---|
-| 1 mm or more | Enough to leave the ground damp. |
-| 10 mm or more | A proper shower: you would want an umbrella. |
-| 50 mm or more | A very rainy day: water can collect on roads. |
+| 1 | Some rain (1 mm+): enough to leave the ground damp. |
+| 2 | A rainy day (10 mm+): a proper shower; you would want an umbrella. |
+| 3 | A lot of rain (50 mm+): a very rainy day; water can collect on roads. |
+| 4 | Each is the total over the whole day, averaged over the square. |
 
 The first of those was "enough to wet the ground" as it was asked for, and
 could not be: "wet" is on the forbidden list of 11.20, and that list is
@@ -6274,6 +6276,21 @@ page to what a day is called. It is driven directly against the dates a
 reader can have, and the page is measured at every width: where the first
 pill reads "Tomorrow" the note is there, and where it does not the note is
 not in the page at all.
+
+#### "What does mm mean?" is answered where it is asked
+
+It was a link to `/how-to-read#amounts`. A reader who wants to know what a
+millimetre of rain is wants three sentences, and was given a page: the
+forecast went away, a document opened with its own heading, and on a phone
+the three sentences were below the fold of a page nobody had asked for.
+
+It is a `<details>` under the amount pills now. One tap opens the four
+lines of the table above in place, a second shuts them, nothing navigates,
+and the How to read this map page keeps the same words because both draw
+the same component. The lines are in the page whether or not they are
+open, so the forbidden-word sweep reads them either way; the handle stays
+at the end of its own line under the pills, 44 pixels tall, and the lines
+it opens read from the left like every other sentence.
 
 #### What the 51 are, said once
 
