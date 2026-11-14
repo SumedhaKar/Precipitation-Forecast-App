@@ -174,8 +174,9 @@ Both layouts are one grid in two orders, in `web/src/styles.css`. Below 1024
 pixels it is a single column, in the order a thumb reads it: the site name,
 the search row, the map, the colour key, then the day and amount questions
 and the card of numbers. The four pages are reached through a **Menu**
-button, and the narrow rules at 560 and at 360 pixels take the padding in
-rather than dropping anything. At 1024 pixels and over the three questions
+button; at 560 pixels and under the header goes to two rows, with the
+freshness line on its own, and at 360 and under the padding around the page
+links comes in. Nothing is dropped at either width. At 1024 pixels and over the three questions
 sit in one row above two columns — the map on the left, a 380-pixel panel on
 the right — inside a centred column of at most 1280 pixels, and the map card
 stays in view while the page scrolls past it. At 1280 and over the colour key
