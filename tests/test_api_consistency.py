@@ -7183,9 +7183,13 @@ def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
         # after them, because the three questions are one row there.
         assert seen["mmwhat"]["top"] < seen["amountRow"]["bottom"], (
             seen["mmwhat"], seen["amountRow"])
-    # It is a link to a real page, and that page has that anchor.
+    # SPEC 11.41. It is not a link to anything, and the page it used to
+    # point at no longer has an anchor for it to land on: the same four
+    # lines are in the fine print of How to read this map, which is
+    # written for a reader who went there to read the page.
     page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
-    assert '<h2 id="amounts">How much rain</h2>' in page
+    assert 'id="amounts"' not in page
+    assert "<h3>How much rain</h3>" in page
     nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
     assert "path: '/how-to-read'," in nav
     # And nothing is drawn between the pills and the link.
