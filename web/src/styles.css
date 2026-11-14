@@ -1707,6 +1707,33 @@ footer p { max-width: 70ch; }
 
 .lead { font-size: 1.05rem; }
 
+/* SPEC 11.41. The four sentences at the top of the report card, and the
+   heading over everything that was there before them. Navy, which is the
+   site's own --picked, and a little larger than the text under it: two
+   signposts on a long page, in the one colour this site emphasises
+   with. */
+.tldrhead {
+  font-size: 1.2rem;
+  color: var(--picked);
+  margin: 1.2rem 0 0.5rem;
+}
+
+.page h1 + .tldr .tldrhead { margin-top: 0.6rem; }
+
+.tldr p {
+  max-width: 42rem;
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+/* SPEC 11.41. The one line at the top of How we checked, which says who
+   the page is written for. Quiet, because it is not the page. */
+.forexperts {
+  margin: 0.4rem 0 1rem;
+  font-size: 0.95rem;
+  color: var(--quiet);
+}
+
 .cardsec {
   margin: 1.6rem 0;
   padding-top: 1rem;

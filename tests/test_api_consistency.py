@@ -3790,6 +3790,117 @@ def test_the_maps_draw_one_rectangle_per_cell(pages, rendered):
 
 
 @needs_node
+def test_the_report_card_opens_with_four_sentences_and_the_files_numbers(
+        pages, rendered):
+    """SPEC 11.41. TL;DR, then The full details.
+
+    The page's one plain line about the whole record was under the
+    period, the sixty labels, the skill plot and twelve reliability
+    bands, and the readers who were asked to use this site never reached
+    it. The answer to "can I believe this?" is four sentences at the top
+    now, and every number in them is counted from summary.json by
+    `tldr` rather than written into the page.
+
+    Both are checked: the function against the file, and the rendered
+    page against the function.
+    """
+    said = pages([["tldr", "summary"]])[0]
+
+    # The numbers, worked out here from the same file the function reads.
+    bundled = summary_file()
+    groups = bundled["groups"]
+    runs = max(group["conditions"]["enough_data"]["dates"]
+               for group in groups)
+    beat = len([group for group in groups
+                if group["conditions"]["skill_above_zero"]["pass"]])
+    confident = len([group for group in groups
+                     if not group["conditions"]["small_honesty_error"]
+                     ["pass"]])
+    labels = {group["label"] for group in groups}
+    assert said["runs"] == runs, (said["runs"], runs)
+    assert said["total"] == len(groups) == 60, said["total"]
+    assert said["beat"] == beat, (said["beat"], beat)
+    assert said["confident"] == confident, (said["confident"], confident)
+    # The period is quoted out of the file's own period line, so the
+    # dates in the four sentences are the dates under the heading.
+    assert said["period"] and said["period"] in bundled["period"], (
+        said["period"], bundled["period"])
+
+    # Four sentences, and what each of them has to say.
+    four = said["sentences"]
+    assert len(four) == 4, four
+    assert four[0] == (f"We saved {runs} old forecasts from "
+                       f"{said['period']}, and checked each one against "
+                       "what satellites saw afterwards."), four[0]
+    assert f"{beat} of the 60" in four[1], four[1]
+    # "everywhere" is only allowed while every label really is the one
+    # label: the sentence counts them rather than claiming it.
+    if labels == {"Treat as a rough guide"}:
+        assert "worked as a rough guide everywhere: all 60 labels say so" \
+            in four[1], four[1]
+    else:
+        assert "everywhere" not in four[1], (labels, four[1])
+    if confident == len(groups):
+        assert four[2] == ("But when most of the 51 runs agreed on rain, "
+                           "the satellite saw rain less often than they "
+                           "suggested."), four[2]
+    assert four[3] == ("So treat them as a helpful hint, not a "
+                       "promise."), four[3]
+
+    # And the page itself: the heading, the four sentences in order, and
+    # the second heading above everything that was there before.
+    html = rendered["pages"]["report_card"]
+    text = words_of(html)
+    assert "TL;DR" in text, text[:200]
+    at = text.index("TL;DR")
+    # Nothing but the page's own title is above it.
+    assert words_of(html[:html.index("TL;DR")]).strip() == (
+        "The report card"), words_of(html[:html.index("TL;DR")])
+    for sentence in four:
+        where = text.index(sentence, at)
+        at = where
+    full = text.index("The full details")
+    assert full > at, (full, at)
+    # The period line, the sixty labels and the skill plot are all under
+    # it: that is what "the full details" names.
+    assert text.index(bundled["period"]) > full
+    assert text.index("All 60 labels") > full
+    # Both headings are the one style, in the site's navy.
+    assert '<h2 class="tldrhead">TL;DR</h2>' in html
+    assert '<h2 class="tldrhead">The full details</h2>' in html
+
+
+@needs_node
+def test_how_we_checked_says_who_it_is_for_before_the_method(rendered):
+    """SPEC 11.41. One line at the top, and the way to the plain version.
+
+    This is the hardest page on the site -- Brier skill, a bootstrap, a
+    reference climatology, a decomposition -- and the menu offered it to
+    a first-time visitor with nothing to say what it was. The report card
+    answers the same question in four sentences, so the line says so and
+    links to it.
+    """
+    html = rendered["pages"]["how_we_checked"]
+    text = words_of(html)
+    # The link's own tag becomes a space in `words_of`, so the full stop
+    # after it is read with a space in front of it: the sentence is
+    # checked up to the link, and the link itself just below.
+    said = ("For experts: the method and the numbers behind the report "
+            "card. For the plain version, see the Report card")
+    assert said in text, text[:300]
+    # At the top: above the method, and with nothing but the page's own
+    # heading above it.
+    assert text.index(said) < text.index("The method"), text[:300]
+    assert words_of(html[:html.index("For experts")]).strip() == (
+        "How we checked"), words_of(html[:html.index("For experts")])
+    # The link is a real path this site answers, and it is the one the
+    # words name. The nav of that page is rendered in the same fixture,
+    # which is how the path is known to exist.
+    assert '<a href="/report-card">Report card</a>' in html
+    assert "/report-card" in rendered["pages"]["nav"]["/report-card"]
+
+
+@needs_node
 def test_the_period_sentence_is_on_both_pages(rendered):
     """SPEC 5.11: everything that shows the record shows the period."""
     period = summary_file()["period"]

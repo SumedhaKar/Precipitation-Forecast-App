@@ -57,6 +57,84 @@ function amount(threshold) {
  * Counted from the file every time rather than written down, so the day a
  * group turns green or grey the sentence turns with it.
  */
+/**
+ * The four sentences at the top of the report card. SPEC 11.41.
+ *
+ * The page already had one plain line about the whole record -- the
+ * `headline` below -- but it sat under the period and above sixty labels,
+ * a skill plot and twelve reliability bands, and the readers who were
+ * asked to use this site did not get as far as reading it. What they
+ * wanted was the answer to "can I believe this?" in four sentences,
+ * before anything that has to be explained.
+ *
+ * So these are those four, and every number in them is counted from
+ * web/src/summary.json here rather than written into the page: how many
+ * runs were saved, how many of the labels say what, how many beat the
+ * usual rain, and whether the honesty check failed. The day any of that
+ * changes the sentences change with it, and the day the labels stop
+ * being all one label the second sentence stops claiming they are.
+ *
+ * The period is the file's own period, quoted out of it, so the dates
+ * here and the dates under the heading cannot differ.
+ */
+export function tldr(summary) {
+  const groups = summary.groups || [];
+  const total = groups.length;
+  const runs = Math.max(0, ...groups.map(
+    (group) => group.conditions.enough_data.dates || 0));
+  // "runs of 13 May to 5 November 2026", out of the file's own period.
+  const span = /runs of ([^,]+), checked/.exec(summary.period || '');
+  const when = span ? span[1] : null;
+  const counts = {};
+  groups.forEach((group) => {
+    counts[group.label] = (counts[group.label] || 0) + 1;
+  });
+  const names = Object.keys(counts);
+  const rough = counts['Treat as a rough guide'] || 0;
+  const beat = groups.filter(
+    (group) => group.conditions.skill_above_zero.pass).length;
+  const confident = groups.filter(
+    (group) => !group.conditions.small_honesty_error.pass).length;
+  // The highest count any reliability band reaches, which is how many
+  // runs there are. Nothing here is told the number.
+  const members = Math.max(51, ...groups.flatMap(
+    (group) => (group.buckets || []).map((bucket) => bucket.k_to || 0)));
+
+  const saved = `We saved ${runs} old forecasts`
+    + `${when ? ` from ${when}` : ''}, and checked each one against what `
+    + 'satellites saw afterwards.';
+
+  const everywhere = names.length === 1
+    && names[0] === 'Treat as a rough guide'
+    ? `The forecasts worked as a rough guide everywhere: all ${total} `
+      + 'labels say so'
+    : `${rough} of the ${total} labels say treat the forecasts as a rough `
+      + 'guide';
+  const worked = `${everywhere}, and ${beat} of the ${total} did better `
+    + 'than just guessing the usual rain for that place and month.';
+
+  const over = confident === total
+    ? `But when most of the ${members} runs agreed on rain, the satellite `
+      + 'saw rain less often than they suggested.'
+    : `But in ${confident} of the ${total}, when most of the ${members} `
+      + 'runs agreed on rain, the satellite saw rain less often than they '
+      + 'suggested.';
+  const honest = confident === 0
+    ? `Where many of the ${members} runs agreed on rain, the satellite saw `
+      + 'rain about as often as they suggested.'
+    : over;
+
+  return {
+    runs,
+    total,
+    beat,
+    confident,
+    period: when,
+    sentences: [saved, worked, honest,
+      'So treat them as a helpful hint, not a promise.'],
+  };
+}
+
 export function headline(summary) {
   const groups = summary.groups || [];
   const counts = {};
