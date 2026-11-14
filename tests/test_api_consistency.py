@@ -3812,14 +3812,14 @@ def test_the_maps_draw_one_rectangle_per_cell(pages, rendered):
 
 
 @needs_node
-def test_the_report_card_opens_with_four_sentences_and_the_files_numbers(
+def test_the_report_card_opens_with_five_sentences_and_the_files_numbers(
         pages, rendered):
     """SPEC 11.41. TL;DR, then The full details.
 
     The page's one plain line about the whole record was under the
     period, the sixty labels, the skill plot and twelve reliability
     bands, and the readers who were asked to use this site never reached
-    it. The answer to "can I believe this?" is four sentences at the top
+    it. The answer to "can I believe this?" is five sentences at the top
     now, and every number in them is counted from summary.json by
     `tldr` rather than written into the page.
 
@@ -3838,38 +3838,49 @@ def test_the_report_card_opens_with_four_sentences_and_the_files_numbers(
     confident = len([group for group in groups
                      if not group["conditions"]["small_honesty_error"]
                      ["pass"]])
-    labels = {group["label"] for group in groups}
     assert said["runs"] == runs, (said["runs"], runs)
     assert said["total"] == len(groups) == 60, said["total"]
     assert said["beat"] == beat, (said["beat"], beat)
+    assert said["missed"] == len(groups) - beat, said["missed"]
     assert said["confident"] == confident, (said["confident"], confident)
     # The period is quoted out of the file's own period line, so the
     # dates in the four sentences are the dates under the heading.
     assert said["period"] and said["period"] in bundled["period"], (
         said["period"], bundled["period"])
 
-    # Four sentences, and what each of them has to say.
-    four = said["sentences"]
-    assert len(four) == 4, four
-    assert four[0] == (f"We saved {runs} old forecasts from "
-                       f"{said['period']}, and checked each one against "
-                       "what satellites saw afterwards."), four[0]
-    assert f"{beat} of the 60" in four[1], four[1]
-    # "everywhere" is only allowed while every label really is the one
-    # label: the sentence counts them rather than claiming it.
-    if labels == {"Treat as a rough guide"}:
-        assert "worked as a rough guide everywhere: all 60 labels say so" \
-            in four[1], four[1]
-    else:
-        assert "everywhere" not in four[1], (labels, four[1])
+    # Five sentences, and what each of them has to say.
+    five = said["sentences"]
+    assert len(five) == 5, five
+    assert five[0] == (f"We saved {runs} past forecasts from "
+                       f"{said['period']} and checked each one against the "
+                       "satellite estimate of the rain that fell."), five[0]
+    assert five[1] == (f"We sorted them into {len(groups)} groups, by "
+                       "region, days ahead and rain amount."), five[1]
+    # "did better" is the whole bootstrap range above zero, not a point
+    # estimate above zero: `skill_above_zero` is `bss_lo > 0`. So a group
+    # that did not pass is one where it could not be shown either way,
+    # and the sentence has to say that and not "did worse" -- 21 of the
+    # 40 have a positive score with a range that includes zero.
+    missed = [group for group in groups
+              if not group["conditions"]["skill_above_zero"]["pass"]]
+    assert all((group["bss_lo"] or 0) > 0 for group in groups
+               if group["conditions"]["skill_above_zero"]["pass"])
+    assert sum(1 for group in missed
+               if (group["bss"] or 0) > 0 and (group["bss_lo"] or 0) <= 0) > 0
+    if beat and len(missed):
+        assert five[2] == (f"In {beat} groups the counts did better than "
+                           "the usual rain for that place and month; in "
+                           f"the other {len(missed)} we could not show "
+                           "they were better."), five[2]
     if confident == len(groups):
-        assert four[2] == ("But when most of the 51 runs agreed on rain, "
-                           "the satellite saw rain less often than they "
-                           "suggested."), four[2]
-    assert four[3] == ("So treat them as a helpful hint, not a "
-                       "promise."), four[3]
+        assert five[3] == (f"And in all {len(groups)}, when most of the 51 "
+                           "runs agreed on rain, rain was seen less often "
+                           "than that."), five[3]
+    assert five[4] == ("So treat the counts as a helpful hint, not a "
+                       "promise."), five[4]
+    four = five
 
-    # And the page itself: the heading, the four sentences in order, and
+    # And the page itself: the heading, the five sentences in order, and
     # the second heading above everything that was there before.
     html = rendered["pages"]["report_card"]
     text = words_of(html)
@@ -4362,8 +4373,8 @@ const LOOK = `(async () => {
       ? document.querySelector('.locate').getAttribute('title') : null,
     ortap: box('.ortap'),
     pillrow: box('.pills'),
-    // SPEC 11.40. The line beside "Which day?", which is drawn only on
-    // the mornings when the five days do not include today.
+    // SPEC 11.40. The line beside "Which day?", which is drawn only
+    // where the five days do not include today.
     startsNote: (document.querySelector('.startsnote') || {})
       .textContent || null,
     days: box('.days'),
@@ -4991,8 +5002,8 @@ try {
     out.phone[key] = here;
   }
 
-  // SPEC 11.41. The note beside "Which day?" is drawn only on the
-  // mornings when the five days do not include today, and that is a fact
+  // SPEC 11.41. The note beside "Which day?" is drawn only where the
+  // five days do not include today, and that is a fact
   // about the reader's own clock -- so the only way to measure it is to
   // set the clock. The page is opened twice with the visitor's own Date
   // replaced: once on the first forecast day, where the first pill reads
@@ -6162,12 +6173,15 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "What does mm mean?", "or tap the map",
                  "Beige: land outside India, not forecast",
                  "Today", "Tomorrow",
-                 # SPEC 11.40: the line beside "Which day?" on the
-                 # mornings when the five days do not include today, and
-                 # the section of How to read this map that explains it.
+                 # SPEC 11.40: the line beside "Which day?" where the
+                 # five days do not include today, and the section of How
+                 # to read this map that explains it.
                  "(starts tomorrow, because today is already under way "
                  "when the forecast arrives)",
-                 "Why the days start tomorrow",
+                 "Why the first day is usually tomorrow",
+                 "In the morning, before the day's run is published, the "
+                 "site is still showing yesterday's run, and that one's "
+                 "first day is today",
                  # SPEC 11.41: How to read this map, rewritten for
                  # somebody who has never seen the site before.
                  "Hello, first-time visitor!",
@@ -6430,7 +6444,8 @@ def test_how_to_read_starts_with_hello_and_answers_six_questions(
     Every tester said the same thing about this site: they could not see
     where to start. The page that was supposed to help them was written in
     the specification's own order -- one square, one day, the mornings
-    when the days start tomorrow -- which is the order for somebody who
+    why the first day is usually tomorrow -- which is the order for
+    somebody who
     already knows what a square is.
 
     So: six short answers in the order the questions were asked, a line
@@ -7855,9 +7870,11 @@ def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
                                                                viewport):
     """SPEC 11.40. The five days start tomorrow, and only then is it said.
 
-    Between midnight IST and the run arriving around midday, the newest
-    run's first day begins tomorrow morning and the day the reader is in
-    is not one of the five. Five date pills cannot say that.
+    The run published around midday has tomorrow as its first day, because
+    today is already under way by the time it arrives, so from then on the
+    day the reader is in is not one of the five. Five date pills cannot say
+    that. (In the morning, before the publish, the site is still showing
+    the day before's run, whose first day is today.)
 
     The rule is driven directly, on the dates a reader can really have,
     and then the page is measured: wherever the first pill reads

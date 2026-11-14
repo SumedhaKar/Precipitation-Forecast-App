@@ -53,11 +53,12 @@ export function dayName(fromIst, todayYmd, shortIst = null) {
 /**
  * Do the five days start tomorrow? SPEC 11.40.
  *
- * Usually the first of the five is today. It is not between midnight IST
- * and whenever the 00 UTC run has been downloaded, added up and published,
- * which is around midday: until then the newest run on the store is the
- * one whose first day begins tomorrow morning at 5:30, and the day the
- * reader is in is not one of the five at all.
+ * Usually the first of the five is tomorrow. The 00 UTC run is downloaded,
+ * added up and published around midday IST, and its first day begins
+ * tomorrow morning at 5:30, because today is already under way by then --
+ * so from the publish onwards the day the reader is in is not one of the
+ * five at all. In the morning, before it is published, the newest run on
+ * the store is the day before's, whose first day is today.
  *
  * A reader cannot be expected to work that out from five date pills, so
  * the page says it in a line beside the question -- and says it only when

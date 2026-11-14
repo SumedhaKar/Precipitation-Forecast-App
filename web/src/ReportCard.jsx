@@ -31,13 +31,13 @@ function Chip({ label, colour, short }) {
 }
 
 /**
- * The four sentences, before anything that has to be explained.
+ * The five sentences, before anything that has to be explained.
  *
  * SPEC 11.41. The readers who tried this site did not reach the one
  * plain line under the sixty labels. This is the answer to "can I
  * believe this?" at the top of the page, with every number counted from
- * the file by `tldr` -- including whether the second sentence may say
- * "everywhere" at all.
+ * the file by `tldr` -- including which form each sentence takes, so
+ * none of them says "all" or "none" while it is untrue.
  */
 export function Tldr() {
   const said = tldr(summary);

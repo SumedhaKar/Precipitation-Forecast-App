@@ -6311,13 +6311,15 @@ because a `<summary>` cannot otherwise know what to say. The label is
 measured in the browser both ways round, at a phone's width and at a
 desktop's.
 
-#### The mornings when the five days start tomorrow
+#### When the five days start tomorrow
 
 The 00 UTC run has to be downloaded, added up and published before this
-site can show it, which happens around midday IST. Between midnight and
-then, the newest run on the store is the one whose first day begins
-tomorrow morning at 5:30 — so the day a reader is in is not one of the
-five, and five date pills cannot say so.
+site can show it, which happens around midday IST, and its first day
+begins tomorrow morning at 5:30 because today is already under way by
+then. So from the publish onwards the day a reader is in is not one of the
+five, and five date pills cannot say so. In the morning, before the day's
+run is published, the newest run on the store is the day before's, whose
+first day is today, and the first pill reads "Today".
 
 Beside **Which day?**, and only when the first pill really does read
 "Tomorrow":
@@ -6659,7 +6661,7 @@ thing that differs is the clock.
 #### How to read this map, for a first-time visitor
 
 The page was written in this specification's own order -- one square, one
-day, the mornings when the days start tomorrow, the amounts, the colours,
+day, why the first day is usually tomorrow, the amounts, the colours,
 what it is not -- which is the order for a reader who already knows what
 a square is. It now answers, in this order:
 
@@ -6675,7 +6677,8 @@ a square is. It now answers, in this order:
 Then one line telling a reader who is satisfied that they may stop, and
 one shut section, **The fine print**, holding everything technical: what
 a square is and that it is not street level, the 5:30 to 5:30 day, why
-the days start tomorrow, that each amount is a whole day's total averaged
+the first day is usually tomorrow, that each amount is a whole day's
+total averaged
 over the square and does not say whether it fell in one burst, the nine
 colour classes with white and beige, that a count of runs is not a
 promise of rain, and the way on to How we checked for experts.

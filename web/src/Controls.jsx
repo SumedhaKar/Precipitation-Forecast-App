@@ -19,7 +19,7 @@ import {
 const THRESHOLDS = [1, 10, 50];
 
 /**
- * Said beside "Which day?" on the mornings when today is not day one.
+ * Said beside "Which day?" whenever today is not one of the five days.
  *
  * SPEC 11.40, reworded by 11.41. One string, because the How to read this
  * map page explains the same line and quotes it: two copies of a sentence
@@ -67,7 +67,7 @@ export function DayChoice({ days, day, onDay, today, counts, threshold,
     ? counts[entry.lead_day] : null);
   return (
     <div className="group days">
-      {/* SPEC 11.40. The question, and on the mornings when the five days
+      {/* SPEC 11.40. The question, and wherever the five days
           do not include today, why. Five date pills cannot say it: a
           reader who opens the page at 9 am and is given Sun to Thu has no
           way of knowing whether Saturday is missing or wrong. It is drawn

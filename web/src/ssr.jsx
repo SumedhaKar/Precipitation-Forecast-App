@@ -180,10 +180,10 @@ export function forecastWords(answers) {
     });
   }
 
-  // SPEC 11.40. And the morning when the five days start tomorrow, which
-  // none of the twenty-five above can be: the reader's date is the day
-  // before the first of the five, which is the state the note is drawn
-  // in. Without this the sweep would never see those words.
+  // SPEC 11.40. And the state in which the five days start tomorrow,
+  // which none of the twenty-five above can be: the reader's date is the
+  // day before the first of the five, which is where the note is drawn.
+  // Without this the sweep would never see those words.
   if (days.length) {
     const before = new Date(
       Date.parse(`${String(days[0].from_ist).slice(0, 10)}T00:00:00Z`)

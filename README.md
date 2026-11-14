@@ -55,12 +55,13 @@ old browser, no WebGL 2 — the page says so and the rest still works.
 
 ## The track record
 
-We saved 177 old forecasts from 13 May to 5 November 2026, and checked each
-one against what satellites saw afterwards. The forecasts worked as a rough
-guide everywhere: all 60 labels say so, and 20 of the 60 did better than just
-guessing the usual rain for that place and month. But when most of the 51
-runs agreed on rain, the satellite saw rain less often than they suggested.
-So treat them as a helpful hint, not a promise.
+We saved 177 past forecasts from 13 May to 5 November 2026 and checked each
+one against the satellite estimate of the rain that fell. We sorted them into
+60 groups, by region, days ahead and rain amount. In 20 groups the counts did
+better than the usual rain for that place and month; in the other 40 we could
+not show they were better. And in all 60, when most of the 51 runs agreed on
+rain, rain was seen less often than that. So treat the counts as a helpful
+hint, not a promise.
 
 That is the same summary the site's own
 [report card](https://precipitation-forecast-app.vercel.app/report-card)
@@ -165,9 +166,10 @@ was designed and deliberately left unbuilt (see Future work).
 - **1 mm precision since 20 October 2026.** ECMWF changed the storage of its
   open data that day and the member totals arrive more coarsely rounded, so
   counts near a threshold are slightly coarser from then on.
-- **The forecast starts tomorrow.** The 00 UTC run reaches us around midday
-  IST, by which time today is already under way, so the five days begin with
-  tomorrow until the day's run is published.
+- **The first day is usually tomorrow.** The 00 UTC run is published here
+  around midday IST, and its first day is tomorrow, because today is already
+  under way by then. In the morning, before that, the site is still showing
+  the day before's run, whose first day is today.
 - **One place at a time.** One square, one day, one amount: there is no
   "where will it rain most this week" view.
 - **Lakshadweep is not forecast.** Of the 209 squares covering the group, not

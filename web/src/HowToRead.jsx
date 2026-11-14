@@ -8,8 +8,8 @@
 // a reader who wanted the explanation had to open a drawer to find it.
 //
 // So it is a page. But as a page it was still written in the order the
-// specification is written in -- one square, one day, the mornings when the
-// days start tomorrow, the amounts, the colours, what it is not -- which is
+// specification is written in -- one square, one day, why the first day is
+// usually tomorrow, the amounts, the colours, what it is not -- which is
 // the order somebody who already understands the site would choose. The
 // people who tested the site were not that reader. What they said, every
 // one of them, was that they could not see where to start.
@@ -125,15 +125,21 @@ export default function HowToRead() {
           five windows.
         </p>
 
-        <h3>Why the days start tomorrow</h3>
+        <h3>Why the first day is usually tomorrow</h3>
         <p>
           The run is the 00 UTC one, and it has to be downloaded, added up
           and published before this site can show it, which happens around
-          midday IST. Until it arrives, the newest run here is the one
-          whose first day begins tomorrow morning at 5:30 — so the first
-          day button reads &ldquo;Tomorrow&rdquo;, and the day you are in
-          is not one of the five. The page says so beside the question when
-          it happens: <em>{STARTS_TOMORROW}</em>
+          midday IST. Its first day is tomorrow, because today is already
+          under way by the time it arrives — so from the publish
+          onwards the first day button reads &ldquo;Tomorrow&rdquo; and the
+          day you are in is not one of the five. The page says so beside
+          the question when it happens: <em>{STARTS_TOMORROW}</em>
+        </p>
+        <p>
+          In the morning, before the day&apos;s run is published, the site
+          is still showing yesterday&apos;s run, and that one&apos;s first
+          day is today: the first button reads &ldquo;Today&rdquo; and
+          there is no note.
         </p>
 
         <h3>How much rain</h3>
