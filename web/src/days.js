@@ -100,6 +100,20 @@ export function dayDate(shortIst) {
 }
 
 /**
+ * The day and its date, for a sentence: "Today, 15 Nov", "Mon, 16 Nov".
+ *
+ * SPEC 11.40. The headline carries the day now -- the card used to have a
+ * heading, a line saying which day and how much, and a headline, and the
+ * day was in two of the three. It is the pill's own two lines written out
+ * on one, so the sentence and the pill cannot name a day differently.
+ */
+export function dayAndDate(fromIst, todayYmd, shortIst = null) {
+  const word = dayWord(fromIst, todayYmd, shortIst);
+  const date = dayDate(shortIst);
+  return [word, date].filter(Boolean).join(', ') || null;
+}
+
+/**
  * The same name, short enough for one of five buttons on a 390 pixel phone.
  *
  * "Today" and "Tomorrow" are already short. A date is cut to its weekday

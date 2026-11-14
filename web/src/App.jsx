@@ -31,7 +31,7 @@ import { Clock, Logo, Warn } from './Icons';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { countKey } from './palette';
 import { inBox, snap, squareText } from './snap';
-import { nameOfSquare } from './places';
+import { nameOfSquare, placeTitle } from './places';
 import { notFoundNote } from './islands';
 import { OUTSIDE, THE_BOX, mapProblem } from './messages';
 import { keepAnswer } from './answers';
@@ -572,7 +572,6 @@ export default function App({ health, healthError, onGo }) {
 
   const located = useCallback((lat, lon) => {
     const here = snap(lat, lon);
-    const name = nameOfSquare(here.lat, here.lon);
     // SPEC 11.28: the square, never the fix, and a name only when the square
     // is exactly that town's own square.
     //
@@ -581,8 +580,11 @@ export default function App({ health, healthError, onGo }) {
     // once, in the panel. It used to be written by this control as well as
     // by the panel, so it appeared twice, and the control's copy stayed on
     // screen after the reader had gone on to search for somewhere else.
-    show(lat, lon, 'location',
-      squareText(here.lat, here.lon) + (name ? ` (${name})` : ''));
+    // SPEC 11.40: the box shows the name of the square, which is what
+    // the card's heading says too. It used to show "22.75 N 88.25 E
+    // (Kolkata)" -- a grid reference in the box a reader types city names
+    // into, with the name they would have typed in brackets after it.
+    show(lat, lon, 'location', placeTitle(here.lat, here.lon));
   }, [show]);
 
   /** A town from the search list, which may be one the grid cannot carry. */

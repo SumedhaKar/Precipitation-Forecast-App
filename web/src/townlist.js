@@ -96,6 +96,19 @@ export function placeName(towns, lat, lon, withinKm = 50) {
 }
 
 /**
+ * The same name, as a title: "Kolkata", "Near Budaun", "This area".
+ *
+ * SPEC 11.40. The card's heading is the place and nothing else, so the
+ * name has to stand on its own at the top of it; inside a sentence --
+ * which is where `placeName` is also used -- it has to be lower case.
+ * One name, capitalised here, rather than two spellings of it.
+ */
+export function placeTitle(towns, lat, lon, withinKm = 50) {
+  const said = placeName(towns, lat, lon, withinKm);
+  return said ? said[0].toUpperCase() + said.slice(1) : said;
+}
+
+/**
  * Towns matching what has been typed: the ones that start with it first.
  *
  * Nothing here guesses or corrects spelling. A town that starts with the

@@ -781,18 +781,21 @@ button {
   font-size: var(--card-lg);
 }
 
-/* SPEC 11.38. The square's own centre, under the name rather than in
-   front of it: a reader who tapped the map wants the place first. */
-/* SPEC 11.39. What the card is answering, in one line under the name:
-   the day, the window, and the amount with its millimetres. It replaces a
-   heading, a help sentence under the day buttons and a second one under
-   the amount buttons. */
-.whenline {
+/* SPEC 11.40. Under the heading, and only for a location: what that
+   name is, and the one sentence that matters about a fix -- that it
+   never left the page. The line that said the day, the window and the
+   amount is gone from here; the headline carries the day and the amount,
+   and the window is inside More detail with the square's own centre. */
+.yours {
   margin: 0 0 0.1rem;
   font-size: var(--card-sm);
   color: var(--quiet);
 }
 
+.noshare { margin: 0 0 0.2rem; }
+
+/* SPEC 11.38, moved into More detail by 11.40: the square's own centre
+   and the window the day runs over. */
 .atsquare {
   margin: 0 0 0.3rem;
   font-size: var(--card-sm);

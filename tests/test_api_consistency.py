@@ -2058,34 +2058,36 @@ def test_every_band_boundary_is_the_word_the_spec_says(exports):
 def test_the_headline_is_the_same_shape_every_time(exports):
     """SPEC 11.38: place, day, band, amount, count, in that order."""
     calls = [
-        ["Srinagar", "Sat 14 Nov", 7, 51, 10],
-        ["near Nagpur", "Today", 0, 51, 50],
-        ["this area", "Tomorrow", 51, 51, 1],
-        ["Kolkata", "Mon 16 Nov", 31, 51, 10],
+        ["Sat, 14 Nov", 7, 51, 10],
+        ["Today, 15 Nov", 0, 51, 50],
+        ["Tomorrow, 16 Nov", 51, 51, 1],
+        ["Mon, 16 Nov", 31, 51, 10],
     ]
     wanted = [
-        "Srinagar, Sat 14 Nov: a few of the 51 runs bring 10 mm or more "
-        "(7 of 51).",
-        "near Nagpur, Today: none of the 51 runs bring 50 mm or more "
-        "(0 of 51).",
-        "this area, Tomorrow: all of the 51 runs bring 1 mm or more "
+        "Sat, 14 Nov: a few of the 51 runs bring 10 mm or more (7 of 51).",
+        "Today, 15 Nov: none of the 51 runs bring 50 mm or more (0 of 51).",
+        "Tomorrow, 16 Nov: all of the 51 runs bring 1 mm or more "
         "(51 of 51).",
-        "Kolkata, Mon 16 Nov: most of the 51 runs bring 10 mm or more "
-        "(31 of 51).",
+        "Mon, 16 Nov: most of the 51 runs bring 10 mm or more (31 of 51).",
     ]
     assert exports(RECORD_JS, "headline", calls) == wanted
 
+    # SPEC 11.40. The place is not in the sentence: it is the heading
+    # directly above it, and the card said it four times over.
+    for said in wanted:
+        assert "Kolkata" not in said and "near " not in said, said
+
     # Nothing to say is said as nothing, never as a sentence with a hole.
-    for bad in ([None, "Today", 7, 51, 10], ["Pune", None, 7, 51, 10],
-                ["Pune", "Today", None, 51, 10],
-                ["Pune", "Today", 99, 51, 10]):
+    for bad in ([None, 7, 51, 10], ["", 7, 51, 10],
+                ["Today, 15 Nov", None, 51, 10],
+                ["Today, 15 Nov", 99, 51, 10]):
         assert exports(RECORD_JS, "headline", [bad])[0] is None, bad
 
 
 @needs_node
 def test_the_headline_never_says_a_forbidden_word(exports):
     """SPEC 11.20's list, over every count and every amount it can carry."""
-    calls = [["Thiruvananthapuram", "Sat 14 Nov", count, 51, threshold]
+    calls = [["Sat, 14 Nov", count, 51, threshold]
              for count in range(0, 52)
              for threshold in (1, 10, 50)]
     for said in exports(RECORD_JS, "headline", calls):
@@ -4419,7 +4421,7 @@ const INSIDE = `(() => {
   return {
     sizes: {
       placeName: px('.placeline h2'),
-      whenLine: px('.whenline'),
+      yours: px('.yours'),
       atSquare: px('.atsquare'),
       headline: px('.headline'),
       chosenRow: px('.countrow.on'),
@@ -4435,6 +4437,14 @@ const INSIDE = `(() => {
     // SPEC 11.39: at most three text sizes in the card, counted from what
     // the browser actually resolved on every element that holds words.
     textSizes: used,
+    // SPEC 11.40. The heading is the place and nothing else, and for a
+    // location the two small lines under it.
+    title: (document.querySelector('.placeline h2') || {})
+      .textContent || null,
+    yoursLine: (document.querySelector('.yours') || {})
+      .textContent || null,
+    noShare: (document.querySelector('.noshare') || {})
+      .textContent || null,
     has: {
       counts: !!document.querySelector('.countrow'),
       trust: !!document.querySelector('.trustline .chip'),
@@ -5377,7 +5387,7 @@ def forbidden_in(text: str, allowed: dict) -> str | None:
 
 
 # SPEC 11.38. The panel's order, by the class each block is drawn with.
-ANSWER_FIRST = ("placeline", "whenline", "headline", "strip", "dots",
+ANSWER_FIRST = ("placeline", "headline", "strip", "dots",
                 "notpromise", "trust", "more")
 
 ONCE_ONLY = "A count of runs, not a promise of rain."
@@ -5625,24 +5635,32 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
 
 # --------------------------- SPEC 11.39: the Location forecast card's order
 
-CARD_ORDER = ("placeline", "whenline", "atsquare", "headline", "strip",
+# SPEC 11.40. The place, the answer, the five days, the dots, the one
+# caveat, the label, and then the one closed section. The line that said
+# the day and the amount and the square's own centre are not in it: the
+# headline carries the day and the amount, and the square and the window
+# are inside More detail.
+CARD_ORDER = ("placeline", "headline", "strip",
               "dots", "notpromise", "trust", "more")
 
-WHEN_LINE = re.compile(
+# SPEC 11.40. "Today, 15 Nov: about half of the 51 runs bring 10 mm or
+# more (26 of 51)." The day as the pill names it, the band word, the
+# amount and the count, and no place name: that is the heading above it.
+HEADLINE = re.compile(
     r"^(Today|Tomorrow|Mon|Tue|Wed|Thu|Fri|Sat|Sun), "
-    r"(\d{1,2} [A-Z][a-z]{2}) · 5:30 am to 5:30 am IST · "
-    r"(Some rain|A rainy day|A lot of rain) \((1|10|50) mm\+\)$")
+    r"(\d{1,2} [A-Z][a-z]{2}): "
+    r"(none|a few|some|about half|most|almost all|all) of the 51 runs "
+    r"bring (1|10|50) mm or more \((\d{1,2}) of 51\)\.$")
 
 
 @needs_node
 def test_the_card_is_in_the_order_the_spec_sets(forecast_words):
-    """SPEC 11.39. Name, what is being asked, answer, working.
+    """SPEC 11.39, as 11.40 leaves it. Name, answer, working.
 
     The order is the whole of the card's design, so it is pinned by class in
-    the rendered page rather than described in a comment: place name, the
-    one line saying which day and how much, the square, the headline, the
-    five days, the 51 dots, the caveat, the label, and then the one closed
-    section.
+    the rendered page rather than described in a comment: the place, the
+    headline, the five days, the 51 dots, the caveat, the label, and then
+    the one closed section.
     """
     seen = 0
     for html in forecast_words:
@@ -5674,37 +5692,45 @@ def test_the_three_amount_rows_are_inside_more_detail(forecast_words):
         assert html.count('class="countrows"') == 1, html.count('countrows')
         assert html.index('class="more"') < html.index('class="counts"')
         # And the 51 values, the arithmetic and the run's name are in there
-        # with them, which is what "nothing is deleted" means.
-        for name in ("members", "arith"):
+        # with them, which is what "nothing is deleted" means -- and so,
+        # since 11.40, are the square's own centre and the day's window.
+        for name in ("members", "arith", "atsquare"):
             assert html.index('class="more"') < html.index(f'class="{name}"')
+        assert html.count('class="atsquare"') == 1, html.count("atsquare")
+        assert "5:30 am to 5:30 am IST" in words_of(html)
         seen += 1
     assert seen > 20, seen
 
 
 @needs_node
-def test_the_one_line_under_the_name_says_the_day_and_the_amount(
-        forecast_words):
-    """SPEC 11.39. "Today, 15 Nov · 5:30 am to 5:30 am IST · Some rain (1 mm+)".
+def test_the_headline_carries_the_day_and_the_amount(forecast_words):
+    """SPEC 11.40. One sentence, and each fact in it once.
 
-    Three things a count means nothing without: which day, what a day is on
-    this site, and how much rain. They were a heading, a help sentence under
-    the day buttons and a second one under the amount buttons; this is the
-    one line that replaces all three, and it is checked against every day
-    and every amount the page renders.
+    The card had the place in the heading and in the headline, the day in
+    a line of its own and in the headline, and the amount in that line
+    and in the headline: four facts, eight copies. The headline is the
+    one sentence now, and it carries the day as the pill names it, the
+    amount in millimetres and the count out of 51.
+
+    Checked against every day and every amount the page renders, and the
+    place name is checked not to be in it.
     """
     found = []
     for html in forecast_words:
-        if not isinstance(html, str) or 'class="whenline"' not in html:
+        if not isinstance(html, str) or 'class="headline"' not in html:
             continue
-        said = html.split('class="whenline">')[1].split("</p>")[0]
+        said = html.split('class="headline">')[1].split("</p>")[0]
         said = re.sub(r"<[^>]+>", "", said).replace("&#x27;", "'")
-        match = WHEN_LINE.match(said)
+        match = HEADLINE.match(said)
         assert match, said
-        found.append((match.group(3), match.group(4)))
-    # Every amount, with its own nickname and never another's.
+        found.append((match.group(4), int(match.group(5))))
+        # The place is the heading above it, and it is said once.
+        name = html.split("<h2>")[1].split("</h2>")[0]
+        assert name.lower() not in said.lower(), (name, said)
+    # Every amount, and a count inside the 51 every time.
     assert len(found) > 20, len(found)
-    assert set(found) == {("Some rain", "1"), ("A rainy day", "10"),
-                          ("A lot of rain", "50")}, sorted(set(found))
+    assert {mm for mm, _ in found} == {"1", "10", "50"}, sorted(set(found))
+    assert all(0 <= count <= 51 for _, count in found), found
 
 
 @needs_node
@@ -5854,11 +5880,14 @@ def test_the_forecast_page_keeps_no_help_sentence_of_its_own(forecast_words):
             assert said not in text, (said, text[:160])
     # And the line that stays is on every answered card: its own test
     # above pins its shape, this one pins that it is the only one left.
+    # SPEC 11.40: that line is the headline, and the card no longer
+    # carries a second one above it saying the day and the amount again.
     cards = [html for html in forecast_words
              if isinstance(html, str) and 'class="placeline"' in html]
     assert len(cards) > 20, len(cards)
     for html in cards:
-        assert html.count('class="whenline"') == 1
+        assert html.count('class="headline"') == 1
+        assert "whenline" not in html
 
 
 # ------------------------------------- SPEC 11.39: the calm look, measured
@@ -6902,3 +6931,44 @@ def test_what_the_fifty_one_are_is_written_down_once(forecast_words):
             "day.",
         ):
             assert text.count(sentence) <= 1, sentence
+@needs_node
+def test_the_location_is_titled_by_its_place_and_says_so_once(viewport):
+    """SPEC 11.40, with 11.28 unchanged. "Near Budaun", then the small lines.
+
+    The card said "Your location" as its heading and put the square's own
+    centre under it, and the search box showed "22.75 N 88.25 E
+    (Kolkata)" -- a grid reference in the box a reader types city names
+    into, with the name they would have typed in brackets after it.
+
+    The heading is the place now, as a title. "your location" is the
+    small line under it, and the one sentence that matters about a fix is
+    under that: it never left the page (11.19 and 11.28 are unchanged --
+    the fix is still snapped in the page and only a square centre is ever
+    sent).
+    """
+    seen = 0
+    for size, page in viewport["phone"].items():
+        card = page.get("locateCard")
+        if not card:
+            continue
+        title = (card["title"] or "").strip()
+        assert title, size
+        # A name, as a title: a city, "Near <city>", or "This area".
+        assert title[0] == title[0].upper(), (size, title)
+        assert not re.match(r"^\d", title), (size, title)
+        assert "your location" == (card["yoursLine"] or "").strip(), (
+            size, card["yoursLine"])
+        assert ("Your exact position was not sent anywhere."
+                == (card["noShare"] or "").strip()), (size, card["noShare"])
+        # And it is said once: the heading is not repeated in the sentence
+        # under it, and there is one copy of each small line.
+        text = " ".join((card["cardText"] or "").split())
+        assert text.count("your location") == 1, text[:200]
+        assert text.count("Your exact position") == 1, text[:200]
+
+        # The box shows that same name, not a coordinate.
+        box = (page["afterLocate"]["searchValue"] or "").strip()
+        assert box == title, (size, box, title)
+        assert " N " not in box and box[-1] != "E", (size, box)
+        seen += 1
+    assert seen >= 4, seen

@@ -6292,6 +6292,40 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### The card says each fact once
+
+The card knew four things — the place, the day, the amount and the count —
+and said them eight times. The heading was the place; the line under it
+was the day, the window and the amount; the line under that was the
+square's own centre; and the headline named the place again, the day
+again and the amount again.
+
+Each fact is in one place now:
+
+| fact | where it is said |
+|---|---|
+| the place | the heading, as a title: "Kolkata", "Near Budaun", "This area" |
+| which day, how much, how many | the headline, and nowhere else |
+| that this is a location | "your location", small, under the heading |
+| that the fix never left the page | the small line under that |
+| the square's own centre | inside More detail |
+| the 5:30 am to 5:30 am IST window | inside More detail |
+
+So the headline loses the place name and keeps the shape it had
+otherwise: `"<Day>, <date>: <band> of the 51 runs bring <N> mm or more (<k>
+of 51)."` The day is written as the pill names it — `dayAndDate` in
+`days.js`, which is the pill's own two lines on one line — so a sentence
+and a pill cannot name a day differently.
+
+A location is titled by its place like any other square, because a reader
+knows where they are and what they want to know is which place this site
+is answering for. `placeTitle` in `townlist.js` is `placeName` with its
+first letter raised, so there is one name and not two spellings of it, and
+the search box is set to that name rather than to "22.75 N 88.25 E
+(Kolkata)". 11.19 and 11.28 are unchanged: the fix is snapped in the page,
+only a square centre is ever sent, and the sentence saying so is still on
+the card.
+
 #### What the 51 are, said once
 
 A reader who meets "26 of 51" and thinks the 51 are 51 forecasts from 51

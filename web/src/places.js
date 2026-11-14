@@ -45,6 +45,11 @@ export function placeName(lat, lon) {
   return list.placeName(TOWNS, lat, lon);
 }
 
+/** SPEC 11.40. The same name as a title: "Kolkata", "Near Budaun". */
+export function placeTitle(lat, lon) {
+  return list.placeTitle(TOWNS, lat, lon);
+}
+
 /** The nearest city within 50 km, or null. */
 export function nearestTown(lat, lon, withinKm) {
   return list.nearestTown(TOWNS, lat, lon, withinKm);

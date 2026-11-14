@@ -13,13 +13,12 @@ import { Fragment, useState } from 'react';
 
 import { GUESSES, ONE_DOT, colourOf, inkOf, labelOf } from './palette';
 import { squareText } from './snap';
-import { placeName } from './places';
+import { placeTitle } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { headline } from './record';
 import { HowToReadLink, ReportCardLink } from './TopNav';
-import { AMOUNTS } from './Controls';
-import { dayButton, dayDate, dayName, dayWord, istToday } from './days';
+import { dayAndDate, dayButton, istToday } from './days';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -64,14 +63,12 @@ export function headlineFor(place, day, threshold, today) {
   const entry = chosen && chosen.counts_by_threshold
     && chosen.counts_by_threshold[k];
   if (!entry) return null;
-  const where = place.square;
-  // SPEC 11.38, one name per thing: the day is called what the button
-  // above the map calls it. "Today" on the button and "Sat 14 Nov" in the
-  // sentence under it are two names for one day.
-  const when = dayName(chosen.from_ist, today || istToday(),
+  // SPEC 11.40, one name per thing: the day is called what the pill
+  // above the map calls it, written out on one line. The place is not in
+  // this sentence -- it is the heading directly above it.
+  const when = dayAndDate(chosen.from_ist, today || istToday(),
     chosen.short_ist);
-  return headline(placeName(where.lat, where.lon), when, entry.count,
-    place.members, threshold);
+  return headline(when, entry.count, place.members, threshold);
 }
 
 /**
@@ -135,47 +132,37 @@ export function Headline({ place, day, threshold, today }) {
  * knows where they are, and the square is on the line below.
  */
 /**
- * What the card is answering, in one line. SPEC 11.39.
+ * The place, and nothing else. SPEC 11.39, remade by 11.40.
  *
- * "Today, 15 Nov · 5:30 am to 5:30 am IST · A rainy day (10 mm+)". The
- * three things a count is meaningless without -- which day, what a day is
- * here, and how much rain -- said once, under the place name, instead of
- * being spread over a heading, a help sentence under the day buttons and a
- * second one under the amounts.
+ * The card said where it was answering about four times over: the
+ * heading, a line saying which day and how much rain, the square's own
+ * centre, and the headline, which named the place again and the day a
+ * second time. Each fact is in one place now -- the heading is the place,
+ * the headline is the day, the amount and the count, and the square's
+ * centre and the day's window are in More detail.
  *
- * Pure and exported, so a test can drive it against a real answer.
+ * The heading is the place as a title: "Kolkata", "Near Budaun", "This
+ * area". A location is that same name, because the reader knows where
+ * they are and what they want to know is which place this site is
+ * answering for; "your location" is the small line under it, and the one
+ * sentence that matters about a location -- that the fix never left the
+ * page -- is under that.
  */
-export function whenLine(entry, threshold, today) {
-  if (!entry) return null;
-  const amount = AMOUNTS.find((item) => item.mm === threshold);
-  if (!amount) return null;
-  const word = dayWord(entry.from_ist, today || istToday(), entry.short_ist);
-  const date = dayDate(entry.short_ist);
-  const when = [word, date].filter(Boolean).join(', ');
-  return `${when} · 5:30 am to 5:30 am IST · ${amount.nickname} `
-    + `(${amount.mm} mm+)`;
-}
-
-export function PlaceLine({ place, from, day, threshold, today }) {
+export function PlaceLine({ place, from }) {
   const where = place.square;
-  const name = from === 'location' ? 'Your location'
-    : placeName(where.lat, where.lon);
-  const chosen = place.days
-    ? (place.days.find((entry) => entry.lead_day === day) || place.days[0])
-    : null;
-  const when = whenLine(chosen, threshold, today);
   return (
     <div className="placeline" aria-live="polite">
-      <h2>{name}</h2>
-      {when ? <p className="whenline">{when}</p> : null}
-      <p className="atsquare">{squareText(where.lat, where.lon)}</p>
+      <h2>{placeTitle(where.lat, where.lon)}</h2>
       {/* SPEC 11.28: a location is reported as its square and nothing
           finer, and the name appears only because that square is exactly
-          that town's square. */}
+          that town's square, or the nearest city is within 50 km. */}
       {from === 'location' ? (
-        <p className="small">
-          Your exact position was not sent anywhere.
-        </p>
+        <>
+          <p className="yours">your location</p>
+          <p className="small noshare">
+            Your exact position was not sent anywhere.
+          </p>
+        </>
       ) : null}
       {where.moved ? (
         <p className="moved">
@@ -521,6 +508,7 @@ export function RunDetail({ run }) {
  * read the answer.
  */
 export function MoreDetail({ place, day, threshold, onThreshold }) {
+  const where = place.square;
   const k = THRESHOLDS.indexOf(threshold);
   const count = day.counts_by_threshold[k].count;
   const trust = trustFor(place.square.region, day.lead_day, threshold, count,
@@ -544,6 +532,13 @@ export function MoreDetail({ place, day, threshold, onThreshold }) {
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>{open ? 'Hide detail' : 'More detail'}</summary>
+      {/* SPEC 11.40. The square's own centre and the window the day runs
+          over. Both were at the top of the card, above the answer: a
+          reader who wants to know what "Today" means here, or exactly
+          which 28 km square this is, is a reader who has opened this. */}
+      <p className="atsquare">
+        {squareText(where.lat, where.lon)} · 5:30 am to 5:30 am IST
+      </p>
       <Counts
         place={place}
         day={day}
@@ -665,7 +660,7 @@ export default function Panel({
   return (
     <div className="panel-body">
       <BackToMap />
-      <PlaceLine place={place} from={from} day={day} threshold={threshold} />
+      <PlaceLine place={place} from={from} />
       <Headline place={place} day={day} threshold={threshold} />
       <DayStrip
         place={place}

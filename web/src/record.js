@@ -159,17 +159,24 @@ export function bandWord(count, members = RECORD_MEMBERS) {
 }
 
 /**
- * The one sentence the bar and the top of the panel both carry.
+ * The card's one sentence. SPEC 11.38, remade by 11.40.
  *
- * SPEC 11.38, and the same shape every time: where, when, the band, the
- * amount, the count. Both the word and the number are always there, in that
- * order, because the word on its own would be a claim the count has not
- * made and the count on its own is what the reviews were about.
+ * The same shape every time: when, the band, the amount, the count. Both
+ * the word and the number are always there, in that order, because the word
+ * on its own would be a claim the count has not made and the count on its
+ * own is what the reviews were about.
+ *
+ * 11.40 takes the place name out of it. The card's heading is the place,
+ * and the sentence was directly under that heading repeating it -- "Near
+ * Budaun" and then "near Budaun, Today: ..." -- while the day and the
+ * amount were said again in a line of their own above. One fact, one
+ * place on the card: the heading says where, this says when, how much,
+ * and how many of the 51.
  */
-export function headline(where, when, count, members, threshold) {
+export function headline(when, count, members, threshold) {
   const word = bandWord(count, members);
-  if (!where || !when || word === null) return null;
-  return `${where}, ${when}: ${word} of the ${members} runs bring `
+  if (!when || word === null) return null;
+  return `${when}: ${word} of the ${members} runs bring `
     + `${threshold} mm or more (${count} of ${members}).`;
 }
 
