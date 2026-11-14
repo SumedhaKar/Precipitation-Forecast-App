@@ -19,12 +19,16 @@ import ReportCard, { Bands } from './ReportCard';
 import HowWeChecked, {
   Blocks, Decomposition, Maps, Sensitivities,
 } from './HowWeChecked';
-import TopNav from './TopNav';
-import Panel, { summaryLine } from './Panel';
+import HowToRead from './HowToRead';
+import TopNav, { Menu } from './TopNav';
+import Panel, { Welcome } from './Panel';
+import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
+import { UNITS, noMatch, tooBig, townLabel, townsIn } from './places';
+import MapKey from './Legend';
+import { Footer, Freshness, PageHead, StaleBanner } from './App';
+import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
-import { NO_LOCATION, OUTSIDE, locationProblem, mapProblem }
-  from './messages';
-import { PICK_A_PLACE } from './record';
+import { NO_LOCATION, locationProblem, mapProblem } from './messages';
 
 /** Both pages as HTML, and the menu as it is drawn on each path. */
 export function pages() {
@@ -93,7 +97,6 @@ export function forecastWords(answers) {
             place={place}
             day={entry.lead_day}
             threshold={threshold}
-            onDay={nothing}
             onThreshold={nothing}
             from={{ how: 'tap' }}
             square={place.square.asked}
@@ -105,40 +108,145 @@ export function forecastWords(answers) {
   // The panel's other states: nothing chosen, waiting, a square still
   // loading, an island the grid cannot carry, and each way it can fail.
   out.push(renderToStaticMarkup(
-    <Panel day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
+    <Panel day={1} threshold={10} onThreshold={nothing} />));
   out.push(renderToStaticMarkup(
-    <Panel busy day={1} threshold={10} onDay={nothing}
-      onThreshold={nothing} />));
+    <Panel busy day={1} threshold={10} onThreshold={nothing} />));
   out.push(renderToStaticMarkup(
-    <Panel square={somewhere} day={1} threshold={10} onDay={nothing}
+    <Panel square={somewhere} day={1} threshold={10}
       onThreshold={nothing} />));
   ISLANDS.forEach((island) => {
     const lat = island.lat[0];
     const lon = island.lon[0];
     out.push(renderToStaticMarkup(
       <Panel notice={{ where: islandGroup(lat, lon), note: island.note }}
-        day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
+        day={1} threshold={10} onThreshold={nothing} />));
   });
-  [OUTSIDE, NO_LOCATION, mapProblem('webgl2'), mapProblem('maplibre'),
+  // SPEC 11.38: OUTSIDE is not here. A tap on the sea is a notice now, and
+  // it is rendered as one above.
+  [NO_LOCATION, mapProblem('webgl2'), mapProblem('maplibre'),
     mapProblem('chunk'), mapProblem(), locationProblem(1),
     locationProblem(2), locationProblem(3), locationProblem(9)]
     .forEach((said) => {
       out.push(renderToStaticMarkup(
         <Panel error={{ said, detail: said }} day={1} threshold={10}
-          onDay={nothing} onThreshold={nothing} />));
+          onThreshold={nothing} />));
     });
 
-  // The bar of 11.37: both labels the handle can carry, the button, and
-  // every line a chosen square can put in it.
-  out.push(PICK_A_PLACE, 'Hide the details', 'Search');
-  answers.forEach((place) => {
-    [1, 10, 50].forEach((threshold) => {
-      place.days.forEach((entry) => {
-        out.push(summaryLine(place, place.square.asked, entry.lead_day,
-          threshold) || '');
-      });
+  // SPEC 11.38. Everything outside the panel that the forecast page draws:
+  // the welcome card, both control groups for every day and every amount,
+  // the legend for all three amounts, the header's lines and the footer.
+  // Before this the sweep covered the panel and the bar alone, which is
+  // not where most of a first-time reader's words are.
+  const days = answers.length ? answers[0].days : [];
+  const run = answers.length ? answers[0].run : null;
+  out.push(renderToStaticMarkup(<Welcome onGo={nothing} />));
+  // SPEC 11.39. The header of every page, and the menu behind the button
+  // on a phone: the band, the freshness line, the warning bar and all
+  // four page names. Before this the sweep never saw any of them.
+  out.push(renderToStaticMarkup(
+    <Menu path="/" onGo={nothing} />));
+  out.push(renderToStaticMarkup(
+    <PageHead run={null} nav={<TopNav path="/" onGo={nothing} />}
+      onGo={nothing} />));
+  // SPEC 11.39. How to read this map, which is a page of its own now. It
+  // is swept with the forecast page and not with the two document pages,
+  // because it is the one page that may say "it is not a probability" --
+  // refusing that reading is the whole point of the sentence.
+  out.push(renderToStaticMarkup(<HowToRead />));
+  // Every day chosen, and with the reader's own date on each of the five,
+  // so "Today" and "Tomorrow" are both rendered and both swept.
+  days.forEach((entry) => {
+    days.forEach((today) => {
+      out.push(renderToStaticMarkup(
+        <DayChoice days={days} day={entry.lead_day} onDay={nothing}
+          today={String(today.from_ist).slice(0, 10)} />));
     });
   });
+  // SPEC 11.40. The day pills with a place's own counts on them, for
+  // every amount: the third line, the small square and the caption are
+  // only drawn once a place is chosen, so a sweep that only ever
+  // rendered the empty row would never read them.
+  if (answers.length) {
+    const first = answers[0];
+    [1, 10, 50].forEach((threshold) => {
+      const counts = Object.fromEntries(first.days.map((entry) => [
+        entry.lead_day,
+        entry.counts_by_threshold[[1, 10, 50].indexOf(threshold)].count,
+      ]));
+      out.push(renderToStaticMarkup(
+        <DayChoice days={first.days} day={first.days[0].lead_day}
+          onDay={nothing} counts={counts} threshold={threshold}
+          members={first.members} />));
+    });
+  }
+
+  // SPEC 11.40. And the state in which the five days start tomorrow,
+  // which none of the twenty-five above can be: the reader's date is the
+  // day before the first of the five, which is where the note is drawn.
+  // Without this the sweep would never see those words.
+  if (days.length) {
+    const before = new Date(
+      Date.parse(`${String(days[0].from_ist).slice(0, 10)}T00:00:00Z`)
+      - 86_400_000).toISOString().slice(0, 10);
+    out.push(renderToStaticMarkup(
+      <DayChoice days={days} day={days[0].lead_day} onDay={nothing}
+        today={before} />));
+  }
+  [1, 10, 50].forEach((threshold) => {
+    out.push(renderToStaticMarkup(
+      <ThresholdChoice threshold={threshold} onThreshold={nothing} />));
+    // SPEC 11.40. The colour key, for all three amounts. Its nine rows
+    // are in the page whether or not a reader has opened them, so the
+    // sweep reads them either way.
+    out.push(renderToStaticMarkup(<MapKey threshold={threshold} />));
+    // SPEC 11.41. And the other key: the whole of it, open, which is
+    // what a screen 1280 pixels wide or more is given over the map. Two
+    // renderings of the same rows, so the sweep reads both.
+    out.push(renderToStaticMarkup(
+      <MapKey threshold={threshold} overMap />));
+  });
+  out.push(renderToStaticMarkup(
+    <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}
+      shown="" onLocation={nothing} snapTo={nothing} from={null} />));
+  // SPEC 11.38. The state block, for every one of the 36, and the line a
+  // query that matched nothing is answered with.
+  UNITS.forEach((unit) => {
+    out.push(tooBig(unit.name));
+    townsIn(unit.name).forEach((town) => out.push(townLabel(town)));
+  });
+  out.push(noMatch('Ooty'), noMatch('Bombay Central'));
+  out.push(renderToStaticMarkup(
+    <MyLocation onLocation={nothing} snapTo={nothing} from={null} />));
+  out.push(renderToStaticMarkup(<Footer />));
+  if (run) {
+    // The run a test publishes is dated, so freshness is forced here:
+    // both of the two things this line can say are rendered and swept.
+    const fresh = {
+      ...run,
+      run_time_utc: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+      age_hours: 2,
+    };
+    out.push(renderToStaticMarkup(<Freshness run={fresh} />));
+    // And the same run made old, which is the only other thing the
+    // freshness line and the banner can say.
+    const old = { ...run, age_hours: 41, stale: true,
+      run_time_utc: '2026-01-01T00:00:00+00:00' };
+    out.push(renderToStaticMarkup(<Freshness run={old} />));
+    out.push(renderToStaticMarkup(<StaleBanner run={old} />));
+    // And the header as a whole, fresh and old, which is where the
+    // freshness line is actually read.
+    [fresh, old].forEach((when) => out.push(renderToStaticMarkup(
+      <PageHead run={when} nav={<TopNav path="/" onGo={nothing} />}
+        onGo={nothing} />)));
+  }
+  // The calm line for a tap on the sea or on a neighbour's land.
+  out.push(renderToStaticMarkup(
+    <Panel notice={{ where: null, note: OUTSIDE, why: THE_BOX }}
+      day={1} threshold={10} onThreshold={nothing} />));
+
+  // SPEC 11.39. The bar of 11.37, its one-line summary and the prompt it
+  // showed with nothing chosen are gone: the card is on the page, so
+  // there is no second copy of the headline to sweep.
 
   return out;
 }

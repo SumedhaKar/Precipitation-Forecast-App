@@ -11,12 +11,14 @@
 
 import { Fragment, useState } from 'react';
 
-import { colourOf, inkOf, labelOf, notProbability } from './palette';
+import { GUESSES, ONE_DOT, colourOf, labelOf } from './palette';
 import { squareText } from './snap';
-import { nameOfSquare } from './places';
+import { placeTitle } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
-import { PICK_A_PLACE, barLine } from './record';
+import { headline } from './record';
+import { HowToReadLink, ReportCardLink } from './TopNav';
+import { dayAndDate, istToday } from './days';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -40,46 +42,127 @@ function summarise(values) {
   };
 }
 
-/* SPEC 11.37. The one line the closed bar carries on a phone, in the words
-   the panel itself uses: the place, the count, the amount. Pure, and
-   exported, so a test can drive it against a real answer.
+/* SPEC 11.39. The one line the closed bar carried on a phone is gone
+   with the bar. It was a second copy of the headline, written to fit in
+   a drawer handle, and the rule it existed to keep -- that a number is
+   never shown under the wrong place's name -- is kept where it always
+   was, by `answered` at the top of the card below. */
 
-   `square` is what the reader last asked for. While a newer square is still
-   loading the bar says the prompt rather than the old square's number,
-   because a number under the wrong place name is the worst thing this page
-   could do (SPEC 11.30). */
-export function summaryLine(place, square, day, threshold) {
-  if (!place || !place.square || !place.days) return PICK_A_PLACE;
-  if (square && !sameSquare(place.square.asked, square)) return PICK_A_PLACE;
+/**
+ * The headline for the chosen day and amount, or null. SPEC 11.38.
+ *
+ * One function for the bar and for the top of the panel, so the two cannot
+ * say different things about the same square. Pure, and exported, so a test
+ * can drive it against a real answer.
+ */
+export function headlineFor(place, day, threshold, today) {
+  if (!place || !place.square || !place.days) return null;
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
   const k = THRESHOLDS.indexOf(threshold);
   const entry = chosen && chosen.counts_by_threshold
     && chosen.counts_by_threshold[k];
-  if (!entry) return PICK_A_PLACE;
-  const where = place.square;
-  const name = nameOfSquare(where.lat, where.lon)
-    || squareText(where.lat, where.lon);
-  return barLine(name, entry.count, place.members, threshold);
+  if (!entry) return null;
+  // SPEC 11.40, one name per thing: the day is called what the pill
+  // above the map calls it, written out on one line. The place is not in
+  // this sentence -- it is the heading directly above it.
+  const when = dayAndDate(chosen.from_ist, today || istToday(),
+    chosen.short_ist);
+  return headline(when, entry.count, place.members, threshold);
 }
 
+/**
+ * The way back to the map, from the card. SPEC 11.39.
+ *
+ * On a phone the card is the last block of the page and choosing a place
+ * scrolls to it, so the map is now above the fold behind the reader. One
+ * small link takes them back to it, and a reader who wants to pick again
+ * does not have to work out that the page scrolls.
+ *
+ * A real `#map` anchor: with no script it jumps, and with script it goes
+ * smoothly unless the reader has asked for less movement. On a desktop
+ * the map is beside the card and already on the screen, so the
+ * stylesheet does not draw this at all -- a link to something a reader
+ * is looking at is noise (11.39).
+ */
+export function BackToMap() {
+  return (
+    <p className="backtomap">
+      <a
+        href="#map"
+        onClick={(event) => {
+          const found = document.getElementById('map');
+          if (!found || !found.scrollIntoView) return;
+          event.preventDefault();
+          found.scrollIntoView({
+            behavior: stillness() ? 'auto' : 'smooth',
+            block: 'start',
+          });
+        }}
+      >
+        Back to map
+      </a>
+    </p>
+  );
+}
+
+/** Has the reader asked for less movement? SPEC 11.32 asks the same way. */
+export function stillness() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** The headline, at the top of the panel, under the place name. */
+export function Headline({ place, day, threshold, today }) {
+  const said = headlineFor(place, day, threshold, today);
+  if (!said) return null;
+  return <p className="headline">{said}</p>;
+}
+
+/**
+ * The place name, and the coordinates under it. SPEC 11.38.
+ *
+ * The name is first and bold; the square's own centre is the small line
+ * beneath. The first build had it the other way round -- "23.25 N 77.50 E"
+ * in the heading with the city after it -- which is the order a grid
+ * reference is written in and not the order a person reads one.
+ *
+ * "Your location" stays what a location is called (SPEC 11.28): the reader
+ * knows where they are, and the square is on the line below.
+ */
+/**
+ * The place, and nothing else. SPEC 11.39, remade by 11.40.
+ *
+ * The card said where it was answering about four times over: the
+ * heading, a line saying which day and how much rain, the square's own
+ * centre, and the headline, which named the place again and the day a
+ * second time. Each fact is in one place now -- the heading is the place,
+ * the headline is the day, the amount and the count, and the square's
+ * centre and the day's window are in More detail.
+ *
+ * The heading is the place as a title: "Kolkata", "Near Budaun", "This
+ * area". A location is that same name, because the reader knows where
+ * they are and what they want to know is which place this site is
+ * answering for; "your location" is the small line under it, and the one
+ * sentence that matters about a location -- that the fix never left the
+ * page -- is under that.
+ */
 export function PlaceLine({ place, from }) {
   const where = place.square;
-  const name = nameOfSquare(where.lat, where.lon);
   return (
     <div className="placeline" aria-live="polite">
-      <h2>
-        {squareText(where.lat, where.lon)}
-        {name ? <span className="cityname">{name}</span> : null}
-      </h2>
+      <h2>{placeTitle(where.lat, where.lon)}</h2>
       {/* SPEC 11.28: a location is reported as its square and nothing
           finer, and the name appears only because that square is exactly
-          that town's square. */}
+          that town's square, or the nearest city is within 50 km. */}
       {from === 'location' ? (
-        <p className="small">
-          Your location: square {squareText(where.lat, where.lon)}. Your exact
-          position was not sent anywhere.
-        </p>
+        <>
+          <p className="yours">your location</p>
+          <p className="small noshare">
+            Your exact position was not sent anywhere.
+          </p>
+        </>
       ) : null}
       {where.moved ? (
         <p className="moved">
@@ -93,44 +176,28 @@ export function PlaceLine({ place, from }) {
   );
 }
 
-export function DayStrip({ place, day, threshold, onDay }) {
-  const k = THRESHOLDS.indexOf(threshold);
-  return (
-    <div className="strip">
-      <h3>All five days at {threshold} mm</h3>
-      <ol>
-        {place.days.map((entry) => {
-          const count = entry.counts_by_threshold[k].count;
-          const chosen = entry.lead_day === day;
-          return (
-            <li key={entry.lead_day}>
-              <button
-                type="button"
-                className={chosen ? 'cell chosen' : 'cell'}
-                style={{ background: colourOf(count), color: inkOf(count) }}
-                aria-pressed={chosen}
-                aria-label={`${entry.short_ist} IST. ${entry.sentence}`}
-                onClick={() => onDay(entry.lead_day)}
-              >
-                <span className="cellday">{entry.short_ist}</span>
-                <span className="cellcount">{count}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      <p className="small">
-        Each cell is that day&apos;s count out of 51 at {threshold} mm, in the
-        same colours as the map. Dates are IST. Choose one to change the day.
-      </p>
-    </div>
-  );
-}
+/* SPEC 11.40. The five-day strip is gone from the card.
 
-export function DaySentence({ day }) {
-  if (!day || !day.sentence) return null;
-  return <p className="sentence">{day.sentence}</p>;
-}
+   It was a second row of days: the same five days, each with the same
+   count for the same amount, as the five pills above the map -- one row
+   of five at the top of the screen and another 400 pixels down inside
+   the card, each with its own way of drawing a day and its own way of
+   drawing a count. The forecast is five days long, so one row of five is
+   the whole of it, and the row a reader is already using is the one that
+   carries the numbers now (`DayChoice` in Controls.jsx).
+
+   Nothing is lost. Every one of the five counts is on a pill, in the
+   map's own colour for it; tapping a pill still changes the day for the
+   map and for the card; and the chosen day's three amounts are inside
+   More detail as they were. */
+
+/* SPEC 11.38. The day sentence of 11.20 used to be here, under the place
+   name. It says "model runs", it is pinned word for word by its own test,
+   and the page now has one name for the 51 -- so it is taken off the page
+   rather than reworded. `api/place` still computes it and still publishes
+   it, so 11.20 is unchanged for anyone reading the API; what a reader is
+   given is the headline above, which says the same thing in the page's own
+   language and carries the band word with it. */
 
 /**
  * The trust label for one region, lead day and threshold. SPEC 11.33.
@@ -155,7 +222,7 @@ export function Chip({ trust, small }) {
  * `trust` is null only where there is no region, which is to say nowhere the
  * site can answer for at all.
  */
-export function TrustBlock({ place, day, threshold }) {
+export function TrustBlock({ place, day, threshold, onGo }) {
   const k = THRESHOLDS.indexOf(threshold);
   const count = day.counts_by_threshold[k].count;
   const trust = trustFor(place.square.region, day.lead_day, threshold, count,
@@ -163,11 +230,37 @@ export function TrustBlock({ place, day, threshold }) {
   if (!trust) return null;
   return (
     <div className="trust">
+      {/* SPEC 11.39. One line: the label, why it has it, and where to go
+          and check. The reason, the better-than-usual sentence and the
+          link were three paragraphs in a row, and which of the four
+          conditions it was and the long track-record sentence were two
+          more; those two are in More detail now. */}
       <p className="trustline">
-        <Chip trust={trust} /> {trust.why}
+        <Chip trust={trust} /> {trust.reason}
+        {trust.better ? ` ${trust.better}` : null}{' '}
+        <ReportCardLink onGo={onGo}>See the record</ReportCardLink>
       </p>
+    </div>
+  );
+}
+
+/**
+ * Which of the four checks this label came from. SPEC 11.33, moved by 11.39.
+ *
+ * Inside More detail, with the long track-record sentence: it is a
+ * paragraph about our method rather than about this square.
+ */
+export function TrustWhy({ trust }) {
+  if (!trust) return null;
+  return (
+    <>
       <details className="whylabel">
         <summary>Why this label?</summary>
+        {/* SPEC 11.38. Which of the four checks went wrong used to be the
+            line under the chip. It is a sentence about our method rather
+            than about this square, so it is the first thing inside the
+            disclosure instead of the first thing a reader meets. */}
+        <p className="whyline">{trust.why}</p>
         <ul className="conds">
           {trust.conditions.map((condition) => (
             <li key={condition.name} className={condition.pass ? 'met' : 'no'}>
@@ -191,7 +284,10 @@ export function TrustBlock({ place, day, threshold }) {
           ))}
         </dl>
       </details>
-    </div>
+      {/* The long track-record sentence: the period, the band of agreement,
+          the region and the day number, all of which change the answer. */}
+      {trust.past ? <p className="pastline">{trust.past}</p> : null}
+    </>
   );
 }
 
@@ -204,10 +300,6 @@ export function TrustBlock({ place, day, threshold }) {
  * both read and set the one `threshold` the page holds.
  */
 export function Counts({ place, day, threshold, onThreshold }) {
-  // SPEC 11.33. The region is the API's (api/place reads config/regions.json),
-  // never worked out here, so a square cannot be shown another region's
-  // record.
-  const region = place.square.region;
   return (
     <div className="counts">
       <h3 id="countshead">
@@ -217,8 +309,6 @@ export function Counts({ place, day, threshold, onThreshold }) {
         {THRESHOLDS.map((amount, k) => {
           const count = day.counts_by_threshold[k].count;
           const chosen = amount === threshold;
-          const trust = trustFor(region, day.lead_day, amount, count,
-            place.members);
           return (
             <li key={amount}>
               <button
@@ -230,12 +320,7 @@ export function Counts({ place, day, threshold, onThreshold }) {
               >
                 <span className="rowwhat">{amount} mm or more</span>
                 <span className="rowcount">
-                  <strong>{count}</strong> of {place.members} model runs
-                  {/* SPEC 6.7: a share of ten is only ever shown beside a
-                      green label, and no group is green today. */}
-                  {trust && trust.percent ? (
-                    <span className="aboutten">, {trust.percent}</span>
-                  ) : null}
+                  <strong>{count}</strong> of {place.members} runs
                 </span>
                 <span className="rowband">
                   <span
@@ -245,18 +330,11 @@ export function Counts({ place, day, threshold, onThreshold }) {
                   />
                   {labelOf(count)}
                 </span>
-                {/* SPEC 11.33: three thresholds are three track records, and
-                    often three different labels. */}
-                {trust ? <Chip trust={trust} small /> : null}
               </button>
-              {chosen && trust && trust.past ? (
-                <p className="pastline">{trust.past}</p>
-              ) : null}
             </li>
           );
         })}
       </ul>
-      <p className="small">{notProbability()}</p>
     </div>
   );
 }
@@ -269,23 +347,37 @@ export function Dots({ place, day }) {
   });
   return (
     <div className="dots">
-      <h3>Each of the 51 model runs</h3>
+      <h3>The 51 runs, one dot each</h3>
+      {/* SPEC 11.40. Directly under the heading, before the 51 squares: a
+          reader meets the sentence that tells them what a dot is before
+          they meet the dots, not after. It was under the key below them,
+          and it said "Each dot is one run", which is only a sentence to
+          somebody who already knows what a run is. */}
+      <p className="small dotline">{ONE_DOT}</p>
       <ol className="dotgrid">
         {dots.map((category, index) => (
           // eslint-disable-next-line react/no-array-index-key
           <li key={index} style={{ background: DOT_COLOURS[category] }} />
         ))}
       </ol>
+      {/* SPEC 11.40. Only the bands that happened. All 51 dots are
+          drawn, always, and the four names were listed under them
+          whatever the counts were -- so in a quiet week the card read
+          "Under 1 mm: 51, 1 to 10 mm: 0, 10 to 50 mm: 0, 50 mm or more:
+          0", which is three facts about nothing and one about something.
+          A row with no dots behind it is not a reading of the dots. */}
       <ul className="dotkey">
         {categories.map((name, category) => (
-          <li key={name}>
-            <span
-              className="swatch"
-              aria-hidden="true"
-              style={{ background: DOT_COLOURS[category] }}
-            />
-            {sentenceCase(name)}: {day.dots[category]}
-          </li>
+          day.dots[category] > 0 ? (
+            <li key={name}>
+              <span
+                className="swatch"
+                aria-hidden="true"
+                style={{ background: DOT_COLOURS[category] }}
+              />
+              {sentenceCase(name)}: {day.dots[category]}
+            </li>
+          ) : null
         ))}
       </ul>
     </div>
@@ -306,7 +398,7 @@ export function MemberValues({ day }) {
   const count = day.members_mm.length;
   return (
     <div className="members">
-      <h3>What each model run gives, in whole millimetres</h3>
+      <h3>What each run gives, in whole millimetres</h3>
       {spread.same ? (
         <p className="spread">
           All {count} runs: {spread.lowest} mm
@@ -364,49 +456,131 @@ export function SquareUsed({ place }) {
 }
 
 /**
- * What the panel says before anything has been chosen. SPEC 11.28.
+ * Which run this is, to the second and by its own name. SPEC 11.38.
  *
- * The page opens on day 1 at 1 mm with no square chosen, so this is the first
- * thing a reader sees, and it has to explain the only three ideas the map
- * uses. It says what a square is, what a colour is, and what the number is
- * not.
+ * The header's run line is three facts in two sizes of grey, and on a phone
+ * it was two of the lines that pushed the map under the fold. A reader who
+ * wants the run ID and the UTC stamp wants them exactly; a reader who does
+ * not wants one line saying how old this is, which is what the header now
+ * carries. So these are in here.
  */
-export function HowToRead() {
+export function RunDetail({ run }) {
+  if (!run) return null;
   return (
-    <div className="howto">
-      <h2>How to read this map</h2>
-      <ul>
-        <li>
-          <strong>One square is 0.25 degrees</strong>, about 28 km across. The
-          forecast has no detail finer than that, so a square is the smallest
-          place this site can answer about.
-        </li>
-        <li>
-          <strong>The colour is a count.</strong> The model is run 51 times
-          from slightly different starting points, and a square&apos;s colour
-          is how many of those 51 runs give at least the chosen amount of rain
-          in the chosen day. Darker is more runs.
-        </li>
-        <li>
-          <strong>It is not a probability.</strong> {notProbability()} Nothing
-          on this site is calibrated against what actually happened until the
-          track record exists.
-        </li>
-      </ul>
-      {/* SPEC 11.37. On a phone the legend has no room for this line, so it
-          is here instead, where the rest of the reading of the map is. The
-          legend still carries it at desktop width. */}
-      <p className="whitehere">
-        <span className="swatch" aria-hidden="true" />
-        White: inside India but not forecast at this grid size
+    <p className="arith">
+      Run {run.run_id}, the 00 UTC run of {run.run_time_utc}.
+      {run.publish_time_ist
+        ? ` Published ${run.publish_time_ist} IST.` : null}
+    </p>
+  );
+}
+
+/**
+ * Everything a reader can choose to open. SPEC 11.38, extended by 11.39.
+ *
+ * Three reviews called this page too textual, and the count of sentences
+ * was most of why. Nothing is deleted: the three amount rows, the 51
+ * values, the square's own arithmetic, the run's name and time, which of
+ * the four checks the label came from, and the long form of the track
+ * record are all here, in one place, shut until they are asked for.
+ *
+ * The three amount rows came in here from the front of the card (11.39).
+ * They are a second copy of the amount buttons above the map -- the same
+ * three choices, kept in step with them -- and a reader who has already
+ * chosen an amount up there does not need to be shown the choice again to
+ * read the answer.
+ */
+export function MoreDetail({ place, day, threshold, onThreshold }) {
+  const where = place.square;
+  const k = THRESHOLDS.indexOf(threshold);
+  const count = day.counts_by_threshold[k].count;
+  const trust = trustFor(place.square.region, day.lead_day, threshold, count,
+    place.members);
+  // SPEC 11.40. The label says what the next tap does. A disclosure whose
+  // handle reads "More detail" while the detail is open is asking a reader
+  // to work out that a second tap on the same words does the opposite of
+  // the first; the triangle beside it says so and a triangle is 8 pixels
+  // of grey. So the words change with it.
+  //
+  // Controlled, which is the only way the summary can know: the browser
+  // flips `open` itself on a click, the toggle event hands that back, and
+  // React draws the label the state asks for. It is still a real
+  // <details>, so it opens with no script of ours and a screen reader is
+  // told whether it is open.
+  const [open, setOpen] = useState(false);
+  return (
+    <details
+      className="more"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>{open ? 'Hide detail' : 'More detail'}</summary>
+      {/* SPEC 11.40. The square's own centre and the window the day runs
+          over. Both were at the top of the card, above the answer: a
+          reader who wants to know what "Today" means here, or exactly
+          which 28 km square this is, is a reader who has opened this. */}
+      <p className="atsquare">
+        {squareText(where.lat, where.lon)} · 5:30 am to 5:30 am IST
       </p>
-      <p className="prompt">Click a square or search a town.</p>
+      <Counts
+        place={place}
+        day={day}
+        threshold={threshold}
+        onThreshold={onThreshold}
+      />
+      <MemberValues day={day} />
+      <TrustWhy trust={trust} />
+      <SquareUsed place={place} />
+      <RunDetail run={place.run} />
+    </details>
+  );
+}
+
+/**
+ * What the card says before anything has been chosen. SPEC 11.38, 11.39.
+ *
+ * Two real first-time readers failed here: one could not tell what the site
+ * was for, and one did not know how to start. The page opened on a map of
+ * counts with no sentence saying what a count was and no visible way in —
+ * the only control on a phone's first screen was a line of grey text.
+ *
+ * So the empty card carries exactly two things: what this is, in words that
+ * assume nothing, and what to do next.
+ *
+ * SPEC 11.39 took the "Find my city" button off it. A button whose whole
+ * job was to move the keyboard into a box already on the screen is a
+ * second way in competing with the first, and the search row is the first:
+ * the card says what to do and the box is right there to do it in.
+ *
+ * And there is one copy of it now rather than two. The second copy floated
+ * over the map on a phone, because the card itself was in a drawer and a
+ * reader with the drawer shut had nowhere to be told what the site was
+ * for. The card is on the page now.
+ */
+export function Welcome({ onGo }) {
+  return (
+    <div className="welcome">
+      <h2>Will it rain where you are?</h2>
+      {/* SPEC 11.40. What the 51 are, in one sentence, and the same
+          sentence the dots and the How to read this map page use. The
+          card used to say "One weather model, run 51 times from slightly
+          different starts", which leaves a reader to work out what a
+          start is; this says what the 51 come out as. */}
+      <p>{GUESSES}</p>
+      <p className="prompt">
+        Tap the map or search a city to see its next five days.
+      </p>
+      {/* SPEC 11.39. A link to a page, not a button that opened a drawer:
+          the explanation is its own page and can be linked to, bookmarked
+          and sent to somebody. */}
+      <HowToReadLink onGo={onGo} />
     </div>
   );
 }
 
 export default function Panel({
-  place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
+  place, error, notice, busy, day, threshold, onThreshold, from, square,
+  onGo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
   // are shown for the chosen square or not at all. `place.square.asked` is
@@ -422,8 +596,9 @@ export default function Panel({
         <div className="notice" role="status">
           {notice.where ? <h2>{notice.where}</h2> : null}
           <p>{notice.note}</p>
+          {notice.why ? <p className="small">{notice.why}</p> : null}
         </div>
-        <HowToRead />
+        <p className="readmore"><HowToReadLink onGo={onGo} /></p>
       </div>
     );
   }
@@ -434,7 +609,7 @@ export default function Panel({
           <p>{error.said}</p>
           {error.detail ? <p className="why">{error.detail}</p> : null}
         </div>
-        <HowToRead />
+        <p className="readmore"><HowToReadLink onGo={onGo} /></p>
       </div>
     );
   }
@@ -443,37 +618,48 @@ export default function Panel({
       <div className="panel-body">
         {square ? (
           <p className="loadingsquare" role="status">
-            Loading {squareText(square.lat, square.lon)}…
+            Reading the 51 runs for this square…{' '}
+            <span className="small">{squareText(square.lat, square.lon)}</span>
           </p>
         ) : null}
-        {!square && busy ? <p className="small">Reading the forecast…</p>
-          : null}
-        {!square && !busy ? <HowToRead /> : null}
+        {!square && busy ? (
+          <p className="small">Reading the 51 runs…</p>
+        ) : null}
+        {!square && !busy ? (
+          <>
+            <Welcome onGo={onGo} />
+          </>
+        ) : null}
       </div>
     );
   }
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
+  // SPEC 11.39. The order is the answer first and the working after it:
+  // where, which day and how much, the headline, the five days, the 51
+  // runs, the one caveat, and what the record says about this label.
+  // Everything a reader can choose to open is in the one closed section at
+  // the end, and that now includes the three amount rows.
   return (
     <div className="panel-body">
+      <BackToMap />
       <PlaceLine place={place} from={from} />
-      <DaySentence day={chosen} />
-      <Counts
-        place={place}
-        day={chosen}
-        threshold={threshold}
-        onThreshold={onThreshold}
-      />
-      <TrustBlock place={place} day={chosen} threshold={threshold} />
-      <DayStrip
-        place={place}
-        day={day}
-        threshold={threshold}
-        onDay={onDay}
-      />
+      <Headline place={place} day={day} threshold={threshold} />
       <Dots place={place} day={chosen} />
-      <MemberValues day={chosen} />
-      <SquareUsed place={place} />
+      {/* SPEC 11.38. The one caveat, said once. It was under the legend,
+          under the counts and inside How to read this map, three times on
+          one screen, which is how a sentence stops being read. */}
+      <p className="notpromise">
+        A count of runs, not a promise of rain.{' '}
+        <ReportCardLink onGo={onGo}>
+          See how the counts have held up
+        </ReportCardLink>
+        .
+      </p>
+      <TrustBlock place={place} day={chosen} threshold={threshold}
+        onGo={onGo} />
+      <MoreDetail place={place} day={chosen} threshold={threshold}
+        onThreshold={onThreshold} />
     </div>
   );
 }

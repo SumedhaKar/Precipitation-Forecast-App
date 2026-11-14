@@ -3,21 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- SPEC 11.29: the same sentence as the <h1>, word for word, so the
-         browser tab and the page agree. -->
-    <title>India rain forecast: how many of 51 model runs say rain</title>
+    <!-- SPEC 11.38: the site's name and what it covers. The two document
+         pages set their own titles from the same list, in TopNav.jsx, so a
+         reader with three tabs open can tell them apart. -->
+    <title>India Rain Outlook · next 5 days</title>
     <meta
       name="description"
-      content="How many of 51 ECMWF AIFS ENS model runs give 1 mm, 10 mm and 50 mm of rain over the next five days, for one place in India. Model-run counts, not probabilities. Not an official warning."
+      content="One weather model from ECMWF, run 51 times. See how many of the 51 runs bring 1 mm, 10 mm and 50 mm of rain over the next five days, for one place in India. Counts of runs, not probabilities. Not an official warning."
     />
-    <link rel="icon" href="data:," />
+    <!-- SPEC 11.39. The site's own mark, as the tab icon: the same cloud
+         and the same three drops as the <Logo> of src/Icons.jsx, written
+         out here as a data URI so there is no second file to fetch and
+         nothing to 404. A test compares the two paths and fails if they
+         drift apart. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 14.5h9.5a3.5 3.5 0 0 0 .2-7 5 5 0 0 0-9.5-.8A3.9 3.9 0 0 0 7 14.5Z' fill='%230b2b4a'/%3E%3Cg stroke='%230b2b4a' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M9 17.5v2.2'/%3E%3Cpath d='M12.5 17.5v3.2'/%3E%3Cpath d='M16 17.5v2.2'/%3E%3C/g%3E%3C/svg%3E"
+    />
   </head>
   <body>
     <div id="root"></div>
     <!-- SPEC 11.22. The map is drawn with JavaScript, but the numbers are
          not behind it: this route answers JSON with no script at all. -->
     <noscript>
-      <h1>India rain forecast: how many of 51 model runs say rain</h1>
+      <h1>India Rain Outlook: how many of 51 runs bring rain</h1>
       <p>
         This page draws a map, which needs JavaScript. The forecast itself
         does not: one square's counts, dots and 51 member values are at

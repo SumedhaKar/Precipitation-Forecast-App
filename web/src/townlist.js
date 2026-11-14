@@ -34,6 +34,80 @@ export function nameOfSquare(towns, lat, lon) {
   return `${here.slice(0, -1).join(', ')} and ${here[here.length - 1]}`;
 }
 
+// How far apart two squares are, in kilometres. SPEC 11.38.
+//
+// The great-circle distance on a sphere of 6,371 km. Both points are square
+// centres on a 0.25 degree grid, so the two are never more than a few
+// hundred kilometres apart when this matters and the choice of radius
+// changes nothing a reader could see; it is the honest formula rather than
+// a flat-earth approximation because there is no reason to use the other.
+const EARTH_KM = 6371;
+
+export function kmApart(oneLat, oneLon, twoLat, twoLon) {
+  const rad = Math.PI / 180;
+  const dLat = (twoLat - oneLat) * rad;
+  const dLon = (twoLon - oneLon) * rad;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(oneLat * rad) * Math.cos(twoLat * rad)
+    * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+/**
+ * The nearest city to a square, within a limit, or null. SPEC 11.38.
+ *
+ * Islands the grid cannot carry are not offered: a square in the Bay of
+ * Bengal is not "near Port Blair" when there is no forecast at Port Blair
+ * at all. Ties go to the name that comes first alphabetically, so the same
+ * square is always called the same thing.
+ */
+export function nearestTown(towns, lat, lon, withinKm = 50) {
+  let best = null;
+  for (const town of towns) {
+    if (town.not_forecast) continue;
+    const away = kmApart(lat, lon, town.lat, town.lon);
+    if (away > withinKm) continue;
+    if (!best || away < best.away
+      || (away === best.away && town.name.localeCompare(best.town.name) < 0)) {
+      best = { town, away };
+    }
+  }
+  return best ? best.town : null;
+}
+
+/**
+ * What to call a square, in the words a reader uses. SPEC 11.38.
+ *
+ * A grid reference is not a place name. The panel led with "23.25 N 77.50 E"
+ * and put the city after it, which is the order a coordinate is written in
+ * and not the order anybody reads; a reader who taps the map wants to know
+ * where they have tapped.
+ *
+ * Three answers, in this order: the city whose own square this is; "near"
+ * the nearest city within 50 km, which is under two squares, so the word is
+ * never said about somewhere a reader would call a different place; and
+ * "this area" where there is no city near enough to name.
+ */
+export function placeName(towns, lat, lon, withinKm = 50) {
+  const here = nameOfSquare(towns, lat, lon);
+  if (here) return here;
+  const near = nearestTown(towns, lat, lon, withinKm);
+  return near ? `near ${near.name}` : 'this area';
+}
+
+/**
+ * The same name, as a title: "Kolkata", "Near Budaun", "This area".
+ *
+ * SPEC 11.40. The card's heading is the place and nothing else, so the
+ * name has to stand on its own at the top of it; inside a sentence --
+ * which is where `placeName` is also used -- it has to be lower case.
+ * One name, capitalised here, rather than two spellings of it.
+ */
+export function placeTitle(towns, lat, lon, withinKm = 50) {
+  const said = placeName(towns, lat, lon, withinKm);
+  return said ? said[0].toUpperCase() + said.slice(1) : said;
+}
+
 /**
  * Towns matching what has been typed: the ones that start with it first.
  *
@@ -97,15 +171,95 @@ export function nearTowns(towns, text, most = 3) {
   return near.slice(0, most).map((found) => found.town);
 }
 
+/**
+ * The names a city is also known by. SPEC 11.38.
+ *
+ * Natural Earth's spelling is the one on the page, and it is not always
+ * the one a reader learned: the list says Mumbai, Bengaluru, Mysuru,
+ * Hubballi and Vijayapura, and it also says Simla, Dehra Dun, Jullundur,
+ * Nasik, Sholapur and Gurgaon, which are the older spellings of places
+ * whose official names have since changed the other way. A reader should
+ * not have to know which of the two this file happens to hold.
+ *
+ * These are search keys and nothing else. The name shown is always the
+ * list's own, because the name over a count has to be the name the count
+ * belongs to.
+ */
+export const ALSO_KNOWN_AS = {
+  Mumbai: ['Bombay'],
+  Kolkata: ['Calcutta'],
+  Chennai: ['Madras'],
+  Bengaluru: ['Bangalore'],
+  Gurgaon: ['Gurugram'],
+  Pune: ['Poona'],
+  Thiruvananthapuram: ['Trivandrum'],
+  Kochi: ['Cochin', 'Ernakulam'],
+  Vadodara: ['Baroda'],
+  Varanasi: ['Benares', 'Banaras'],
+  Mysuru: ['Mysore'],
+  Mangaluru: ['Mangalore'],
+  Belagavi: ['Belgaum'],
+  Hubballi: ['Hubli'],
+  Ballari: ['Bellary'],
+  Kalaburagi: ['Gulbarga'],
+  Shivamogga: ['Shimoga'],
+  Tumakuru: ['Tumkur'],
+  Hosapete: ['Hospet'],
+  Vijayapura: ['Bijapur'],
+  Simla: ['Shimla'],
+  'Dehra Dun': ['Dehradun'],
+  Jullundur: ['Jalandhar'],
+  Nasik: ['Nashik'],
+  Sholapur: ['Solapur'],
+  Puducherry: ['Pondicherry'],
+  Panaji: ['Panjim'],
+  Vishakhapatnam: ['Visakhapatnam', 'Vizag', 'Waltair'],
+  Tiruchirappalli: ['Trichy', 'Trichinopoly'],
+  Thanjavur: ['Tanjore'],
+  Tirunelveli: ['Tinnevelly'],
+  Kanchipuram: ['Conjeevaram'],
+  Tuticorin: ['Thoothukudi'],
+  Kozhikode: ['Calicut'],
+  Kollam: ['Quilon'],
+  Alappuzha: ['Alleppey'],
+  Allahabad: ['Prayagraj'],
+  Kanpur: ['Cawnpore'],
+  Jabalpur: ['Jubbulpore'],
+  Guwahati: ['Gauhati'],
+  Haora: ['Howrah'],
+  Barddhaman: ['Burdwan', 'Bardhaman'],
+  Medinipur: ['Midnapore'],
+  Raurkela: ['Rourkela'],
+  Brahmapur: ['Berhampur'],
+  Baramula: ['Baramulla'],
+  Ahmednagar: ['Ahmadnagar'],
+  Bhubaneswar: ['Bhubaneshwar'],
+};
+
+/** Every name a city answers to: its own first, then the older ones. */
+export function namesOf(town) {
+  if (!town || !town.name) return [];
+  return [town.name, ...(ALSO_KNOWN_AS[town.name] || [])];
+}
+
 export function findTowns(towns, text, most = 8) {
   const wanted = String(text || '').trim().toLowerCase();
   if (!wanted) return [];
   const starts = [];
   const holds = [];
   for (const town of towns) {
-    const name = town.name.toLowerCase();
-    if (name.startsWith(wanted)) starts.push(town);
-    else if (name.includes(wanted)) holds.push(town);
+    const names = namesOf(town).map((name) => name.toLowerCase());
+    if (names.some((name) => name.startsWith(wanted))) starts.push(town);
+    else if (names.some((name) => name.includes(wanted))) holds.push(town);
   }
   return [...starts, ...holds].slice(0, most);
+}
+
+// SPEC 11.38. What is said when nothing matched. It names four ways on,
+// and it never apologises for the reader's spelling: the list is 215
+// cities and a reader who wants somewhere else is not wrong.
+export function noMatch(asked) {
+  return `We don't have ${String(asked || '').trim()} yet. Try a nearby `
+    + 'city or your state, tap the map, or type a latitude and longitude '
+    + 'such as 22.5, 88.4.';
 }

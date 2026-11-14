@@ -40,6 +40,21 @@ export function nameOfSquare(lat, lon) {
   return list.nameOfSquare(TOWNS, lat, lon);
 }
 
+/** SPEC 11.38. The city's name, "near <city>", or "this area". */
+export function placeName(lat, lon) {
+  return list.placeName(TOWNS, lat, lon);
+}
+
+/** SPEC 11.40. The same name as a title: "Kolkata", "Near Budaun". */
+export function placeTitle(lat, lon) {
+  return list.placeTitle(TOWNS, lat, lon);
+}
+
+/** The nearest city within 50 km, or null. */
+export function nearestTown(lat, lon, withinKm) {
+  return list.nearestTown(TOWNS, lat, lon, withinKm);
+}
+
 export function findTowns(text, most) {
   return list.findTowns(TOWNS, text, most);
 }
@@ -48,3 +63,17 @@ export function findTowns(text, most) {
 export function nearTowns(text, most) {
   return list.nearTowns(TOWNS, text, most);
 }
+
+/** SPEC 11.38. The state or union territory a query names, or null. */
+export function findUnit(text) {
+  return units.findUnit(UNITS, text);
+}
+
+/** The cities this site forecasts inside one unit, in name order. */
+export function townsIn(unitName) {
+  return units.townsIn(TOWNS, unitName);
+}
+
+export const namesOf = list.namesOf;
+export const tooBig = units.tooBig;
+export const noMatch = list.noMatch;

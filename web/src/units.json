@@ -1,5 +1,5 @@
 {
- "note": "SPEC 11.29. The 28 states and 8 union territories of Natural Earth 1:10m admin-1, `admin = India`, listed largest polygon first, which is the order the map tries to place their names in. `lat` and `lon` are where the unit's name is written and are inside the unit, and `fit` is how much room there is to write it there (SPEC 11.31). `code` is Natural Earth's own `postal` field, shown instead of the name wherever the name does not fit inside the unit itself. `city` is the one town the map labels in that unit -- its capital where Natural Earth marks one inside the unit, otherwise the largest town inside it by population -- and its `lat` and `lon` are the 0.25 degree square the page shows, never the town's own position. Built by scripts/build_towns.py.",
+ "note": "SPEC 11.29. The 28 states and 8 union territories of Natural Earth 1:10m admin-1, `admin = India`, listed largest polygon first, which is the order the map tries to place their names in. `lat` and `lon` are where the unit's name is written and are inside the unit, and `fit` is how much room there is to write it there (SPEC 11.31). `code` is Natural Earth's own `postal` field, shown instead of the name wherever the name does not fit inside the unit itself. `city` is the one town the map labels in that unit -- its capital where Natural Earth marks one inside the unit, otherwise the largest town inside it by population -- and its `lat` and `lon` are the 0.25 degree square the page shows, never the town's own position. `box` is the unit's own bounding box as west, south, east, north, which the search fits the map to (SPEC 11.38). Built by scripts/build_towns.py.",
  "fit": {
   "aspects": [
    2.0,
@@ -26,6 +26,12 @@
    "code": "RJ",
    "lat": 26.747,
    "lon": 73.856,
+   "box": [
+    69.46,
+    23.03,
+    78.25,
+    30.21
+   ],
    "fit": [
     1.0957,
     0.7382,
@@ -47,6 +53,12 @@
    "code": "MP",
    "lat": 22.94,
    "lon": 78.421,
+   "box": [
+    74.02,
+    21.07,
+    82.82,
+    26.86
+   ],
    "fit": [
     1.1654,
     0.6705,
@@ -68,6 +80,12 @@
    "code": "MH",
    "lat": 19.472,
    "lon": 75.465,
+   "box": [
+    72.64,
+    15.61,
+    80.9,
+    22.03
+   ],
    "fit": [
     1.0111,
     0.5717,
@@ -93,6 +111,12 @@
    "code": "UP",
    "lat": 26.72,
    "lon": 80.997,
+   "box": [
+    77.05,
+    23.91,
+    84.62,
+    30.41
+   ],
    "fit": [
     0.8594,
     0.4839,
@@ -114,6 +138,12 @@
    "code": "GJ",
    "lat": 22.75,
    "lon": 71.301,
+   "box": [
+    68.14,
+    20.07,
+    74.46,
+    24.71
+   ],
    "fit": [
     0.3862,
     0.2131,
@@ -135,6 +165,12 @@
    "code": "KA",
    "lat": 14.368,
    "lon": 75.667,
+   "box": [
+    74.09,
+    11.62,
+    78.57,
+    18.47
+   ],
    "fit": [
     0.5274,
     0.2677,
@@ -156,6 +192,12 @@
    "code": "AP",
    "lat": 15.896,
    "lon": 79.407,
+   "box": [
+    76.71,
+    12.63,
+    84.79,
+    19.17
+   ],
    "fit": [
     0.2517,
     0.1487,
@@ -177,6 +219,12 @@
    "code": "OR",
    "lat": 20.625,
    "lon": 84.434,
+   "box": [
+    81.39,
+    17.78,
+    87.48,
+    22.56
+   ],
    "fit": [
     0.6067,
     0.452,
@@ -198,6 +246,12 @@
    "code": "CT",
    "lat": 21.804,
    "lon": 82.307,
+   "box": [
+    80.26,
+    17.77,
+    84.36,
+    24.15
+   ],
    "fit": [
     0.4758,
     0.2586,
@@ -219,6 +273,12 @@
    "code": "TN",
    "lat": 11.016,
    "lon": 78.27,
+   "box": [
+    76.23,
+    8.07,
+    80.35,
+    13.54
+   ],
    "fit": [
     0.6646,
     0.345,
@@ -240,6 +300,12 @@
    "code": "TG",
    "lat": 17.427,
    "lon": 78.468,
+   "box": [
+    77.25,
+    15.82,
+    81.79,
+    19.9
+   ],
    "fit": [
     0.391,
     0.1955,
@@ -261,6 +327,12 @@
    "code": "BR",
    "lat": 25.685,
    "lon": 85.813,
+   "box": [
+    83.32,
+    24.3,
+    88.31,
+    27.52
+   ],
    "fit": [
     0.6002,
     0.3001,
@@ -282,6 +354,12 @@
    "code": "WB",
    "lat": 23.052,
    "lon": 87.729,
+   "box": [
+    85.82,
+    21.52,
+    89.89,
+    27.25
+   ],
    "fit": [
     0.4672,
     0.2392,
@@ -303,6 +381,12 @@
    "code": "AR",
    "lat": 28.406,
    "lon": 94.467,
+   "box": [
+    91.56,
+    26.64,
+    97.37,
+    29.37
+   ],
    "fit": [
     0.2767,
     0.2586,
@@ -324,6 +408,12 @@
    "code": "AS",
    "lat": 26.33,
    "lon": 92.993,
+   "box": [
+    89.65,
+    24.12,
+    96.02,
+    28.0
+   ],
    "fit": [
     0.3613,
     0.2415,
@@ -345,6 +435,12 @@
    "code": "JH",
    "lat": 23.522,
    "lon": 85.058,
+   "box": [
+    83.33,
+    21.98,
+    87.9,
+    25.33
+   ],
    "fit": [
     0.3821,
     0.191,
@@ -366,6 +462,12 @@
    "code": "LA",
    "lat": 34.026,
    "lon": 77.481,
+   "box": [
+    75.34,
+    32.34,
+    79.63,
+    35.5
+   ],
    "fit": [
     0.5124,
     0.31,
@@ -387,6 +489,12 @@
    "code": "HP",
    "lat": 31.675,
    "lon": 77.287,
+   "box": [
+    75.57,
+    30.38,
+    79.0,
+    33.24
+   ],
    "fit": [
     0.3852,
     0.2446,
@@ -408,6 +516,12 @@
    "code": "UT",
    "lat": 30.058,
    "lon": 79.284,
+   "box": [
+    77.56,
+    28.73,
+    81.01,
+    31.47
+   ],
    "fit": [
     0.3813,
     0.2369,
@@ -429,6 +543,12 @@
    "code": "PB",
    "lat": 31.024,
    "lon": 75.376,
+   "box": [
+    73.84,
+    29.55,
+    76.92,
+    32.52
+   ],
    "fit": [
     0.3585,
     0.1792,
@@ -450,6 +570,12 @@
    "code": "JK",
    "lat": 33.52,
    "lon": 75.293,
+   "box": [
+    73.77,
+    32.3,
+    76.74,
+    34.78
+   ],
    "fit": [
     0.3959,
     0.2332,
@@ -471,6 +597,12 @@
    "code": "HR",
    "lat": 29.1,
    "lon": 76.271,
+   "box": [
+    74.45,
+    27.67,
+    77.59,
+    30.94
+   ],
    "fit": [
     0.3315,
     0.1873,
@@ -492,6 +624,12 @@
    "code": "KL",
    "lat": 10.367,
    "lon": 76.524,
+   "box": [
+    74.85,
+    8.28,
+    77.41,
+    12.78
+   ],
    "fit": [
     0.1406,
     0.0711,
@@ -513,6 +651,12 @@
    "code": "ML",
    "lat": 25.48,
    "lon": 91.303,
+   "box": [
+    89.79,
+    25.0,
+    92.82,
+    26.09
+   ],
    "fit": [
     0.2506,
     0.216,
@@ -534,6 +678,12 @@
    "code": "MN",
    "lat": 24.744,
    "lon": 93.846,
+   "box": [
+    92.97,
+    23.84,
+    94.72,
+    25.69
+   ],
    "fit": [
     0.2638,
     0.1517,
@@ -555,6 +705,12 @@
    "code": "MZ",
    "lat": 23.204,
    "lon": 92.841,
+   "box": [
+    92.25,
+    21.95,
+    93.44,
+    24.49
+   ],
    "fit": [
     0.1552,
     0.1208,
@@ -576,6 +732,12 @@
    "code": "NL",
    "lat": 26.109,
    "lon": 94.566,
+   "box": [
+    93.33,
+    25.2,
+    95.25,
+    27.04
+   ],
    "fit": [
     0.2138,
     0.1218,
@@ -597,6 +759,12 @@
    "code": "TR",
    "lat": 23.852,
    "lon": 91.703,
+   "box": [
+    91.13,
+    22.94,
+    92.34,
+    24.55
+   ],
    "fit": [
     0.1284,
     0.1129,
@@ -618,6 +786,12 @@
    "code": "SK",
    "lat": 27.571,
    "lon": 88.448,
+   "box": [
+    88.0,
+    27.08,
+    88.9,
+    28.11
+   ],
    "fit": [
     0.1464,
     0.0732,
@@ -639,6 +813,12 @@
    "code": "AN",
    "lat": 6.837,
    "lon": 93.79,
+   "box": [
+    92.21,
+    6.74,
+    94.3,
+    13.69
+   ],
    "fit": [
     0.0019,
     0.001,
@@ -661,6 +841,12 @@
    "code": "GA",
    "lat": 15.313,
    "lon": 73.995,
+   "box": [
+    73.68,
+    14.88,
+    74.31,
+    15.79
+   ],
    "fit": [
     0.0409,
     0.0219,
@@ -686,6 +872,12 @@
    "code": "DL",
    "lat": 28.69,
    "lon": 77.086,
+   "box": [
+    76.83,
+    28.43,
+    77.34,
+    28.89
+   ],
    "fit": [
     0.0693,
     0.0346,
@@ -707,6 +899,12 @@
    "code": "DH",
    "lat": 20.184,
    "lon": 73.029,
+   "box": [
+    70.97,
+    20.02,
+    73.18,
+    20.74
+   ],
    "fit": [
     0.003,
     0.0016,
@@ -732,6 +930,12 @@
    "code": "PY",
    "lat": 10.922,
    "lon": 79.776,
+   "box": [
+    75.22,
+    10.8,
+    82.31,
+    16.76
+   ],
    "fit": [
     0.0196,
     0.0146,
@@ -753,6 +957,12 @@
    "code": "CH",
    "lat": 30.745,
    "lon": 76.76,
+   "box": [
+    76.69,
+    30.67,
+    76.83,
+    30.8
+   ],
    "fit": [
     0.0175,
     0.0109,
@@ -774,6 +984,12 @@
    "code": "LD",
    "lat": 11.225,
    "lon": 72.781,
+   "box": [
+    72.17,
+    8.24,
+    73.69,
+    11.7
+   ],
    "fit": [
     0.0024,
     0.0013,

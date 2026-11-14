@@ -680,6 +680,16 @@ export default function HowWeChecked() {
   return (
     <article className="page">
       <h1>How we checked</h1>
+      {/* SPEC 11.41. One line, before the method, saying who this page is
+          for and where the other reader should go. It is the hardest page
+          on the site and it was reachable from the menu with nothing to
+          warn a first-time visitor what they were opening: the report
+          card says the same things in four sentences. */}
+      <p className="forexperts">
+        For experts: the method and the numbers behind the report card.
+        For the plain version, see the{' '}
+        <a href="/report-card">Report card</a>.
+      </p>
       <Method />
       <Decomposition />
       <Sensitivities />

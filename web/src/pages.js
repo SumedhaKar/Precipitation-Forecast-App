@@ -52,6 +52,92 @@ function amount(threshold) {
 }
 
 /**
+ * The five sentences at the top of the report card. SPEC 11.41.
+ *
+ * The page already had one plain line about the whole record -- the
+ * `headline` below -- but it sat under the period and above sixty labels,
+ * a skill plot and twelve reliability bands, and the readers who were
+ * asked to use this site did not get as far as reading it. What they
+ * wanted was the answer to "can I believe this?" before anything that has
+ * to be explained.
+ *
+ * So these are those five, and every number in them is counted from
+ * web/src/summary.json here rather than written into the page: how many
+ * runs were saved, how many groups they were sorted into, how many of
+ * those did better than the usual rain for their place and month, how
+ * many could not be shown to, and in how many the agreement ran ahead of
+ * what was seen. The day any of that changes the sentences change with
+ * it: each one has the forms it needs for the counts it could be given,
+ * so none of them can claim "all" or "none" while it is untrue.
+ *
+ * The period is the file's own period, quoted out of it, so the dates
+ * here and the dates under the heading cannot differ.
+ */
+export function tldr(summary) {
+  const groups = summary.groups || [];
+  const total = groups.length;
+  const runs = Math.max(0, ...groups.map(
+    (group) => group.conditions.enough_data.dates || 0));
+  // "runs of 13 May to 5 November 2026", out of the file's own period.
+  const span = /runs of ([^,]+), checked/.exec(summary.period || '');
+  const when = span ? span[1] : null;
+  const beat = groups.filter(
+    (group) => group.conditions.skill_above_zero.pass).length;
+  const missed = total - beat;
+  const confident = groups.filter(
+    (group) => !group.conditions.small_honesty_error.pass).length;
+  // The highest count any reliability band reaches, which is how many
+  // runs there are. Nothing here is told the number.
+  const members = Math.max(51, ...groups.flatMap(
+    (group) => (group.buckets || []).map((bucket) => bucket.k_to || 0)));
+
+  const saved = `We saved ${runs} past forecasts`
+    + `${when ? ` from ${when}` : ''} and checked each one against the `
+    + 'satellite estimate of the rain that fell.';
+
+  // What a group is, in the words the groups were made by, because the
+  // next sentence counts them and a reader has to know what is being
+  // counted. SPEC 6.2: four regions by five lead days by three amounts.
+  const sorted = `We sorted them into ${total} groups, by region, days `
+    + 'ahead and rain amount.';
+
+  // "did better" is the whole bootstrap range above zero and not a point
+  // estimate above zero -- `skill_above_zero` is `bss_lo > 0` in
+  // pipeline/labels.py -- so a group that missed is one where it could
+  // not be shown, which is what the second half of this says. 21 of the
+  // 40 that missed have a positive score with a range that includes zero.
+  const some = `In ${beat} groups the counts did better than the usual `
+    + `rain for that place and month; in the other ${missed} we could not `
+    + 'show they were better.';
+  const all = `In all ${total} groups the counts did better than the usual `
+    + 'rain for that place and month.';
+  const none = `In none of the ${total} groups could we show the counts did `
+    + 'better than the usual rain for that place and month.';
+  const worked = missed === 0 ? all : (beat === 0 ? none : some);
+
+  const over = confident === total
+    ? `And in all ${total}, when most of the ${members} runs agreed on `
+      + 'rain, rain was seen less often than that.'
+    : `And in ${confident} of the ${total}, when most of the ${members} `
+      + 'runs agreed on rain, rain was seen less often than that.';
+  const honest = confident === 0
+    ? `And where many of the ${members} runs agreed on rain, rain was seen `
+      + 'about as often as that.'
+    : over;
+
+  return {
+    runs,
+    total,
+    beat,
+    missed,
+    confident,
+    period: when,
+    sentences: [saved, sorted, worked, honest,
+      'So treat the counts as a helpful hint, not a promise.'],
+  };
+}
+
+/**
  * The one plain line about the whole record. SPEC 11.34.
  *
  * Counted from the file every time rather than written down, so the day a

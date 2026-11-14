@@ -120,14 +120,64 @@ export const TOO_FEW = 'Too few past cases with this many runs agreeing to '
  * in 10" reads as always. Both ends are rounded, so both are said as the
  * roundings they are.
  */
-/* SPEC 11.37. The one line the phone's closed bar carries. Pure, like
-   everything else here: the caller works out which place and which count,
-   and this says it in the panel's own words. */
-export const PICK_A_PLACE = 'Tap the map to pick a place';
+/* SPEC 11.39. The line the phone's closed bar carried, and the prompt it
+   showed with nothing chosen, are both gone with the bar: the card is on
+   the page and says all of it in its own words. Nothing imported them
+   once the bar went, and an export nothing imports is a claim the page
+   no longer makes. */
 
-export function barLine(where, count, members, threshold) {
-  if (!where || !Number.isInteger(count) || !members) return PICK_A_PLACE;
-  return `${where}: ${count} of ${members} runs reach ${threshold} mm`;
+/**
+ * The band words. SPEC 11.38.
+ *
+ * `from` and `to` are inclusive counts of runs, not shares: the bands are
+ * read off the number of runs and nothing is divided by anything, so no
+ * reading of this is a probability. Three reviews called the page too
+ * textual; a reader who cannot hold "38 of 51" in their head can hold
+ * "most", and the count is beside it either way.
+ *
+ * The words describe the runs and never the weather. "A few of the 51 runs
+ * bring 10 mm" is a statement about a model. "Rain is unlikely" is a
+ * forecast, and this site does not make one -- which is also why "likely"
+ * and "unlikely" are on the forbidden list of 11.20 and these are not.
+ */
+export const BANDS = [
+  { from: 0, to: 0, word: 'none' },
+  { from: 1, to: 10, word: 'a few' },
+  { from: 11, to: 20, word: 'some' },
+  { from: 21, to: 30, word: 'about half' },
+  { from: 31, to: 45, word: 'most' },
+  { from: 46, to: 50, word: 'almost all' },
+  { from: 51, to: 51, word: 'all' },
+];
+
+/** The band word for a count of runs, or null for anything not a count. */
+export function bandWord(count, members = RECORD_MEMBERS) {
+  if (!Number.isInteger(count) || count < 0 || count > members) return null;
+  const band = BANDS.find(
+    (entry) => count >= entry.from && count <= entry.to);
+  return band ? band.word : null;
+}
+
+/**
+ * The card's one sentence. SPEC 11.38, remade by 11.40.
+ *
+ * The same shape every time: when, the band, the amount, the count. Both
+ * the word and the number are always there, in that order, because the word
+ * on its own would be a claim the count has not made and the count on its
+ * own is what the reviews were about.
+ *
+ * 11.40 takes the place name out of it. The card's heading is the place,
+ * and the sentence was directly under that heading repeating it -- "Near
+ * Budaun" and then "near Budaun, Today: ..." -- while the day and the
+ * amount were said again in a line of their own above. One fact, one
+ * place on the card: the heading says where, this says when, how much,
+ * and how many of the 51.
+ */
+export function headline(when, count, members, threshold) {
+  const word = bandWord(count, members);
+  if (!when || word === null) return null;
+  return `${when}: ${word} of the ${members} runs bring `
+    + `${threshold} mm or more (${count} of ${members}).`;
 }
 
 export function howOften(bucket) {
@@ -152,6 +202,47 @@ export function pastSentence(group, count, members) {
   return `In May to November 2026, when ${howMany(bucket, members)} said `
     + `${amount(group.threshold_mm)} or more in ${group.region} on day `
     + `${group.lead_day}, the satellite saw it ${howOften(bucket)}.`;
+}
+
+/**
+ * The track record as the chip's own reason. SPEC 11.38.
+ *
+ * The chip used to be followed by a line naming which of the four checks
+ * the group failed — "too few past cases", "too uncertain to tell" — which
+ * is a sentence about our method and not about this reader's square. The
+ * reason a label is what it is, said in a way a first-time reader can use,
+ * is what the record measured: the last time the runs said this here, how
+ * often did the satellite see it?
+ *
+ * "the satellite saw rain of 10 mm or more", never "it rained" (SPEC 5.9):
+ * IMERG is an estimate from space and is never ground truth. The two ends
+ * keep 11.33's wording, because "about 0 times in 10" reads as never and
+ * the record did not say never.
+ *
+ * The long form, with the period, the band of agreement and the day number,
+ * is `pastSentence` and is in "For the curious".
+ */
+export function recordLine(group, count, members) {
+  if (!group || members !== RECORD_MEMBERS) return null;
+  const bucket = bucketFor(group, count);
+  if (!bucket) return TOO_FEW;
+  return `When the runs said this before in ${group.region}, the satellite `
+    + `saw rain of ${amount(group.threshold_mm)} or more `
+    + `${howOften(bucket)}.`;
+}
+
+// SPEC 11.38. Said only where the group's own skill check passed. It is the
+// one unambiguously good thing the record can say about a group, and an
+// amber chip with nothing but its failures beside it describes a worse
+// record than the one that was measured.
+export const BETTER_THAN_USUAL = 'This is better than the usual rain for '
+  + 'this place and month.';
+
+/** That sentence, or null where the check did not pass. */
+export function betterThanUsual(group) {
+  if (!group || !group.conditions) return null;
+  const skill = group.conditions.skill_above_zero || {};
+  return skill.pass ? BETTER_THAN_USUAL : null;
 }
 
 /** The names of the conditions this group did not pass, in 6.2's order. */
@@ -282,6 +373,9 @@ export function trustFor(summary, region, leadDay, threshold, count,
     label: group.label,
     colour: group.colour,
     why: whyLine(group),
+    // SPEC 11.38: what the chip says out loud, and the one good thing.
+    reason: recordLine(group, count, members),
+    better: betterThanUsual(group),
     past: pastSentence(group, count, members),
     percent: aboutInTen(group, count, members),
     conditions: conditionLines(summary, group),

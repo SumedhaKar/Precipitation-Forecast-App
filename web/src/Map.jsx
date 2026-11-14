@@ -614,6 +614,7 @@ function makeLabels(container, mapFor) {
 
 export default function ForecastMap({
   counts, grid, threshold, day, square, squareName, onPick, onProblem,
+  unitBox, keyOver,
   handcheck,
 }) {
   const holder = useRef(null);
@@ -624,6 +625,11 @@ export default function ForecastMap({
   // The chosen square, for the resize watcher, which is made once and so
   // cannot see a prop (SPEC 11.32).
   const chosen = useRef(null);
+  // SPEC 11.38. The state or union territory the map is being held on, so
+  // that a resize -- the panel opening or closing, which on a phone changes
+  // the map's height by a factor of four -- fits it again rather than
+  // leaving a view that was fitted to a 64 pixel strip.
+  const unitHeld = useRef(null);
   chosen.current = square;
 
   // Create the map once. MapLibre owns the canvas for the life of the page;
@@ -644,9 +650,34 @@ export default function ForecastMap({
         style: EMPTY_STYLE,
         bounds: INDIA,
         maxBounds: LIMITS,
-        minZoom: 3,
+        // SPEC 11.38. It was 3, and 3 is above the zoom that fits India on
+        // a phone, so the fit was silently clamped and the south of the
+        // country was off the bottom of the screen: 18.7 to 38.6 N in a
+        // 390 by 664 browser, which is Kerala, Tamil Nadu, Karnataka and
+        // half of Andhra Pradesh not drawn at all on first load.
+        //
+        // MapLibre's world is 512 pixels at zoom 0, so 6 to 38 N is 0.0488
+        // of it at every zoom, which is 200 pixels at zoom 3 and 400 at
+        // zoom 4. A phone's map box is 261 pixels tall with 108 of them
+        // spent on the padding that keeps India clear of the zoom buttons
+        // and the attribution, so the fit needs zoom 2.62 and could not
+        // have it. Two is below that with room to spare, and maxBounds
+        // still stops anybody wandering off the country.
+        minZoom: 2,
         maxZoom: 9,
         dragRotate: false,
+        // SPEC 11.39. One finger scrolls the page and two move the map,
+        // which is MapLibre's own cooperativeGestures and its own hint.
+        //
+        // The page scrolls now, and a map that takes a one-finger drag
+        // inside a scrolling page is a trap: the map is 365 pixels of a
+        // 664 pixel screen, so a reader who puts a thumb down to scroll
+        // past it lands on the map more often than not and the page does
+        // not move. The same option asks for ctrl with the wheel, which
+        // is the same bargain for a mouse.
+        //
+        // Tapping a square is untouched: a tap is not a gesture.
+        cooperativeGestures: true,
         pitchWithRotate: false,
         attributionControl: false,
         // SPEC 11.25: reading a pixel back from a WebGL canvas needs this,
@@ -732,11 +763,48 @@ export default function ForecastMap({
       // would zoom India down to nothing on a small screen, which is worse
       // than a legend over the sea.
       const cap = (value, whole) => Math.min(value + gap, whole / 3);
+      // SPEC 11.38. The top is the gap and nothing else.
+      //
+      // The zoom buttons are 58 pixels tall in the top **right** corner,
+      // and padding the whole top edge by 68 of a phone's 261 pixel map
+      // took a quarter of the height away from the fit. The fit then
+      // wanted a zoom below the minimum, was clamped, and drew 18.7 to
+      // 38.6 N: Kerala, Tamil Nadu, Karnataka and half of Andhra Pradesh
+      // were off the bottom of the screen on first load.
+      //
+      // Padding the right is what keeps the country clear of the buttons,
+      // because that is the edge they are on. What the buttons cover once
+      // the fit is right is the top right of the **box** of SPEC 1.4,
+      // which is 38 N 98 E and thereabouts -- China, drawn beige, with no
+      // forecast square anywhere near it. Nothing of India is under them.
+      const seenRight = most(right);
+      // SPEC 11.41. And the colour key, where it is over the canvas.
+      //
+      // It is the whole key, open, in the map's lower left corner over
+      // the Arabian Sea, at 1280 pixels and over. The only way to be
+      // sure that nothing of India is behind it is to pay for it in the
+      // fit: the left edge is padded by its measured width, so the box
+      // of SPEC 1.4 starts to the right of it. Measured and not assumed,
+      // because the box's width is the reader's own font's.
+      //
+      // Where it would cost something, the page does not put the key
+      // over the canvas: 11.40 measured 1024 by 768, where paying 234
+      // pixels of a 574 pixel map makes the fit width-limited and puts
+      // Gujarat behind the key regardless. There, and on a phone, the
+      // key is in the panel and this returns the plain gap.
+      const keyWidth = () => {
+        const card = created.getContainer().closest('.mapcard');
+        const found = card ? card.querySelector('.mapkey') : null;
+        if (!found) return 0;
+        if (getComputedStyle(found).position !== 'absolute') return 0;
+        const seen = box(found);
+        return seen ? seen.width : 0;
+      };
       return {
-        top: cap(most(top), canvas.height),
-        right: cap(most(right), canvas.width),
+        top: gap,
+        right: cap(seenRight, canvas.width),
         bottom: cap(most(bottom), canvas.height),
-        left: gap,
+        left: cap(keyWidth(), canvas.width),
       };
     };
 
@@ -889,6 +957,12 @@ export default function ForecastMap({
       // nothing is moving any more, and the map is the same map every time.
       created.once('idle', () => {
         if (labels.current) labels.current.resized();
+        // SPEC 11.38. And fit again now that nothing is moving. The first
+        // fit happens on `load`, which can be before the flexbox has given
+        // the map its real height; the ResizeObserver catches most of
+        // that, and this catches the rest. It does nothing at all if the
+        // reader has already moved the map themselves.
+        if (!touched.current) refit();
       });
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => {
@@ -906,7 +980,7 @@ export default function ForecastMap({
     // not necessarily final when the map is created: the first build fitted
     // India to a container that then grew, and cut the south of the country
     // off. Watching the element and refitting is cheap and cannot be wrong.
-    const moved = () => { touched.current = true; };
+    const moved = () => { touched.current = true; unitHeld.current = null; };
     created.on('dragstart', moved);
     created.on('zoomstart', (event) => { if (event.originalEvent) moved(); });
 
@@ -914,10 +988,20 @@ export default function ForecastMap({
       created.resize();
       if (labels.current) labels.current.resized();
       if (!ready.current) return;
-      // Refit only while the reader has not moved the map themselves:
-      // yanking somebody back to the whole country because a panel opened
-      // would be worse than the cut-off country this fixes.
-      if (!touched.current) refit();
+      // SPEC 11.38. A state is being held, so it is fitted again at the
+      // map's new size. On a phone the panel opening takes the map from
+      // 227 pixels to 64 and closing it gives them back, and a view fitted
+      // to the 64 is not a view of that state.
+      if (unitHeld.current) {
+        const held = unitHeld.current;
+        created.fitBounds([[held[0], held[1]], [held[2], held[3]]],
+          { padding: 12, duration: 0, animate: false });
+      } else if (!touched.current) {
+        // Refit only while the reader has not moved the map themselves:
+        // yanking somebody back to the whole country because a panel opened
+        // would be worse than the cut-off country this fixes.
+        refit();
+      }
       // SPEC 11.32. Whether or not it was refitted, the square the reader
       // chose has to still be on the map afterwards. This is the phone: the
       // sheet opens, the map is half as tall, and the refit cannot help
@@ -979,11 +1063,24 @@ export default function ForecastMap({
         layers: order,
       };
     };
+    // SPEC 11.39. Fit again, for the colour key: opening or shutting it
+    // changes the width the fit is padded by, and nothing else on the page
+    // can tell the map that. It does nothing while the reader has moved
+    // the map themselves, like every other refit here.
+    created.getContainer().refit = () => { if (!touched.current) refit(); };
     created.getContainer().mapView = () => {
       const box = created.getBounds();
       return { zoom: created.getZoom(),
         bounds: [box.getWest(), box.getSouth(),
-          box.getEast(), box.getNorth()] };
+          box.getEast(), box.getNorth()],
+        // SPEC 11.40. Which of the fifteen count arrays the squares are
+        // painted from, read back off the layer itself rather than from
+        // the page's own state: it is how a test can say that tapping a
+        // day pill changed what is on the canvas. The key is the one
+        // `countKey` builds, so it names a day and an amount.
+        paint: created.getLayer('squares')
+          ? created.getPaintProperty('squares', 'fill-color')[1][1]
+          : null };
     };
 
     return () => {
@@ -1027,6 +1124,59 @@ export default function ForecastMap({
     else created.once('load', put);
   }, [counts, grid]);
 
+  /**
+   * Fit the map to a state or union territory. SPEC 11.38.
+   *
+   * A reader who types "Kerala" is told that a state is too big for one
+   * forecast and is given the cities inside it; this is the other half of
+   * that answer -- the map goes to Kerala, so the reader can see the shape
+   * they are being asked to pick a point in and can tap it.
+   *
+   * It paints nothing. No square is chosen, no count is shown for a state,
+   * and the colours under the outline are the same colours they were.
+   *
+   * `unitBox` is the unit's own bounding box from units.json, rounded
+   * outwards, so the whole of the unit is in view. The reader has now moved
+   * the map themselves as far as the resize watcher is concerned, which is
+   * why `touched` is set: a panel opening must not yank them back to the
+   * whole country afterwards.
+   */
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !unitBox || unitBox.length !== 4) return;
+    const go = () => {
+      touched.current = true;
+      unitHeld.current = unitBox;
+      created.fitBounds(
+        [[unitBox[0], unitBox[1]], [unitBox[2], unitBox[3]]],
+        { padding: 12, duration: 500 });
+    };
+    if (ready.current) go();
+    else created.once('load', go);
+  }, [unitBox ? unitBox.join(',') : null]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Fit again when the colour key arrives over the canvas, or leaves it.
+   *
+   * SPEC 11.41. The fit is padded by the key's measured width wherever
+   * the key is over the map, and `keyOver` is the page's answer to
+   * whether it is -- the same media query the stylesheet uses. A window
+   * dragged across 1280 pixels resizes the container as well, and the
+   * resize observer answers that; this is for the first paint, where the
+   * box is in the page but has not been laid out when the fit is first
+   * worked out.
+   *
+   * The key does not open or shut over the canvas -- it is open, and
+   * there is nothing to press -- so this is the only event that can
+   * change what the fit owes it.
+   */
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !ready.current) return;
+    const again = created.getContainer().refit;
+    if (again) window.requestAnimationFrame(again);
+  }, [keyOver]);
+
   // Changing day or threshold: one paint property, nothing else.
   useEffect(() => {
     const created = map.current;
@@ -1039,6 +1189,12 @@ export default function ForecastMap({
     if (ready.current) paint();
     else created.once('load', paint);
   }, [threshold, day]);
+
+  // SPEC 11.38. Choosing a square ends the hold on a state: from here the
+  // view is governed by the square the reader picked, as it always was.
+  useEffect(() => {
+    if (square) unitHeld.current = null;
+  }, [square && `${square.lat},${square.lon}`]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The chosen square: the outline, the ring, and the name beside it.
   useEffect(() => {

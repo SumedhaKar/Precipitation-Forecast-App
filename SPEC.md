@@ -2053,6 +2053,24 @@ a threshold after seeing which side of it the answer fell.
 
 ---
 
+## 7. Pipeline stages and file layout
+
+Drafted here on 14 November 2026, from what was built. One run goes through
+five stages, each a module of `pipeline/` with one job: `ecmwf_download`
+fetches the 00 UTC AIFS ENS total precipitation for the six 24-hour step
+boundaries and keeps the India box alone; `ecmwf_process` differences the
+accumulations into five daily totals per run; `india_mask` applies the
+committed mask of 3.5; `checks` refuses a run that breaks any rule of 4.5;
+and `publish` uploads it in the order of 8.5. `run_live` is the one entry
+point that calls them in order and decides which run to build (8.6). A run
+lives in `data/live/<run id>/` as `squares.npz` (the member totals, the
+counts, the dots and the grid), `days.json` and `manifest.json`, and `data/`
+is never committed. `config/` holds what the pipeline and the two API
+functions share and nothing that changes per run: the mask, the regions of
+5.4, and the store's public base URL. Sections 2, 3, 4 and 8 are the rules
+these stages carry out; this section is only the map of which file does
+which.
+
 ## 8. Publishing
 
 Section 4.6 builds a run and publishes nothing. This section is how a built
@@ -2527,7 +2545,7 @@ successful publish to compare a failure against, which 20261112T00Z now is.
 
 | Setting | Value | Why |
 |---|---|---|
-| Triggers | `schedule` and `workflow_dispatch` | the cron is the normal path; the dispatch is for the first publish, after a failure, and for a run ECMWF published late |
+| Triggers | `schedule` and `workflow_dispatch`, with an optional `source` input | a cron-job.org dispatch at 13:15, 14:15, 16:15 and 19:15 IST is the normal path (DECISIONS.md); GitHub's own cron and a run started by hand are the fallbacks, and `source` is what names each of them in the run's title |
 | Concurrency | group `live`, `cancel-in-progress: false` | two overlapping publishes could interleave uploads; a queued second attempt simply finds nothing new |
 | Permissions | `contents: read` | the workflow writes nothing back to the repository |
 | Timeout | 30 minutes | the first real run took 2 min 26 s |
@@ -2798,6 +2816,47 @@ Nothing in section 8 is open.
 | 10 N 70 E, the Arabian Sea | 404, "outside the forecast area" |
 | the page | the live JavaScript bundle is **byte for byte** the local build, 228,423 bytes, and holds no store URL |
 | the function region | `X-Vercel-Id: bom1::...`, which is Mumbai |
+
+## 9. Automation and failure handling
+
+Drafted here on 14 November 2026, from what was built. The daily run is
+`.github/workflows/forecast.yml`. It is started four times a day by a
+cron-job.org dispatch, at 13:15, 14:15, 16:15 and 19:15 IST, with GitHub's
+own scheduler -- 23 attempts between 06:17 and 22:23 UTC -- and a run
+started by hand as the fallbacks; the optional `source` input names which
+of the three it was in the run's title. The job is called `live` and its
+concurrency group is `live`, so two runs can never publish at once. Every attempt reads what the store publishes before
+it builds anything, and exits 0 when the newest complete run is already
+there, which is why 22 of a day's 23 attempts cost one listing check. A
+failure is never a half-published run: the uploads go in the order of 8.5
+with the manifest last and the marker after it, so until the manifest moves
+the site serves the previous run, and the site says how old what it is
+showing is and calls it old past 36 hours (11.8). The scheduler's own
+unreliability is recorded rather than worked around -- in this build not one
+scheduled attempt arrived inside the midday window and every publish so far
+was started by a dispatch -- which is why the daily trigger is an outside
+one; the in-repo Vercel cron that would replace it is listed as future work
+in `README.md`. HC-FAIL is the hand check for this section: the
+publisher broken seven ways and the run chooser given five awkward servers.
+
+## 10. Testing strategy
+
+Drafted here on 14 November 2026, from what was built. Four kinds of check,
+and nothing in the suite needs the network, a token or the archive. First,
+the pipeline's own rules are driven as functions over small arrays built in
+the test, so a rule and its test cannot share a mistake. Second, the API is
+driven end to end: a small run is published through a fake store into a
+temporary directory, served on 127.0.0.1, and the real `api/health` and
+`api/place` are imported and called against it. Third, the page's pure
+modules -- the palette, the snap, the sentences, the day names, the record
+-- are loaded by `node` and driven against the same published files, which
+is why they are plain `.js` with no imports (11.24). Fourth, the built site
+is measured in a headless Chrome over the DevTools protocol at eight screen
+sizes, so every claim about what a reader can see is a measurement and not
+an opinion. A check that cannot run says so and skips, and the suite is run
+with `-rs` in CI so a check that quietly stopped checking is visible. The
+hand checks of the next section are deliberately outside all of this: they
+redo one step against the original file, by hand.
 
 ## 11. Display rules, the website pages and the `api/` functions
 
@@ -5484,6 +5543,1350 @@ that follows; and the map's own canvas back to its full height after the
 panel closes. Plus, without a browser: the line's words, and the stylesheet
 read to show the desktop keeps its panel.
 
+### 11.38 Plain words on the forecast page
+
+Three reviews and two real first-time readers said the same three things
+about this page, and none of them was about the data: one could not tell
+what the site was for, one did not know how to start, and all of them found
+the page too textual and full of words nobody outside a weather centre
+uses. The forecast is right; it was being handed over in a language the
+reader does not speak.
+
+So this section is about placement and words on the forecast page only. No
+number changes, no rule changes, no new claim: the report card and How we
+checked keep every sentence they had. What changes is which words this page
+uses for the things it already shows, and where on the screen the answer is.
+
+#### One name per thing
+
+The page had four names for the 51: "model runs" in the day sentence and
+the legend, "members" in the API's own field names, "model run" in the
+header's run line, and "runs" in the track-record sentences. A reader who
+does not already know they are the same thing has no way to learn it from
+the page.
+
+| the thing | its one name | never |
+|---|---|---|
+| one of the 51 forecasts | **run** | member, model run, ensemble member |
+| one 0.25 degree cell | **square** | cell, grid point, pixel |
+| a place in the search box | **city** | town, place, settlement |
+
+"Run" is defined once, in the tagline and again in the welcome card — "one
+weather model, run 51 times, each from a slightly different start" — and
+after that it is used bare: in the legend, in the amount rows, over the
+dots, and in the headline. The API's JSON keeps `members`, because that is
+what the field has always been called and a reader never sees it; what is
+forbidden is the word on the screen.
+
+The day sentence of 11.20 says "model runs" and is pinned, word for word,
+by its own test. It is not reworded: it is **taken off the page**, and the
+headline below says the same thing in the page's own language. `api/place`
+still computes it and still publishes it, so 11.20 is unchanged for anyone
+reading the API.
+
+A control asks a question and an answer states something. "Which day?" and
+"How much rain?" over the two button rows; everything in the panel is a
+statement. Every caveat is said once, in one place, and the repeats are
+gone.
+
+#### The amount nicknames
+
+The three thresholds are the same three numbers they have always been. The
+words beside them are **this site's own nicknames**, not an official
+category of anybody's, and they are written down here so that they are
+fixed and so that nobody can take them for IMD's classes:
+
+| threshold | the nickname | why not the obvious word |
+|---|---|---|
+| 1 mm or more | **Some rain** | |
+| 10 mm or more | **A rainy day** | "a wet day" is the natural phrase and "wet" is a forbidden word of 11.20 |
+| 50 mm or more | **A lot of rain** | "very heavy" is the natural phrase and "heavy" is a forbidden word of 11.20 |
+
+The forbidden list is not a style preference. "Heavy rain" is IMD's own
+class name for a band this site does not measure, and a page that borrowed
+it would be claiming a warning it has not issued. One line under the
+buttons gives the only scale a reader needs: *10 mm of rain is water 1 cm
+deep if none of it ran away.*
+
+The same three nicknames appear in How to read this map and nowhere else;
+they are never used without their millimetres beside them.
+
+#### The headline
+
+One sentence, the same shape every time, in the phone's closed bar and at
+the top of the panel:
+
+> **Srinagar, Today: a few of the 51 runs bring 10 mm or more (7 of 51).**
+
+The band word is a reading aid and the count is the number. Both are
+there, always, in that order, because the word alone would be a claim the
+count has not made and the count alone is what three reviews called too
+textual.
+
+| runs | the word |
+|---|---|
+| 0 | none |
+| 1 to 10 | a few |
+| 11 to 20 | some |
+| 21 to 30 | about half |
+| 31 to 45 | most |
+| 46 to 50 | almost all |
+| 51 | all |
+
+The bands describe **the runs** and never the weather. "A few of the 51
+runs bring 10 mm" is a statement about a model; "rain is unlikely" is a
+forecast, and this site does not make one. No band word is ever drawn on
+the colour legend, where it would read as a label for the colour and so as
+a claim about the square.
+
+The boundaries are tested one by one, at 0, 1, 10, 11, 20, 21, 30, 31, 45,
+46, 50 and 51, because an off-by-one here is the page saying "most" where
+the record says "about half".
+
+#### What a place is called
+
+| how it was chosen | what the page calls it |
+|---|---|
+| searched by name | that city's name |
+| tapped, and the square is a city's own square | that city's name |
+| tapped, with a city within 50 km | **near** that city |
+| tapped, with nothing within 50 km | **this area** |
+
+The name is bold and first; the coordinates are small underneath. The
+first build led with "23.25 N 77.50 E" and put the name after it, which is
+the order a grid reference is written in and not the order a person reads.
+Fifty kilometres is under two squares, so "near Nagpur" is never said about
+somewhere a reader would call a different place.
+
+#### Answer first
+
+The panel's order, on a phone and on a desktop alike:
+
+1. the place name
+2. the headline
+3. **The next five days** — the strip, moved up from sixth
+4. **The 51 runs, one dot each** — the four category counts always visible
+5. the three amount rows
+6. the trust label, once per place, with the track record as its reason
+7. one line: *A count of runs, not a promise of rain.* — linked to the report card
+
+and then a closed section, **For the curious: the numbers behind this**,
+holding the 51 values with the control run, the square's i and j and its
+tile, the run ID, the UTC line and the long track-record sentence with its
+region, day number and date range. Nothing is deleted; what is moved is
+moved into one place a reader can choose to open.
+
+The trust chip was drawn four times on one screen — once per amount row
+and once more under them — which is a wall of "Rough guide" and not a
+label. It is drawn once. Its reason is the track record itself:
+
+> When the runs said this before in East and North East India, the
+> satellite saw rain of 10 mm or more about 4 times in 10.
+
+and, only where the group's better-than-the-usual-rain check passed, one
+more sentence saying so, linked to the report card. The two ends keep the
+wording of 11.33: a band rounded to 0 reads "fewer than 1 time in 10" and
+one rounded to 10 reads "nearly every time", because "about 0 times in 10"
+reads as never and the record did not say never.
+
+On a phone, once a place is answered, the search box and "Use my location"
+move **below** the answer. The bar's Search button still opens the panel
+with the keyboard, so the way in is unchanged; what changes is that the
+answer is no longer 193 pixels down behind a box the reader has already
+used.
+
+#### The welcome card
+
+Until a place is chosen there is no answer to put first, so the space
+carries the only two things a first-time reader needs: what this is, and
+what to do.
+
+> **Will it rain where you are in the next 5 days?**
+>
+> One weather model from Europe's weather centre (ECMWF), run 51 times,
+> each from a slightly different start. We show how many of the 51 bring
+> rain where you are.
+>
+> [ Find my city ]  or tap the map
+>
+> How to read this map
+
+It is over the map on a phone and in the empty panel on a desktop. It
+leaves the moment a place is chosen and comes back if the choice is
+cleared. It never covers the "Not an official warning" chip, which is in
+the header above it and is on the screen whatever else is.
+
+"Find my city" opens the search with the box focused — the review found
+that a reader who wants to start cannot see a search box at all until the
+panel is open, and the panel's only visible control was a line of text.
+
+#### The site's name
+
+**India Rain Outlook**, with the tagline *51 runs of one weather model. See
+how many bring rain where you are.* under it. The browser tabs are
+"India Rain Outlook · next 5 days", "Report card · India Rain Outlook" and
+"How we checked · India Rain Outlook", so a reader with three tabs open can
+tell them apart, which the one shared title did not allow.
+
+#### Freshness, on a phone
+
+The header's run line is three facts — run time, publish time, run ID — in
+two sizes of grey. On a phone it is one line:
+
+> Updated 13 Nov, 12:33 pm IST · 16 h old
+
+and when the run is older than the 36 hours of 11.8 that line becomes the
+warning itself: *This forecast is 41 hours old; a newer one has not arrived
+yet.* It never says a newer one is on its way, because nothing here knows
+that. The run ID and the UTC time are in "For the curious". The desktop
+header keeps the run line it had.
+
+#### The map, and the things that are not squares
+
+| | |
+|---|---|
+| the fit | the whole of India — 6 to 38 N and both coasts — is in view on first load at 390 x 664 and at 1440 x 900, fitted **after** the map box has its real size and not before |
+| white | "White: no forecast for this spot" |
+| beige | a swatch of its own: "Land outside India, which this site does not forecast" — it had no legend entry at all, so a reader who tapped Nepal got a red error about a colour the page had never named |
+| a tap outside India | the calm line *That's outside India. Tap the map over India or find a city.*, in a plain box and not a red one, and the old city name is cleared out of the search box |
+| waiting | "Reading the 51 runs for this square…" |
+
+#### The phone floors
+
+11.37 set a floor for the panel and the bar and left the controls bar and
+the menu where they were: 12.2 pixel day buttons 29.8 pixels tall, and nav
+links of 13.6 pixels. The floors are the page's now, not the panel's:
+
+| | |
+|---|---|
+| day buttons, amount buttons, nav links | at least 44 pixels tall, text at least 15 pixels |
+| any text on the forecast page | at least 12 pixels |
+| at 390 pixels | nothing scrolls sideways |
+| at 390 x 664, after choosing | the place name, the headline and the five-day strip are all in the open panel without scrolling |
+
+Where they do not fit, the headline wraps to two lines and the strip's
+cells shrink first. No text goes under the floors to make room.
+
+**What the floors cost, measured at 390 x 664.** The three rows go from
+30 pixels tall to 44, and that height comes out of the map: the shut map
+was 250 pixels and is 227. It is the trade this section chose, and the
+test that used to ask for 250 asks for 225 and says why. The open panel
+takes the last of the map's own floor as well -- 56 pixels rather than
+80 -- which is what puts the five cells of the strip on the screen; the
+map is thinner and never gone, and it has all of it back the moment the
+panel is shut.
+
+The 12 pixel floor is the page's and not the panel's, so it reaches the
+names drawn **on** the map too: the state codes were 9.6 pixels and the
+city names 11.5. The fit of 11.31 measures the drawn word, so a larger
+word means a code where a name used to fit and nothing where a code used
+to, which is that algorithm doing its job rather than a layout to repair.
+MapLibre's own zoom buttons are 29 pixels and are not ours to lay out;
+its attribution is set to 12 where the stylesheet can reach it.
+
+#### The search box
+
+It had one way in and one way out: type the first letters of one of 215
+Natural Earth city names, or go away. A reader who types the name of their
+state, or the name their city had when they learned it, was told "No town
+in the list starts with ...", which is a page blaming a reader for not
+knowing what is in a file.
+
+**States and union territories.** All 36 are recognised, in any case, with
+`&` and "and" the same word and punctuation ignored, so "Jammu & Kashmir"
+and "jammu and kashmir" are one query. The **short forms** — WB, UP, MP,
+TN and the rest — count **only as the whole query**, because two letters
+inside a longer word are not an abbreviation: "up" on its own is Uttar
+Pradesh and "udaipur" is a city. Older names of units are keys too:
+Orissa, Uttaranchal, Pondicherry.
+
+A state is never answered with a count. Rain over Rajasthan on one day is
+not one number, and an average nobody asked for is not an answer. What a
+state gives is its outline on the map and the cities inside it:
+
+> **Kerala is too big for one forecast: rain can differ a lot across it.
+> Tap the map, or pick a city:**
+
+Which cities are inside it is decided at build time, by the city's own
+point against that unit's own polygon from the admin-1 layer —
+`scripts/build_towns.py` writes `unit` onto every city and `box`, the
+unit's bounding box rounded **outwards** to a hundredth of a degree, onto
+every unit. Natural Earth's own `ADM1NAME` on the populated-places layer
+is not used: it calls Bhavnagar "Dadra and Nagar Haveli". 214 of the 215
+cities land in a unit; the one that does not is Gilgit, which is inside
+the India point-of-view outline and inside no admin-1 polygon, and it is
+reported by the build rather than guessed at.
+
+Where a name is both a city and a territory — Delhi, Chandigarh,
+Puducherry — **the city wins**, and it wins through the older names too, so
+"Pondicherry" is the city.
+
+**Older names of cities.** The list's spelling is Natural Earth's, and it
+is not always the one a reader learned: it says Mumbai, Bengaluru, Mysuru,
+Hubballi and Vijayapura, and it also says Simla, Dehra Dun, Jullundur,
+Nasik, Sholapur and Gurgaon. A reader should not have to know which of the
+two this file happens to hold, so both are search keys: Bombay, Calcutta,
+Madras, Bangalore, Gurugram, Poona, Trivandrum, Cochin, Baroda, Benares
+and forty more. The name **shown** is always the list's own, because the
+name over a count has to be the name the count belongs to.
+
+**Anywhere in the name**, with the ones that start with what was typed
+first — so "agar" finds Agartala, Ahmednagar, Bhavnagar and Gandhinagar,
+and a reader who knows the middle of a name is not stuck. "Did you mean"
+stays for a misspelling.
+
+**"City", not "town"**, in the label, the hint and every message. And
+nothing matched is said as four ways on rather than as a refusal:
+
+> We don't have Ooty yet. Try a nearby city or your state, tap the map, or
+> type a latitude and longitude such as 22.5, 88.4.
+
+#### Tests
+
+| | |
+|---|---|
+| the states | all 36 names, in any case, and every short form as the whole query, each finding its own unit |
+| the short forms | "up" is Uttar Pradesh and "udaipur" is Udaipur |
+| the city wins | Delhi, Chandigarh and Puducherry are cities, and so is Pondicherry |
+| no count for a state | a state's answer holds no number out of 51 and no square |
+| the cities inside | every city the state block lists has that unit in `towns.json`, and every unit has at least one |
+| the older names | each one finds its city, and the city is shown under its own name |
+| the middle of a name | "agar" finds four, with the ones that start with it first |
+| nothing matched | the four ways on, and the query in it |
+| the box | every unit's `box` holds every city in that unit |
+
+#### Tests for the rest of this section
+
+| | |
+|---|---|
+| the bands | every boundary, 0 to 51, against the table above |
+| the names | the rendered forecast page holds no "model runs" and no "members" |
+| the day labels | the visitor's date equal to, one before, and two before the first day, so "Tomorrow" is never printed for today |
+| the welcome card | it shows with nothing chosen, leaves when a place is chosen, comes back when the choice is cleared, its button focuses the search box, and its How to read this map link opens on a phone |
+| the place name | a city's own square by name, a square within 50 km as "near", and one beyond as "this area" |
+| answer first | at 390 x 664, after a tap, the name, the headline and the strip are inside the open panel with no scrolling, and nothing is under the floors |
+| once only | "A count of runs, not a promise of rain." appears exactly once in the answered panel |
+| the dots | the four counts are readable without opening the closed section |
+| the trust reason | the track-record line is the chip's reason, and the better-than-usual sentence appears only for groups whose check passed |
+| the fit | the whole India box is in view at 390 x 664 and at 1440 x 900 |
+| the sizes | the floors above, measured in a real browser |
+| outside India | a tap there gives the calm line and clears the box |
+| staleness | the stale line never promises a newer run |
+| the tabs | each page's own title |
+| the words | the forbidden-word and no-percentage sweep covers every new sentence and every new state, and is shown to catch a "certain" inserted into it |
+
+### 11.39 The calm page: one column, pills, and a card
+
+11.38 fixed the words on the forecast page and left its shape alone. The
+shape was the next thing readers tripped on: on a phone the page was a
+fixed-height shell with a map in the middle and a bottom sheet over it, so
+the answer lived in a drawer that had to be dragged open, the map had a
+floor measured in tens of pixels, and everything competed for one screen
+that never scrolled.
+
+This section replaces that with the ordinary thing: a page that scrolls,
+top to bottom, with the controls above and below the map and one card for
+the answer. Nothing about the forecast changes. Counts are still out of 51,
+there are still no percentages, the forbidden-word list of 11.20 still
+holds, the trust labels of 11.33 are untouched, freshness and the warning
+are still on the first screen of every page, tap targets are still 44
+pixels and sentences still 15, the theme is still light only and the map
+colours are exactly the colours of 11.17.
+
+Where two of those rules fight, spacing gives way first and the map's
+height second. Type size and tap targets never give way.
+
+#### The card: one order, and one closed section
+
+The card is called the Location forecast, and its order is the answer
+first and the working after it:
+
+| | what it holds |
+|---|---|
+| 1 | the place name, large: a city, "near <city>", or "this area" (11.38) |
+| 2 | one small line: `<Day>, <date> · 5:30 am to 5:30 am IST · <amount name> (<N> mm+)` |
+| 3 | the square's own centre, small |
+| 4 | the headline of 11.38, with its band word |
+| 5 | the five-day strip |
+| 6 | the 51 dots, their four counts, and the one line that says what a dot is |
+| 7 | "A count of runs, not a promise of rain.", linked to the report card |
+| 8 | the trust label on one line: the chip, its reason, and a link to the record |
+| 9 | a closed **More detail** |
+
+Line 2 is the one line that replaced three: a heading over the amount
+rows, the help sentence under the day buttons ("Each day runs from 5:30 am
+to 5:30 am the next morning") and the help sentence under the amount
+buttons ("10 mm of rain is water 1 cm deep if none of it ran away"). A
+count means nothing without which day it is for, what a day is on this
+site, and how much rain, so those three are said once, under the name, and
+not once per control.
+
+The day on that line is named by the rule of 11.38 and written as two
+pieces, the word and the date, because the pills above the card are two
+lines and the two have to agree: "Today" over "15 Nov". The date is the
+run's own published `short_ist` with the weekday taken off the front of
+it. Nothing on this page formats a date a second time.
+
+More detail holds everything a reader can choose to open, and nothing is
+deleted to get there:
+
+- the three amount rows, which are a second copy of the buttons above the
+  map and were the fifth block of the card;
+- what each of the 51 runs gives, in whole millimetres, with the control
+  run first;
+- which of the four conditions the label came from ("Why this label?") and
+  the long track-record sentence, both of which are about our method
+  rather than about this square;
+- the square's i, j and tile, and what was asked for;
+- the run's own ID and its 00 UTC time.
+
+The strip's own help sentence goes with the others. The cells still carry
+a full sentence each to a screen reader, and what that sentence said, the
+colours, the amount, and that the dates are IST, is line 2 and How to read
+this map.
+
+#### How to read this map: a page, not a block in the panel
+
+Every help sentence on this site had collected on the forecast page: three
+bullets and two colour lines in the panel, one under the day buttons, one
+under the amount buttons, one under the five-day strip, one under the
+legend and two under the dots. A reader who wanted the forecast read past
+all of it; a reader who wanted the explanation opened a drawer to find it,
+and could not send anybody a link to it.
+
+So it is the site's fourth page, at `/how-to-read`, lazily loaded like the
+report card and How we checked, and it holds:
+
+- "Each day runs from 5:30 am to 5:30 am the next morning, IST." The
+  published window, which is not the calendar day.
+- What one square is: 0.25 degrees, about 28 km, and the smallest place
+  this site can answer about.
+- The three amounts, in this site's own everyday words, at `#amounts`.
+- What a whole day's total can be: one short burst or hours of drizzle.
+- The full colour ranges, as the nine rows below.
+- "It is not a probability", with the sentence of 11.21.
+
+The three amounts, as 11.40 leaves them — four lines, drawn here and
+under the amount pills by one component, `AmountWords` in `Controls.jsx`:
+
+| line | |
+|---|---|
+| 1 | Some rain (1 mm+): enough to leave the ground damp. |
+| 2 | A rainy day (10 mm+): a proper shower; you would want an umbrella. |
+| 3 | A lot of rain (50 mm+): a very rainy day; water can collect on roads. |
+| 4 | Each is the total over the whole day, averaged over the square. |
+
+The first of those was "enough to wet the ground" as it was asked for, and
+could not be: "wet" is on the forbidden list of 11.20, and that list is
+there because "a wet day" is a forecast of what a day will be like, which
+this site does not make. "Damp" says the same thing about the ground and
+claims nothing about the day. The millimetres are the rule; these words are
+only there to make a number mean something, and the page says so.
+
+The nine rows of the colour key are one list, read by this page and by the
+key on the map, so the two cannot disagree:
+
+| row | |
+|---|---|
+| 1 | None |
+| 2 | 1-10 runs |
+| 3 | 11-20 runs |
+| 4 | 21-30 runs |
+| 5 | 31-40 runs |
+| 6 | 41-50 runs |
+| 7 | All 51 runs |
+| 8 | White: no forecast for this spot |
+| 9 | Beige: land outside India, not forecast |
+
+Every row says "runs", which is the page's one name for the 51 (11.38), and
+no row carries a band word: beside a colour, "a few" would read as a name
+for what that colour means on the ground, which is a forecast this site
+does not make.
+
+The header band writes out three page links and this is not one of them:
+the band has room for three, and this page is reached from the page it
+explains, from the menu, and from "What does mm mean?" under the amount
+buttons.
+
+What the forecast page keeps is one explanatory line, the one under the
+place name. Nothing else on it explains anything.
+
+#### The calm look
+
+The page was not loud because of its colours; the map colours are 11.17's
+and are untouched. It was loud because everything on it was drawn as a box
+with an edge. The controls bar was fourteen white rectangles with hairline
+borders, which is what an empty form looks like, and three of those
+rectangles were already answered without a reader being able to see which.
+
+So:
+
+| | |
+|---|---|
+| an unchosen pill | a pale grey fill, `#e9edf1`, and no border at all |
+| the chosen pill | filled `#0b2b4a`, white ink, the same navy the map marks the chosen square with |
+| cards and notes | the fill is what says it is a card; no outline round it |
+| a quoted note | may keep a 3 pixel bar down its left edge, which is not an outline |
+| the search box | keeps its 1 pixel border: it is the one control a reader puts something into, and a field with no edge reads as a line of text |
+| every control | keeps the focus ring, declared once as `:focus-visible { outline: 2px solid #0b2b4a; outline-offset: 2px }`. Nothing on this site may set `outline: none` |
+| labels | no all-caps, anywhere. Mixed case is read about a fifth faster, and capitals were being used to make three ordinary questions look like system labels |
+
+Two rules about how much of each thing there may be: at most two text
+sizes in the header, and at most three in the card. And the space between
+one group and the next is about one and a half times what it was on a
+phone and about twice on a desktop; both numbers are one custom property
+each, so the whole page reads them and a change is one line.
+
+The map's own state names lose their capitals with everything else. A
+state is told from a city by weight, colour and letter spacing, which is
+what told them apart before as well, and the width of every one of those
+words is measured at runtime before it is placed (11.31), so the placement
+follows the words rather than an assumption about them.
+
+#### Three buttons that are gone
+
+"Find my city", "Find a city" and the bar's "Search" are all removed. Each
+of them did the same thing: open the panel and move the keyboard into the
+search box. A button whose whole job is to focus a box that is already on
+the screen is a second way in competing with the first, and it was the
+first way in that readers could not find. What replaces all three is the
+search row itself, with the box in it, and the card saying what to do:
+"Tap the map or search a city to see its next five days."
+
+#### One grid, two orders
+
+There is one set of blocks and one grid. The order is the only thing that
+differs between a phone and a desktop, so there is one copy of every
+control in the page and no second layout to keep in step.
+
+| | a phone (under 1024) | a desktop (1024 and over) |
+|---|---|---|
+| 1 | the search row | the search row |
+| 2 | the map card | the two pill rows |
+| 3 | the day pills | the map card, left; the forecast card, right |
+| 4 | the amount pills | |
+| 5 | the Location forecast card | |
+| 6 | the footer | the footer |
+
+The header is one band at both widths: the mark, the site's name, how old
+this run is, and the pages. Under it, across the whole width, the warning.
+Three things left it: the tagline, because what the site is for is the
+question at the top of the card where a reader who has chosen nothing is
+already looking; the run ID; and the "(00 UTC)". The last two are in More
+detail.
+
+The freshness line names the **run** time and counts the age from the time
+it has just printed. It used to print the publish time beside an age
+counted from the run time, so the two numbers on one line disagreed with
+each other by however long the pipeline had taken.
+
+The card's empty state is the page's answer to "what is this": the
+question, one sentence saying what the 51 are, what to do next, and a link
+to How to read this map. Under the card there are two links, and the How
+to read one is not drawn while the empty card is carrying it — a link to
+something already on the screen under it is noise.
+
+#### Where the colour key goes, and what it costs
+
+The key is paid for by padding the fit on the side it sits on: the left
+edge is padded by the key's own measured width, so India begins to the
+right of it and nothing of the country can be behind it. While the fit is
+limited by the map box's height, that padding costs the country nothing at
+all.
+
+Where it would cost something the key is drawn directly under the map
+instead, inside the same card. The boundary is 1280 pixels, and it was
+measured rather than chosen:
+
+| width | the map box | what a floating key would cost |
+|---|---|---|
+| 1440 x 900 | 990 x 558 | nothing: the fit is height-limited and India keeps all 482 pixels of its width |
+| 1024 x 768 | 574 x 476 | the fit becomes width-limited, India shrinks from 409 to 305 pixels, and Gujarat is behind the key anyway |
+| 390 x 844 | 358 x 464 | India fills the width; 226 pixels of padding would leave the country a third of the card |
+
+So at 1280 and over the key floats in the lower left corner, over the
+Arabian Sea, open. Below that it is under the map, shut, and what a reader
+sees without opening it is the title, the strip of the seven colours and
+the two ends in words.
+
+A check projects every one of the 4,613 forecast squares and every point
+of the drawn outline — Lakshadweep included, which has no forecast square
+at all — into the canvas's own pixels, from the bounds the map itself
+reports, and fails if one of them is behind the key.
+
+#### The header, on every page
+
+Five icons, drawn inline in `src/Icons.jsx`: the mark, a clock, a warning
+triangle, a location pin and the menu bars. No icon library, which would
+be a download for five shapes, and no emoji, because a rain cloud is a
+different picture on every platform and a site's own mark may not be. Each
+one is 24 by 24, takes its colour from `currentColor`, and is
+`aria-hidden`: every one of them sits beside a word that says the same
+thing, which is SPEC 11.22 and why the clock is next to the time rather
+than instead of it.
+
+The mark is the favicon too, written into `index.html` as an SVG data URI
+with the same path, and a test compares the two.
+
+| | |
+|---|---|
+| the band | the mark and the name (the page's one `h1`, and the way back to the forecast), the freshness line, and the pages |
+| the pages | three links as text at 1024 and over; a **Menu** button under it, holding all four |
+| under the band | the warning, across the whole width |
+
+The Menu is a real button with `aria-expanded` and real links behind it. It
+shuts on Escape, on a pointer down anywhere outside it, and on following a
+link: a menu a reader cannot get out of is worse than no menu.
+
+All of it is drawn once, in `Site.jsx`, above whichever page is being
+read. Freshness and "not an official warning" are rules about every page
+and not about the forecast, and the report card and How we checked used to
+carry the warning in the footer only, which on either page is several
+screens down. The back link those two pages had is the mark and the name,
+which is the same way back from everywhere.
+
+#### The search row
+
+One row: a box, and a button at its right end.
+
+| | |
+|---|---|
+| the box | placeholder "Search a city or state"; its label is for a screen reader only, because a label over a box that already says what it is for was one more line of grey text above the map |
+| the button | the pin icon, with "Use my location" as both its accessible name and its tooltip: a pin on its own is a picture, and a picture is not a label (11.22) |
+| under it | "or tap the map", said once |
+
+Both are 44 pixels tall. Nothing in the row submits it but the keyboard:
+the "Show" button that used to sit beside the box is gone with "Find my
+city" and the bar's "Search", and what a reader taps instead is one of the
+matches, which appear as the name is typed.
+
+#### The map card, and the two gestures
+
+The map is a card with rounded corners. Its height is the smaller of 55
+per cent of the visible viewport and 480 pixels, and never under 280:
+
+| screen | the map |
+|---|---|
+| 390 x 844 | 464 pixels, and the whole card including the key is on the first screen |
+| 390 x 664 | 365 pixels |
+| 320 x 568 | 312 pixels |
+| 1024 and over | the smaller of 62 per cent and 600, never under 360 |
+
+This is the one height on the page that is a share of the viewport, and it
+may be, because the page scrolls: the map cannot squeeze another block off
+it. The fault of 11.35 was a share of the screen asked for inside a
+fixed-height shell, where 52vh left the panel twenty pixels tall with its
+handle behind the browser's bars.
+
+One finger scrolls the page and two move the map, which is MapLibre's own
+`cooperativeGestures` and its own hint ("Use two fingers to move the
+map"). A map that takes a one-finger drag inside a scrolling page is a
+trap: the map is 365 pixels of a 664 pixel screen, so a reader who puts a
+thumb down to scroll past it lands on the map more often than not, and the
+page does not move. The same option asks for ctrl with the wheel, which is
+the same bargain for a mouse. A tap is not a gesture: choosing a square is
+untouched.
+
+Both are measured with real touch events, on a screen with two touch
+points, and not by reading the option back out of the source.
+
+#### The day pills
+
+Five pills, two lines each: the name over the date.
+
+| top | under |
+|---|---|
+| Today | 14 Nov |
+| Tomorrow | 15 Nov |
+| Mon | 16 Nov |
+
+"Sat 15" put two facts on one line and the date was the one that got cut;
+"Today" with no date under it left a reader counting days on their
+fingers. The name comes from the reader's own IST date by the rule of
+11.38, and the date is the run's published `short_ist` with the weekday
+taken off the front of it, so nothing here formats a date a second time.
+
+On a phone each pill takes a fifth of the row, so the row cannot overflow
+however long the longest word is; on a desktop they take the width of
+their own words.
+
+#### The amount pills, and "What does mm mean?"
+
+Three pills, two lines each, in the same shape as the day pills:
+
+| top | under |
+|---|---|
+| Some rain | 1 mm+ |
+| A rainy day | 10 mm+ |
+| A lot of rain | 50 mm+ |
+
+The millimetres are on the pill with the nickname, always, so the nickname
+is never the only thing a reader is given (11.38). On a phone the three
+share the whole row.
+
+Under them, on a line of its own, at the end of it, with no rule above it
+and no icon beside it: **What does mm mean?**, which opens
+`/how-to-read#amounts` — the three sentences, and not the whole of How to
+read this map. It is what replaced "10 mm of rain is water 1 cm deep if
+none of it ran away", which was a help sentence under a control, on the
+screen whether or not anybody had asked.
+
+#### Choosing a place brings the card up
+
+The Location forecast card is the last block of the page on a phone, so
+choosing a place fills in something a reader cannot see. The page scrolls
+to the **day pills**, which puts the pills, the amount pills and the top
+of the card on one screen: the answer, and the two controls that change
+it, which is what a reader reaches for next.
+
+Measured at 390 x 664, for all three ways of choosing — a city typed into
+the box and submitted, the location button with a real fix, and a tap on
+the map — the pills land 36 pixels down and the card's top 269.
+
+It scrolls only when the card is not already on the screen, which is what
+makes it a phone rule without being written as one: on a desktop the card
+is the column beside the map and nothing moves. Nothing in the code asks
+how wide the screen is. The scroll is smooth unless the reader has asked
+for less movement, because a page that jumps on a tap is a page that has
+lost its place.
+
+At the top right of the card, a small **Back to map** link: a real `#map`
+anchor, so it jumps with no script and glides with it. It is not drawn at
+all where the map is already on the screen.
+
+Three things left with the drawer: the bar, its handle, and the one-line
+summary of the answer the handle carried. That line was a second copy of
+the headline written to fit in a drawer, and the rule it existed to keep —
+that a number is never shown under the wrong place's name — is kept where
+it always was, at the top of the card.
+
+#### What is measured, and where
+
+Every claim in this section is measured in a real browser against the
+built bundle, at six sizes: 390 x 664, 390 x 844, 360 x 640, 320 x 568,
+1024 x 768 and 1440 x 900. The run behind it is a real published run, the
+API answering is the real `api/place`, and the three ways of choosing a
+place are all done for real — a city typed into the box and submitted, a
+fix handed to the page by the browser, and a tap on the canvas.
+
+| | |
+|---|---|
+| the header | the mark, the name, the freshness line and the warning, on all four pages, above the fold |
+| the menu | a button on a phone with four pages behind it; three links as text at 1024 and over |
+| the search row | the placeholder, the button's accessible name, both 44 pixels, and the box used for real |
+| the map card | the heights above, the whole card on the first screen at 390 x 844, 250 pixels of it at 390 x 664 |
+| the gestures | one finger scrolls and the map stays; two fingers move the map and the page stays; the hint appears |
+| the key | the nine rows, shut or open as the width says, and clear of all 4,613 squares and every point of the outline |
+| the pills | five and three, two lines each, one filled, a fifth and a third of the row on a phone |
+| "What does mm mean?" | its own line, at the end of it, pointing at `#amounts` |
+| choosing a place | the pills at 36 pixels and the card's top at 269, by all three routes; nothing moves on a desktop |
+| Back to map | returns, and is not drawn where the map is in view |
+| the card | the order of 11.39, three text sizes, every sentence at 15 pixels or more, nothing under 13, every control 44 |
+| the calm look | every pill a fill with no border, the chosen one navy, the input bordered, no card outlined, no capitals |
+| overlap | every pair of controls, at every width, in three states |
+| sideways | no document wider than its screen, at any of the six |
+| the words | the forbidden-word and no-percentage sweep over every component the page draws, the header and the menu included |
+
+### 11.40 The fixes after the rebuild: one row of days, and each fact once
+
+11.39 rebuilt the forecast page as a page that scrolls. Ten things were
+wrong with it when it was read on a real phone and a real laptop, and
+every one of them is the same mistake in a different place: the page says
+something twice, or says it in a way that only makes sense to somebody who
+already knows what the site does.
+
+Nothing here changes a rule. Counts are out of 51, there are no
+percentages, the forbidden words of 11.20 hold, "runs" is the one noun,
+the theme is light, the map's colours are the palette of 11.17 unchanged,
+every row a thumb has to hit is 44 pixels and every sentence is at least
+15 pixels.
+
+#### A handle that says what the next tap does
+
+The card's one closed section read **More detail** whether or not the
+detail was already open. The triangle beside it says which way it is
+pointing, and a triangle is eight pixels of grey.
+
+So the words change with the state: **More detail** shut, **Hide detail**
+open. It is still a real `<details>` — it opens with no script of ours and
+a screen reader is told whether it is open — but `open` is now controlled,
+because a `<summary>` cannot otherwise know what to say. The label is
+measured in the browser both ways round, at a phone's width and at a
+desktop's.
+
+#### When the five days start tomorrow
+
+The 00 UTC run has to be downloaded, added up and published before this
+site can show it, which happens around midday IST, and its first day
+begins tomorrow morning at 5:30 because today is already under way by
+then. So from the publish onwards the day a reader is in is not one of the
+five, and five date pills cannot say so. In the morning, before the day's
+run is published, the newest run on the store is the day before's, whose
+first day is today, and the first pill reads "Today".
+
+Beside **Which day?**, and only when the first pill really does read
+"Tomorrow":
+
+> (starts tomorrow, because today is already under way when the forecast
+> arrives)
+
+One string, in `Controls.jsx`, quoted by the How to read this map page,
+which explains the same thing in a paragraph. Whether it is drawn is
+`startsTomorrow(days, today)` in `days.js` — the first day's own name,
+read by the same rule that names the pills, so there is one answer on the
+page to what a day is called. It is driven directly against the dates a
+reader can have, and the page is measured at every width: where the first
+pill reads "Tomorrow" the note is there, and where it does not the note is
+not in the page at all.
+
+#### "What does mm mean?" is answered where it is asked
+
+It was a link to `/how-to-read#amounts`. A reader who wants to know what a
+millimetre of rain is wants three sentences, and was given a page: the
+forecast went away, a document opened with its own heading, and on a phone
+the three sentences were below the fold of a page nobody had asked for.
+
+It is a `<details>` under the amount pills now. One tap opens the four
+lines of the table above in place, a second shuts them, nothing navigates,
+and the How to read this map page keeps the same words because both draw
+the same component. The lines are in the page whether or not they are
+open, so the forbidden-word sweep reads them either way; the handle stays
+at the end of its own line under the pills, 44 pixels tall, and the lines
+it opens read from the left like every other sentence.
+
+#### One row of days, with the counts on it
+
+The page had two rows of days. Five pills above the map chose the day,
+and 400 pixels below them the card drew the same five days again with the
+same five counts for the same amount — each with its own way of drawing a
+day, its own way of drawing a count, and its own tap target for choosing
+one. The forecast is five days long, so one row of five is the whole of
+it.
+
+The card's five-day strip is gone. Once a place is chosen, each day pill
+carries that place's count for the chosen amount as a third line: a bare
+number, with a small square before it in the map's own colour for that
+count, from the one palette table in `palette.js`. The square has a white
+hairline round it so that it is still a square on the navy of the chosen
+pill, and the pill's own fill goes on meaning nothing but "chosen".
+
+Under the row, once there are numbers and not before:
+
+> The number on each day: how many of the 51 runs bring 10 mm or more
+> here.
+
+and each pill says the whole of it to a screen reader — "Today, 15 Nov:
+26 of the 51 runs bring 10 mm or more here" — from `pillSentence` in
+`palette.js`, which is also where the caption comes from, so the two
+cannot say different things. Before a place is chosen the pills are the
+day and the date and nothing else, because a count with no place is not a
+count. Tapping a pill still chooses the day for the map and for the card,
+which is measured by tapping one and reading back the key the canvas is
+painting from.
+
+The counts come from the same rule the card follows (11.30): they are
+drawn for the square that is chosen now or not at all, so the pills and
+the card cannot disagree, and a test checks the chosen pill's number
+against the number in the card's own sentence.
+
+On a desktop this makes the row above the map taller once a place is
+chosen — 77 pixels to 154, so the map's top goes from 199 to 275 — and
+the map's height is worked out from the taller of the two. The whole map
+is on the screen in both states: 733 of 768 at 1366, 615 of 650, 865 of
+900, 729 of 768 at 1024. Holding the row at its taller height from the
+start was the alternative, and it costs 45 pixels of map on every screen
+for ever to save a 45-pixel shift once.
+
+#### The colour key comes off the map
+
+11.39 floated the key in the map's lower left corner, over the Arabian
+Sea, at 1280 pixels and over, and paid for it by padding the fit on that
+side. The payment is free only while the fit is limited by the height —
+and the width of the map is exactly what the country was short of, which
+is why the key was already under the map at every narrower width.
+
+So it comes off the canvas everywhere. **Nothing of ours is drawn over the
+map at any width**: what is over it is MapLibre's own zoom buttons and its
+attribution, which the fit still pads for. The key is:
+
+- on a desktop, the top of the right-hand panel — above the card, always
+  on the screen, and it stays there when a place is chosen, when a search
+  is made and when the map moves, because only the card under it scrolls;
+- on a phone, directly under the map, as it was.
+
+It is the same collapsed strip in both: the title with the amount in it —
+"How many of the 51 runs bring rain? (10 mm+)", because the colours are
+counts of something and the chosen pill is a row of controls away — the
+strip of seven colours, and three words under it. One tap opens the nine
+plain rows and another shuts them.
+
+The three words are **None**, **About half** and **All 51**. "About half"
+is one of the band words of 11.38, which may not be drawn beside a
+colour; on the strip it is not beside a colour but under the middle of a
+scale of counts, which is the same job "None" and "All 51" do at its ends.
+The test allows it in the strip's own three words and nowhere else in the
+key.
+
+Two things go with the float. The `<details>` is uncontrolled — nothing
+in the page decides when it is open, so one tap either way is the whole of
+it — and with it goes the one media query this page asked the width for,
+which existed only because the map had to know the key's size in order to
+pad its fit. `Map.jsx` pads the left edge by nothing now.
+
+The panel's height is the map's height, from one token: `--maph`, set on
+`.forecast` in four places (a phone, a desktop, a narrow desktop, and the
+`dvh` pair of each) and read by `.mapwrap` and `.panelcol` and nothing
+else. Two copies of one height are two heights to keep in step, which is
+how 11.35 happened. The test that says only the map may be sized from the
+viewport now says: only `--maph` may be, and only those two boxes may
+read it.
+
+#### A desktop: one row of questions, and the map takes the rest
+
+The desktop had the search box on one row, "Which day?" and its five
+pills on a second and "How much rain?" and its three on a third, with the
+gaps between groups doubled by 11.39 to open the page up. Together they
+took about 300 pixels off the top of the screen before the map began, and
+on a 1366 by 650 window — which is what a 1366 by 768 laptop is once
+Chrome's own bars have taken their 118 pixels — there was not enough left
+for the whole country.
+
+So: one row, at ordinary spacing. The search box, the five days and the
+three amounts side by side, each group with its own small label above it,
+and "What does mm mean?" right after the amount pills on their line. The
+row wraps to two only where the three groups' own content will not fit,
+which is at about 1100 pixels. Opening "What does mm mean?" gives it a
+line of its own under the pills — the only place on a desktop with the
+width to read four lines as four lines — and the row grows rather than
+anything being drawn over the map.
+
+The content is a centred column of at most **1280 pixels**. At 96rem the
+map was 1152 pixels wide on a 1440 screen with 300 pixels of sea either
+side of India, because the fit is limited by the height.
+
+The map takes the rest of the screen: `min(100dvh - 260px, 640px)`, with
+a `vh` rule beside it for a browser that has never heard of `dvh` (11.35).
+The 260 is measured, and so is the 345 the narrow case uses:
+
+| screen | the map starts at | the map is | the card's bottom |
+|---|---|---|---|
+| 1366 x 768 | 180 | 508 | on the screen |
+| 1366 x 650 | 180 | 390 | on the screen |
+| 1440 x 900 | 180 | 640 (the ceiling) | on the screen |
+| 1024 x 768 | 260, the row having wrapped | 423 | on the screen |
+
+The ceiling of 640 is there so that a tall screen does not stretch one
+0.25 degree square to the size of a town. Below 1152 pixels the row takes
+two lines, which is 80 pixels more above the map, and the map gives those
+pixels back.
+
+What is measured at all four sizes: the map's top against the limits of
+item 8 (230 pixels at 1366, 260 at 1440), its height at 1440 by 900
+against the 520 item 8 asks for, that the whole map card is above the
+fold with the page unscrolled, and that all 4,613 forecast squares and
+every point of the drawn outline — Kerala's south and Ladakh's north by
+name — land inside the part of the canvas a reader can see without
+scrolling the page.
+
+#### The scroll that was clamped by a page still loading
+
+Choosing a place scrolls the day pills to the top of the screen (11.39).
+It stopped 123 pixels short, measured at 390 by 664, and the reason is
+that `scrollIntoView` clamps the scroll it is asked for to the height the
+page has **when it is asked** — and when it is asked the card still says
+"Reading the 51 runs for this square". The page was about to grow by
+exactly the height the card was about to gain.
+
+So the scroll is `window.scrollTo` on a measured target, and it is made
+twice: once on the choice, so something happens under the reader's thumb
+straight away, and once when the answer has arrived and the page is its
+full height. The second call does nothing if the first one landed.
+
+Whether to scroll at all is read off the layout rather than off the
+width — if the card's top is above the map's bottom the two are side by
+side and nothing has to move — so the desktop rule is a fact about the
+boxes and not a second place where a width is written down.
+
+#### One footer, inside the panel
+
+Two things in the footer were said twice. 11.39 made the warning a bar
+across the width of the header on all four pages, which left the footer's
+copy as the second time a reader meets that sentence on the same page. And
+"Credits and licences in full" was a link that opened the disclosure whose
+own handle, two lines under it, read "Credits and licences": two controls
+for one thing.
+
+What is left is the attribution ECMWF's licence asks for — visible
+whatever a reader does — and one handle to the full form of it. The
+warning is the header's, on every page, and is measured as exactly one
+paragraph beginning "Not an official warning" on the forecast page and on
+both document pages.
+
+The footer is the last block inside the card's own column. On a phone that
+is the last block of the page, where a footer goes; on a desktop it is the
+bottom of the right-hand panel, under "How to read this map" and "Report
+card", rather than a band under the map competing for the width the map
+wants. There is no `foot` row in the grid any more.
+
+#### Only the dot bands that happened
+
+All 51 dots are drawn, always. The four band names under them were listed
+whatever their counts were, so in a quiet week the card read "Under 1 mm:
+51, 1 to 10 mm: 0, 10 to 50 mm: 0, 50 mm or more: 0" — three facts about
+nothing and one about something. A band with no dots behind it is not a
+reading of the dots, so it is not drawn. A test checks every row in the
+rendered page carries a count above zero, that the rows still add up to
+the 51 dots beside them, and that at least one card really does have a
+band hidden, so it cannot pass by never meeting one.
+
+#### The card says each fact once
+
+The card knew four things — the place, the day, the amount and the count —
+and said them eight times. The heading was the place; the line under it
+was the day, the window and the amount; the line under that was the
+square's own centre; and the headline named the place again, the day
+again and the amount again.
+
+Each fact is in one place now:
+
+| fact | where it is said |
+|---|---|
+| the place | the heading, as a title: "Kolkata", "Near Budaun", "This area" |
+| which day, how much, how many | the headline, and nowhere else |
+| that this is a location | "your location", small, under the heading |
+| that the fix never left the page | the small line under that |
+| the square's own centre | inside More detail |
+| the 5:30 am to 5:30 am IST window | inside More detail |
+
+So the headline loses the place name and keeps the shape it had
+otherwise: `"<Day>, <date>: <band> of the 51 runs bring <N> mm or more (<k>
+of 51)."` The day is written as the pill names it — `dayAndDate` in
+`days.js`, which is the pill's own two lines on one line — so a sentence
+and a pill cannot name a day differently.
+
+A location is titled by its place like any other square, because a reader
+knows where they are and what they want to know is which place this site
+is answering for. `placeTitle` in `townlist.js` is `placeName` with its
+first letter raised, so there is one name and not two spellings of it, and
+the search box is set to that name rather than to "22.75 N 88.25 E
+(Kolkata)". 11.19 and 11.28 are unchanged: the fix is snapped in the page,
+only a square centre is ever sent, and the sentence saying so is still on
+the card.
+
+#### What the 51 are, said once
+
+A reader who meets "26 of 51" and thinks the 51 are 51 forecasts from 51
+sources reads it as a vote. They are not: they are one model, run again
+from starting conditions nudged about inside what the observations allow.
+The page had two sentences about it and neither said that — the empty card
+said "One weather model, run 51 times from slightly different starts", and
+the dots said "Each dot is one run".
+
+Two sentences now, both in `palette.js` beside MEMBERS, so the three
+places that say one of them cannot say it three ways:
+
+> The same weather model is run 51 times, each starting from slightly
+> different conditions: 51 slightly different guesses.
+
+in the empty card and on the How to read this map page, and
+
+> Each dot is one of 51 slightly different guesses by the same weather
+> model; its colour shows how much rain it brings that day.
+
+directly under **The 51 runs, one dot each**, above the 51 squares, so it
+is read before them rather than after. "Guesses" is the ordinary word for
+what they are; it is not on the forbidden list of 11.20 and could not be,
+because the honest word for a forecast of weather five days out is a
+guess. A test reads both out of `palette.js`, checks that no component
+writes either out again, and checks that each is said at most once in
+anything the page renders.
+
+#### What is measured, and where
+
+Everything above is measured in a real browser against the built bundle,
+against a run published through the real publisher and served over HTTP,
+with the real `api/health` and `api/place` answering. 11.39's six sizes
+are now eight: the two laptops item 8 names are measured as well.
+
+| | |
+|---|---|
+| the sizes | 390 x 664, 390 x 844, 360 x 640, 320 x 568, 1440 x 900, 1366 x 768, 1366 x 650, 1024 x 768 |
+| the states | as the page opens, the key opened and shut, "What does mm mean?" opened and shut, a city typed and submitted, the location button with a real fix, a tap on the map, a tap on a day pill, and the detail section opened and shut |
+| the handle | "More detail" shut and "Hide detail" open, at a phone's width and a desktop's |
+| the note | drawn where the first pill reads "Tomorrow" and nowhere else, at all eight sizes |
+| the sentences | what the 51 are, and what a dot is: one string each, said at most once wherever the page says it |
+| "What does mm mean?" | shut on open, the four lines in place on one tap, shut on a second, the path unchanged |
+| the card | the place said once, no coordinates and no window above More detail, the headline carrying the day and the amount, the location titled by its place with the box showing that name |
+| the dots | every row above zero, and the rows adding up to the 51 dots drawn |
+| the footer | one warning on the page, one credits handle, inside the panel on a desktop |
+| the desktop row | the three questions on one line, the map's top and height at the four screens item 8 names, every India square inside the visible canvas with no page scrolled |
+| the key | in the panel on a desktop and under the map on a phone, over the canvas nowhere, nothing else of ours over the canvas either |
+| the pills | five counts in the map's colours, the caption once, the chosen pill's number equal to the card's, a tap changing the day the canvas paints |
+| the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences included |
+
+### 11.41 The last round: the first-time visitor, and the desktop page
+
+11.39 rebuilt the forecast page and 11.40 fixed what reading it on a real
+phone and a real laptop showed. What was left was the thing every reader
+who was asked to use this site said first -- they could not see where to
+start -- and three things about a desktop that no phone could have
+shown.
+
+Nothing here changes a rule. Counts are out of 51, there are no
+percentages, the forbidden words of 11.20 hold, "runs" is the one noun,
+the theme is light, the map's colours are the palette of 11.17
+unchanged, every row a thumb has to hit is 44 pixels and every sentence
+is at least 15 pixels.
+
+#### The day note says why, not when
+
+The note beside **Which day?** read "(starts tomorrow: the forecast
+arrives around midday)", which answers a question a reader has not asked
+yet. What they want to know is why today is missing. It reads:
+
+> (starts tomorrow, because today is already under way when the forecast
+> arrives)
+
+What time the run arrives is on the How to read this map page, in the
+fine print, for somebody who wants it.
+
+It was already drawn only when the first pill reads "Tomorrow"
+(`startsTomorrow` in `days.js`), and that is measured now rather than
+reasoned: the same published run is opened twice in a real browser with
+the visitor's own `Date` replaced -- `Page.addScriptToEvaluateOnNewDocument`
+with a `Proxy` over `Date`, so `Date.now()` and `new Date()` agree -- at
+6 am IST on the run's own first day and at 6 am the morning before. On
+the first the pill reads "Today" and the note is not in the page at all;
+on the second it reads "Tomorrow" and the note is there in these words.
+The five dates on the pills are the same five either way, so the only
+thing that differs is the clock.
+
+#### How to read this map, for a first-time visitor
+
+The page was written in this specification's own order -- one square, one
+day, why the first day is usually tomorrow, the amounts, the colours,
+what it is not -- which is the order for a reader who already knows what
+a square is. It now answers, in this order:
+
+| | |
+|---|---|
+| Hello, first-time visitor! | this site works a little differently from other weather apps |
+| The colours, in one line | darker means more of our 51 weather runs bring rain there |
+| What are the 51 runs? | the same weather model, run 51 times from slightly different starts |
+| The mm guide | the three amounts, millimetres spelt out |
+| Your mini user manual | search or tap, pick the day and the amount, that's it |
+| No worries if you are colour-blind | the scale is colour-blind-friendly, and a tap gives the number |
+
+Then one line telling a reader who is satisfied that they may stop, and
+one shut section, **The fine print**, holding everything technical: what
+a square is and that it is not street level, the 5:30 to 5:30 day, why
+the first day is usually tomorrow, that each amount is a whole day's
+total averaged
+over the square and does not say whether it fell in one burst, the nine
+colour classes with white and beige, that a count of runs is not a
+promise of rain, and the way on to How we checked for experts.
+
+Nothing technical is written above that section. A test splits the
+rendered page at it and sweeps the half a first-time visitor reads for
+UTC, lead day, grid, calibrated, probability, IMERG, Brier, ECMWF, AIFS,
+satellite, resample and 0.25 degrees, then checks every one of them is
+still there below.
+
+The mm guide spells the millimetres out -- "Some rain (1 mm or more): the
+ground gets damp" -- where the four lines "What does mm mean?" opens
+under the pills keep the pills' own "1 mm+". Two phrasings of three
+facts, so both are built from the one `AMOUNTS` table in `Controls.jsx`
+and sit beside each other there; only the clause after the colon
+differs. "Damp" again, for 11.40's reason: "wet" is on 11.20's list.
+
+#### The report card answers the question first
+
+The one plain line about the whole record sat under the period, the sixty
+labels, the skill plot and twelve reliability bands, and the readers who
+were asked to use this site never reached it. **TL;DR** is the first
+thing under the heading now, in the site's navy, slightly larger than the
+text under it, with four sentences; then **The full details** over
+everything that was already there.
+
+Every number in the four is counted from `web/src/summary.json` by
+`tldr()` in `pages.js`, and so is the period, quoted out of the file's
+own period line -- so the dates in the summary cannot differ from the
+dates under the heading. The second sentence counts the labels rather
+than claiming them: "everywhere" is written only while every one of the
+60 really is the rough-guide label, and the third names how many groups
+failed the honesty check as soon as that stops being all of them. A test
+drives the function against the file and then reads the rendered page
+against the function.
+
+On the record as it stands that is: 177 old forecasts from 13 May to 5
+November 2026; all 60 labels reading "Treat as a rough guide" and 20 of
+the 60 beating the usual rain for their place and month; the satellite
+seeing rain less often than most of the 51 runs suggested; a helpful hint
+and not a promise.
+
+#### How we checked says who it is for
+
+One line above the method: "For experts: the method and the numbers
+behind the report card. For the plain version, see the Report card", with
+Report card linked. It is the hardest page on the site and the menu
+offered it to a first-time visitor with nothing to say what it was.
+
+#### The repository's own documents
+
+`README.md` said there was no track record and no report card, which
+stopped being true on 13 November. It is rewritten around what is
+deployed, and every claim in it is checkable in the repository or in the
+Actions history: what the site is and the live link, the three steps of
+the mini user manual, what the numbers mean, the track record (the report
+card's own TL;DR, which a test checks sentence by sentence against
+`tldr()`), how the pipeline, publishing, verification and the site work,
+the suite's own size and the fourteen hand checks each linked to the file
+it wrote, the scheduler's record as found, the limits, the future work,
+how to run it locally, and last -- unchanged, and held character for
+character by a test -- the author's own account of how this was built and
+what help was used.
+
+`DECISIONS.md` is new: the Node `api/*.mjs` functions, feature branches
+merged with normal merge commits and no rewritten history,
+`config/regions.json` committed rather than computed, the two workflow
+file names, `config/features.json` (which does not exist: unfinished work
+lives on an unmerged branch instead of behind a flag), `label_colours`
+added to the frozen summary after the `results-v1` tag and why that is
+display metadata and not a number, and Time Machine parked.
+
+Sections 7, 9, 10 and 12 of this file were on the "sections still to
+draft" list from the first draft. Each has its paragraph now, in its
+numbered place, drafted on 14 November 2026 from what was built -- which
+is the right order: the sections that fix rules before results were
+written first and were not allowed to move afterwards.
+
+#### The header's own column
+
+The content is a centred column of at most 1280 pixels (11.40) and the
+header band was the full width of the screen: on a 1440 screen the mark
+stood 80 pixels to the left of the search box under it and the page links
+80 to the right of the panel. The band's contents and the warning's words
+are in the same column now, with the same 1rem of padding the grid has.
+Both bars still run the whole width of the screen, because the white of
+the header and the amber of the warning are the point of them -- which is
+why the warning's words moved into an inner row: the colour stays on the
+bar around them. Measured at 1366 by 768 and 1440 by 900: the mark, the
+warning and the search box begin within 2 pixels of each other, and the
+page links end within 2 pixels of the right-hand panel.
+
+#### The colour key goes back over the map, above 1280
+
+11.39 floated it over the Arabian Sea at 1280 and over; 11.40 took it off
+the canvas at every width, because the payment -- padding the fit's left
+edge by the box's width -- is only free while the fit is limited by the
+height. That measurement was about 1024 by 768, where the map box is 574
+by 476 and the padding makes the fit width-limited, shrinking India from
+409 pixels to 305 and putting Gujarat behind the key anyway.
+
+At 1280 and over the fit is limited by the height and the padding costs
+the country nothing, and a reader comparing a colour on the map with a
+key 400 pixels away in the panel is looking at two things. So the whole
+key is back over the map's left side there: the title with the amount in
+it, the strip, and all nine rows, always open. Over the canvas it is not
+a disclosure at all -- there is nothing to press and no state to get
+wrong. Below 1280 it is 11.40's strip at the top of the panel, sticky, so
+it stays on the screen while the card scrolls past.
+
+`App.jsx` asks `matchMedia` for the same 1280 query the stylesheet uses,
+so there is never a second key in the document, and `Map.jsx` measures
+the box and refits when it arrives over the canvas or leaves it.
+
+The rows over the map are set tighter than the panel's: at 1366 by 650
+the canvas is 340 pixels tall and the box measured 339, with its top at
+-10 and its first row clipped by the card's own overflow. At 13 pixel
+type, 1.25 line height and no row minimum it is 265 tall, and its top is
+inside the canvas at every width it is drawn at.
+
+| screen | the key's box, in the canvas's own pixels |
+|---|---|
+| 1366 x 768 | left 11, top 182, right 227, bottom 447 |
+| 1366 x 650 | left 11, top 64, right 227, bottom 329 |
+| 1440 x 900 | left 11, top 314, right 227, bottom 579 |
+
+and not one of the 4,613 squares or any point of the drawn outline,
+Lakshadweep included, is behind it in the view the page opens with, after
+a search, after the location button, after a tap on the map, or after a
+zoom that moved the view under it.
+
+#### A desktop scrolls once, and the map stays in view
+
+11.40 made the right-hand panel exactly as tall as the map and gave the
+card its own scrollbar so that the key above it could not scroll away.
+That is two scrollbars on one screen: a wheel over the card moved one and
+a wheel two pixels to the left moved the other, and a reader who reached
+the bottom of the card's own box had no way of knowing that the page went
+on.
+
+The panel is as tall as its contents now and nothing inside it scrolls.
+The page scrolls once, and the map card is `position: sticky` half a rem
+below the top of the window -- sticky and not fixed, so it keeps its
+place in the grid and stops at the bottom of its own cell. It is also the
+containing block for the key over it.
+
+| screen | the map, at the top of the page | with a place chosen | at the bottom of the page |
+|---|---|---|---|
+| 1366 x 768 | 202 to 660, 458 tall | 275 to 733 | 8 to 466 |
+| 1366 x 650 | 202 to 542, 340 tall | 275 to 615 | 8 to 348 |
+| 1440 x 900 | 202 to 792, 590 tall | 275 to 865 | 8 to 598 |
+| 1024 x 768 | 260 to 633, 373 tall | 356 to 729 | 8 to 381 |
+
+The last column is the page scrolled to its end with a place chosen and
+More detail open, which is the tallest the card ever is: the whole map
+card is still on the screen and the same height it was at the top.
+
+The wheel needed no code. MapLibre's cooperative gestures were already on
+for 11.39's two-finger rule, and they are what makes a plain wheel over
+the map scroll the page while Ctrl and the wheel zoom, with MapLibre's
+own hint naming Ctrl. It is measured rather than assumed, with real wheel
+events through the DevTools protocol -- the only way to tell a handled
+wheel from an unhandled one: the plain wheel moved the page and not the
+bounds, and Ctrl with the wheel narrowed the bounds from the top of the
+page. The map's layers are untouched.
+
+#### What is measured, and where
+
+As 11.40: in a real browser against the built bundle, against a run
+published through the real publisher and served over HTTP, with the real
+`api/health` and `api/place` answering. 11.40's eight sizes are nine --
+1280 by 720 joins them, because it is the width the key moves at.
+
+| | |
+|---|---|
+| the sizes | 390 x 664, 390 x 844, 360 x 640, 320 x 568, 1440 x 900, 1366 x 768, 1366 x 650, 1280 x 720, 1024 x 768 |
+| the clock | the same run read at 6 am on its own first day and at 6 am the day before, with `Date` replaced in the page |
+| the note | its words, present where the first pill reads "Tomorrow" and absent where it reads "Today" |
+| How to read this map | the six headings and their first sentences in order, the greeting first, and no technical word above the shut fine print |
+| the report card | `tldr()` driven against `summary.json`, then the rendered page against `tldr()`: TL;DR first, the four sentences in order, The full details above everything else |
+| How we checked | the For experts line above the method, with nothing but the heading above it, and its link a path this site answers |
+| README.md | every relative link opened, the fourteen hand-check files non-empty, the suite counted and the functions counted, the TL;DR sentences found in it, and the last section character for character |
+| the header | the mark, the warning and the search box within 2 pixels, the page links within 2 of the panel, both bars still the width of the screen |
+| the key | over the canvas at 1280 and over and in the panel below it, open with nine rows and no handle, its box inside the canvas, no square of India behind it in five states including a zoom |
+| the scrolling | nothing in the panel with a scrollbar of its own in any state, the map card sticky, and the whole of it on the screen with the page scrolled to its end |
+| the wheel | a real wheel over the canvas scrolling the page and not zooming, the hint naming Ctrl, and Ctrl with the wheel narrowing the bounds |
+| the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences and both keys included |
+
+## 12. Tiers and acceptance tests
+
+Drafted here on 14 November 2026, from what was built and what was not.
+Tier 1 is the live forecast: the counts, the map, the panel and the two API
+functions, accepted when the suite is green, HC7 matches the published bytes
+against a run built on the laptop, and HC8 matches five squares on the live
+map against both. Tier 2 is the track record of sections 5 and 6, accepted
+when every rule was committed before any result was seen (5.11, 6.8), the
+report card publishes all 60 labels including the ones that fail, and
+HC-REPORT redoes fifteen of its scores outside the pipeline; the 51-against-50
+comparison this section was reserved for is published as a sensitivity on
+How we checked rather than as a second report card. Tier 3, calibrated
+probabilities, is not built and may not be until a held-out record exists
+(5.8); until then the site shows counts out of 51 and no percentage, which
+is the rule 11.33 enforces over every page. The acceptance test for the
+whole of it is HC10, the final checklist, run at the end of the build.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
@@ -5642,10 +7045,12 @@ Nothing in sections 1-4 is now blocked.
 
 ## Sections still to draft
 
-7. Pipeline stages and file layout
-9. Automation and failure handling
-10. Testing strategy
-12. Tiers and acceptance tests
+None. Sections 7, 9, 10 and 12 were the last four, and each was drafted on
+14 November 2026, in its own numbered place above, from what had been built.
+That is the order this project asked for: the sections that fix rules before
+results -- 2 to 6, 8 and 11 -- were written first and were not allowed to
+move afterwards, and these four describe the thing that was built to carry
+them out.
 
 **Section 11 is drafted and approved in two parts.** Part one, 11.1 to
 11.11, is the plain page with `api/health` and `api/place`, live since 12

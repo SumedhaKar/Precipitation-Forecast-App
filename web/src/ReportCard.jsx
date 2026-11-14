@@ -14,7 +14,7 @@ import { useState } from 'react';
 import summary from './summary.json';
 import {
   bandRows, crpsSentence, frequencySentence, gridFor, headline, grouped,
-  skillSeries,
+  skillSeries, tldr,
 } from './pages';
 import { SkillPlot } from './plots';
 
@@ -27,6 +27,27 @@ function Chip({ label, colour, short }) {
     <span className={`chip ${COLOURS[colour] || 'grey'}`}>
       {short || label}
     </span>
+  );
+}
+
+/**
+ * The five sentences, before anything that has to be explained.
+ *
+ * SPEC 11.41. The readers who tried this site did not reach the one
+ * plain line under the sixty labels. This is the answer to "can I
+ * believe this?" at the top of the page, with every number counted from
+ * the file by `tldr` -- including which form each sentence takes, so
+ * none of them says "all" or "none" while it is untrue.
+ */
+export function Tldr() {
+  const said = tldr(summary);
+  return (
+    <section className="tldr">
+      <h2 className="tldrhead">TL;DR</h2>
+      {said.sentences.map((sentence) => (
+        <p key={sentence}>{sentence}</p>
+      ))}
+    </section>
   );
 }
 
@@ -244,6 +265,11 @@ export default function ReportCard() {
   return (
     <article className="page">
       <h1>The report card</h1>
+      <Tldr />
+      {/* SPEC 11.41. Everything the page had before is under this, and
+          a reader who has read the four sentences above knows whether
+          they want it. */}
+      <h2 className="tldrhead">The full details</h2>
       <Headline />
       <Grid />
       <Skill />

@@ -107,11 +107,64 @@ export const NEIGHBOURS = '#dcd7cb';
 // with a real count in it ("1 of 51 model runs, which is not a calibrated
 // probability.") is a fragment with no verb. One sentence, no count in it, so
 // it cannot be read as a claim about the number beside it.
-export const NOT_PROBABILITY = `These are counts out of ${MEMBERS} model `
-  + 'runs, not a calibrated probability.';
+// SPEC 11.38 amends it once more: "model runs" was one of four names this
+// page had for the 51, and the page has one now.
+export const NOT_PROBABILITY = `These are counts out of ${MEMBERS} runs, `
+  + 'not a calibrated probability.';
 
 export function notProbability() {
   return NOT_PROBABILITY;
+}
+
+/**
+ * What the 51 are. SPEC 11.40.
+ *
+ * The empty card said "One weather model, run 51 times from slightly
+ * different starts" and the dots said "Each dot is one run": true, and
+ * neither says what a run is to somebody who has not met an ensemble. A
+ * reader who thinks the 51 are 51 forecasts from 51 sources reads a count
+ * of 26 as a vote. They are not: they are one model, run again from
+ * starting conditions nudged about inside what the observations allow.
+ *
+ * Two sentences, one each, written here because the empty card, the dots
+ * and the How to read this map page all say one of them and the page may
+ * not say it three different ways. "Guesses" is the ordinary word for
+ * what they are and claims nothing: it is not on the forbidden list of
+ * 11.20 and could not be, because the honest word for a forecast of
+ * weather five days out is a guess.
+ */
+export const GUESSES = `The same weather model is run ${MEMBERS} times, `
+  + 'each starting from slightly different conditions: '
+  + `${MEMBERS} slightly different guesses.`;
+
+export const ONE_DOT = `Each dot is one of ${MEMBERS} slightly different `
+  + 'guesses by the same weather model; its colour shows how much rain it '
+  + 'brings that day.';
+
+/**
+ * One day pill's own sentence. SPEC 11.40.
+ *
+ * The pill carries a bare number and a square in this file's colour for
+ * it, which is what ties it to the map; neither of those says what it is,
+ * so this is the pill's accessible name, and `pillNote` says the same
+ * thing once in writing under the row. One function each, so the five
+ * pills and the caption cannot say different things.
+ *
+ * Here rather than in Controls.jsx because this file has no imports and
+ * node can load it, so a test can drive both against the words they must
+ * say (SPEC 11.24).
+ */
+export function pillSentence(name, count, threshold, members = MEMBERS) {
+  if (!name) return null;
+  if (!Number.isInteger(count)) return name;
+  return `${name}: ${count} of the ${members} runs bring `
+    + `${threshold} mm or more here`;
+}
+
+/** The caption under the row, said once for all five. SPEC 11.40. */
+export function pillNote(threshold, members = MEMBERS) {
+  return `The number on each day: how many of the ${members} runs bring `
+    + `${threshold} mm or more here.`;
 }
 
 /**
