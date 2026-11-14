@@ -221,12 +221,19 @@ export function PageHead({ run, nav, onGo }) {
       {/* SPEC 11.28: this was in the footer only, below the fold on every
           screen. The footer still carries it; this is the copy a reader
           cannot miss, and 11.39 makes it a bar across the width rather
-          than a chip squeezed in beside the name. */}
+          than a chip squeezed in beside the name.
+
+          SPEC 11.41: the bar is the whole width of the screen and the
+          words inside it are in the same 1280 pixel column as the page,
+          so the warning begins where the search box begins. Hence the
+          inner row: the colour cannot be brought in with the words. */}
       <p className="headwarn">
-        <Warn />
-        <span>
-          <strong>Not an official warning.</strong> For alerts:{' '}
-          <a href="https://mausam.imd.gov.in/">IMD</a>
+        <span className="warnrow">
+          <Warn />
+          <span>
+            <strong>Not an official warning.</strong> For alerts:{' '}
+            <a href="https://mausam.imd.gov.in/">IMD</a>
+          </span>
         </span>
       </p>
     </header>

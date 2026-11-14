@@ -4271,6 +4271,9 @@ const LOOK = `(async () => {
     const b = e.getBoundingClientRect();
     return { top: Math.round(b.top), bottom: Math.round(b.bottom),
              height: Math.round(b.height * 10) / 10,
+             // SPEC 11.41. The left edge, because item 6 is about three
+             // boxes beginning in the same place.
+             left: Math.round(b.left),
              right: Math.round(b.right), width: Math.round(b.width) };
   };
   const lines = (s) => {
@@ -4309,6 +4312,10 @@ const LOOK = `(async () => {
     fresh: box('.fresh'),
     freshText: (document.querySelector('.fresh') || {}).textContent || null,
     warn: box('.headwarn'),
+    // SPEC 11.41. Where the header's own contents begin and end, which
+    // on a desktop must be where the page's column begins and ends.
+    warnIcon: box('.headwarn .icon'),
+    topnav: box('.topnav'),
     warnText: (document.querySelector('.headwarn') || {}).textContent || null,
     controls: box('.controls'),
     asks: box('.asks'),
@@ -6837,6 +6844,50 @@ def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
         assert later["mapkey"]["top"] <= later["card"]["top"] + 1, (
             how, later["mapkey"], later["card"])
         assert later["overTheMap"] == [], (how, later["overTheMap"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1366x768", "1440x900"])
+def test_the_header_lines_up_with_the_column_under_it(viewport, size):
+    """SPEC 11.41. One page, not two.
+
+    The content is a centred column of at most 1280 pixels (11.40). The
+    header band was the full width of the screen, so on a 1440 screen the
+    mark stood 80 pixels to the left of the search box under it and the
+    page links stood 80 to the right of the panel: three left edges and
+    two right edges on one page.
+
+    The band and the warning bar still run the whole width -- the colours
+    are the point of them -- and it is their contents that are brought
+    into the same column.
+    """
+    seen = viewport["phone"][size]["first"]
+    for name in ("brand", "searchBox", "topnav", "card", "band", "warn",
+                 "warnIcon", "mapcard"):
+        assert seen[name], (size, name)
+    # The mark's left edge is the search box's left edge.
+    assert abs(seen["brand"]["top"] - seen["band"]["top"]) < 40, seen["band"]
+    assert abs(seen["brand"]["left"] - seen["searchBox"]["left"]) <= 2, (
+        seen["brand"], seen["searchBox"])
+    # And the warning bar's text starts at the same place.
+    assert abs(seen["warnIcon"]["left"]
+               - seen["searchBox"]["left"]) <= 2, (
+        seen["warnIcon"], seen["searchBox"])
+    # The page links' right edge is the right-hand panel's.
+    assert abs(seen["topnav"]["right"] - seen["card"]["right"]) <= 2, (
+        seen["topnav"], seen["card"])
+    # The bands themselves still run the whole width of the screen, so
+    # the warning's colour and the header's white are edge to edge: it is
+    # the contents that are brought in, and the warning's own colour is
+    # on the bar and not on the row of words inside it.
+    width = int(size.split("x")[0])
+    assert seen["header"]["width"] >= width - 1, (seen["header"], width)
+    assert seen["warn"]["width"] >= width - 1, (seen["warn"], width)
+    assert seen["warn"]["left"] <= 0, seen["warn"]
+    # The column is the one the grid uses, and it is 1280 at most.
+    assert seen["controls"]["width"] <= 1280, seen["controls"]
+    assert seen["mapcard"]["right"] <= seen["topnav"]["right"] + 2, (
+        seen["mapcard"], seen["topnav"])
 
 
 # ------------------------------- SPEC 11.39: the header, on every page

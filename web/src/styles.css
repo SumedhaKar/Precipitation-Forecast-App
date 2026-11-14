@@ -189,9 +189,6 @@ button {
    beside the name it took 250 of a phone's 390 pixels, which is why the
    name, the tagline and the freshness line were squeezed into 119. */
 .headwarn {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.4rem;
   width: 100%;
   margin: 0;
   padding: 0.4rem 0.7rem;
@@ -199,6 +196,14 @@ button {
   color: var(--warn-ink);
   background: var(--warn-bg);
   border: 0;
+}
+
+/* SPEC 11.41. The words, which are what is brought into the page's own
+   column on a desktop. The colour stays on the bar around them. */
+.warnrow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
 }
 
 .headwarn a { color: #7a4100; }
@@ -1358,8 +1363,27 @@ footer p { max-width: 70ch; }
     overscroll-behavior: contain;
   }
 
-  .band { padding: 0.5rem 1rem; }
-  .headwarn { padding: 0.4rem 1rem; }
+  /* SPEC 11.41. The header's contents sit in the same centred column
+     as everything under them: 1280 pixels at most, with the same 1rem
+     of padding the grid has, so the mark's left edge is the search
+     box's left edge and the page links' right edge is the right-hand
+     panel's. On a 1440 screen the band was the full width and the logo
+     stood 80 pixels to the left of the search box under it, which reads
+     as two pages rather than one.
+
+     The backgrounds are on .pagehead and on .headwarn itself and still
+     run the whole width of the screen: it is the contents that are
+     brought in, not the bands. */
+  .band, .warnrow {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .band { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .headwarn { padding: 0.4rem 0; }
   .band .topnav { margin-left: auto; }
 }
 
