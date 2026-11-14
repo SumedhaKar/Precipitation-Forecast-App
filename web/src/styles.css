@@ -242,10 +242,20 @@ button {
     "cardcol";
   gap: var(--gap);
   width: 100%;
-  max-width: 96rem;
+  /* SPEC 11.40: 1280 pixels. At 96rem the map was 1152 pixels wide on a
+     1440 screen and India sat in the middle of it with 300 pixels of sea
+     either side, because the fit is limited by the height. */
+  max-width: 80rem;
   margin: 0 auto;
   padding: var(--gap) 0.7rem calc(var(--gap) * 2);
 }
+
+/* SPEC 11.40. The box around the search row and the two questions. A
+   phone sees through it -- the map goes between them there, and a grid
+   can only place a child of its own -- and a desktop lays its children
+   out in one row. `display: contents` is how one copy of a control can
+   be in two orders (11.39). */
+.controls { display: contents; }
 
 .asks { grid-area: asks; }
 .pills {
@@ -456,6 +466,11 @@ button {
    It is a disclosure rather than a link now, and it opens under the
    pills: the handle stays at the end of the line and the four lines it
    opens read from the left, like every other sentence on the page. */
+/* The pills and the handle. A column on a phone, where the handle is at
+   the end of its own line under them; one line on a desktop, where the
+   handle follows the pills (11.40). */
+.amountline { display: flex; flex-direction: column; min-width: 0; }
+
 .mmwhat {
   margin: 0.15rem 0 0;
   text-align: right;
@@ -1229,33 +1244,78 @@ footer p { max-width: 70ch; }
    column on the right. One grid does both, so there is one copy of every
    control in the page and the phone's order is not a second layout. */
 @media (min-width: 1024px) {
-  :root { --gap: 1.2rem; --gap-across: 2.4rem; }
+  /* SPEC 11.40: ordinary spacing. 11.39 doubled the gaps between groups
+     on a desktop to open the page up, and with the three questions in
+     one row the doubled gaps were most of what pushed the map down. */
+  :root { --gap: 0.8rem; --gap-across: 1.4rem; }
 
   .forecast {
     grid-template-columns: minmax(0, 1fr) var(--panel);
     grid-template-areas:
-      "asks  asks"
-      "pills pills"
-      "map   cardcol";
+      "controls controls"
+      "map      cardcol";
     column-gap: var(--gap-across);
-    padding: var(--gap) 1rem calc(var(--gap) * 2);
+    padding: var(--gap) 1rem var(--gap);
+  }
+
+  /* SPEC 11.40. One compact row: the search box, the five days and the
+     three amounts, each with its own small label above it. It wraps only
+     where there is not room for the three of them, which is measured at
+     about 1100 pixels -- and the row is the one thing above the map, so
+     every pixel of it is a pixel of India. */
+  .controls {
+    display: flex;
+    grid-area: controls;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.5rem var(--gap-across);
   }
 
   /* A search box the width of the page would be a search box the width of
      a sentence nobody is typing. */
-  .search { max-width: 34rem; }
+  .asks { flex: 1 1 15rem; max-width: 22rem; }
+  .search { max-width: none; }
 
-  /* The two questions side by side, above the map: there is room for
-     eight pills on one line at this width and no reason for two. */
-  .pills { flex-direction: row; flex-wrap: wrap; gap: var(--gap-across); }
-  .pills .days { flex: 1 1 24rem; }
-  .pills .amounts { flex: 0 1 auto; }
+  /* The two questions, beside the box and beside each other. */
+  .pills {
+    flex: 3 1 34rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.5rem var(--gap-across);
+  }
 
-  /* Taller than a phone's, and still not a share of anything that could
-     push a control off the screen: the page scrolls. */
+  .pills .days { flex: 2 1 19rem; }
+  .pills .amounts { flex: 3 1 21rem; }
+
+  /* "What does mm mean?" right after the amount pills, on their line --
+     and when it is opened it takes a line of its own under them, which
+     is where 11.40 asks for the four lines to appear and the only place
+     on a desktop where they have the width to be read on four lines.
+     Nothing is drawn over the map: the row grows instead. */
+  .amountline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .amountline .radios { flex: 0 1 auto; }
+  .amountline .mmwhat { flex: 0 1 auto; min-width: 0; text-align: left; }
+  .amountline .mmwhat[open] { flex: 1 1 100%; }
+  .amountline .mmwhat .amountwords { margin: 0.2rem 0 0; }
+
+  /* SPEC 11.40. The map takes the rest of the screen. The 260 pixels are
+     what is above it, measured: the band, the warning bar, the one row of
+     controls and the gaps around them come to 180 at 1366 and 236 at 1024
+     where the row wraps, and the remainder is the map with a little under
+     the fold to spare. The ceiling is 640, so a tall screen does not
+     stretch one square to the size of a town.
+
+     The vh line and the dvh line are two rules on purpose: a minifier
+     drops a declaration the next one overrides (SPEC 11.35). */
   .mapwrap {
-    height: min(62vh, 600px);
-    min-height: 360px;
+    height: min(100vh - 260px, 640px);
+    min-height: 320px;
   }
 
   .band { padding: 0.5rem 1rem; }
@@ -1265,7 +1325,23 @@ footer p { max-width: 70ch; }
 
 @supports (height: 1dvh) {
   @media (min-width: 1024px) {
-    .mapwrap { height: min(62dvh, 600px); }
+    .mapwrap { height: min(100dvh - 260px, 640px); }
+  }
+}
+
+/* SPEC 11.40. Below about 1100 pixels the three questions do not fit on
+   one line and the row takes two, which is 80 pixels more above the map:
+   measured at 1024 by 768, where the map's top goes from 180 to 260. The
+   map gives those pixels back, so the whole of it is still on the screen
+   with no page scrolled. 1152 is the top of the range because the three
+   groups' own content comes to about 1135 pixels at this type size. */
+@media (min-width: 1024px) and (max-width: 1151px) {
+  .mapwrap { height: min(100vh - 345px, 640px); }
+}
+
+@supports (height: 1dvh) {
+  @media (min-width: 1024px) and (max-width: 1151px) {
+    .mapwrap { height: min(100dvh - 345px, 640px); }
   }
 }
 

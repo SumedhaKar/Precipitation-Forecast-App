@@ -664,24 +664,34 @@ export default function App({ health, healthError, onGo }) {
           The order is the stylesheet's, in one grid, so there is one copy
           of every control and no copy of anything. */}
       <main className="forecast">
-        <div className="asks">
-          <Search
-            onTown={town}
-            onPoint={point}
-            onUnit={toUnit}
-            busy={busy}
-            shown={shown}
-            onLocation={located}
-            snapTo={snapTo}
-            from={from}
-          />
-        </div>
+        {/* SPEC 11.40. The search row and the two questions, in one box.
+            On a desktop it is one compact row at the top of the page; on
+            a phone the map goes between them, so there the box is
+            `display: contents` and the grid places its two children
+            itself. One copy of every control either way. */}
+        <div className="controls">
+          <div className="asks">
+            <Search
+              onTown={town}
+              onPoint={point}
+              onUnit={toUnit}
+              busy={busy}
+              shown={shown}
+              onLocation={located}
+              snapTo={snapTo}
+              from={from}
+            />
+          </div>
 
-        <div className="pills">
-          {days.length ? (
-            <DayChoice days={days} day={day} onDay={setDay} />
-          ) : null}
-          <ThresholdChoice threshold={threshold} onThreshold={setThreshold} />
+          <div className="pills">
+            {days.length ? (
+              <DayChoice days={days} day={day} onDay={setDay} />
+            ) : null}
+            <ThresholdChoice
+              threshold={threshold}
+              onThreshold={setThreshold}
+            />
+          </div>
         </div>
 
         <div className="mapcard" id="map">

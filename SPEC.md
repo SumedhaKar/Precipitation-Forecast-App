@@ -6292,6 +6292,53 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### A desktop: one row of questions, and the map takes the rest
+
+The desktop had the search box on one row, "Which day?" and its five
+pills on a second and "How much rain?" and its three on a third, with the
+gaps between groups doubled by 11.39 to open the page up. Together they
+took about 300 pixels off the top of the screen before the map began, and
+on a 1366 by 650 window — which is what a 1366 by 768 laptop is once
+Chrome's own bars have taken their 118 pixels — there was not enough left
+for the whole country.
+
+So: one row, at ordinary spacing. The search box, the five days and the
+three amounts side by side, each group with its own small label above it,
+and "What does mm mean?" right after the amount pills on their line. The
+row wraps to two only where the three groups' own content will not fit,
+which is at about 1100 pixels. Opening "What does mm mean?" gives it a
+line of its own under the pills — the only place on a desktop with the
+width to read four lines as four lines — and the row grows rather than
+anything being drawn over the map.
+
+The content is a centred column of at most **1280 pixels**. At 96rem the
+map was 1152 pixels wide on a 1440 screen with 300 pixels of sea either
+side of India, because the fit is limited by the height.
+
+The map takes the rest of the screen: `min(100dvh - 260px, 640px)`, with
+a `vh` rule beside it for a browser that has never heard of `dvh` (11.35).
+The 260 is measured, and so is the 345 the narrow case uses:
+
+| screen | the map starts at | the map is | the card's bottom |
+|---|---|---|---|
+| 1366 x 768 | 180 | 508 | on the screen |
+| 1366 x 650 | 180 | 390 | on the screen |
+| 1440 x 900 | 180 | 640 (the ceiling) | on the screen |
+| 1024 x 768 | 260, the row having wrapped | 423 | on the screen |
+
+The ceiling of 640 is there so that a tall screen does not stretch one
+0.25 degree square to the size of a town. Below 1152 pixels the row takes
+two lines, which is 80 pixels more above the map, and the map gives those
+pixels back.
+
+What is measured at all four sizes: the map's top against the limits of
+item 8 (230 pixels at 1366, 260 at 1440), its height at 1440 by 900
+against the 520 item 8 asks for, that the whole map card is above the
+fold with the page unscrolled, and that all 4,613 forecast squares and
+every point of the drawn outline — Kerala's south and Ladakh's north by
+name — land inside the part of the canvas a reader can see without
+scrolling the page.
+
 #### The scroll that was clamped by a page still loading
 
 Choosing a place scrolls the day pills to the top of the screen (11.39).

@@ -4202,6 +4202,7 @@ const LOOK = `(async () => {
     freshText: (document.querySelector('.fresh') || {}).textContent || null,
     warn: box('.headwarn'),
     warnText: (document.querySelector('.headwarn') || {}).textContent || null,
+    controls: box('.controls'),
     asks: box('.asks'),
     searchBox: box('.searchrow input'),
     searchValue: document.querySelector('.searchrow input')
@@ -4225,9 +4226,14 @@ const LOOK = `(async () => {
     dayRow: box('.days .radios'),
     amounts: box('.amounts'),
     amountRow: box('.amounts .radios'),
+    amountLine: box('.amountline'),
     pillWidths: [...document.querySelectorAll(
       '.days .radios button, .amounts .radios button')]
-      .map((e) => [e.parentElement.parentElement.className,
+      // Which group a pill is in, asked of the group rather than of the
+      // pill's grandparent: SPEC 11.40 put a box between the amount
+      // pills and their group, so that the handle after them can share
+      // their line on a desktop.
+      .map((e) => [e.closest('.group').className,
         Math.round(e.getBoundingClientRect().width)]),
     // SPEC 11.40. "What does mm mean?" is a disclosure now: the handle,
     // whether it is open, the four lines it opens, and whether there is a
@@ -4539,6 +4545,7 @@ try {
       };
       const before = await evaluate(`(() => ({
         scrollY: Math.round(window.scrollY),
+        max: document.documentElement.scrollHeight - window.innerHeight,
         bounds: document.querySelector('.map').mapView().bounds,
       }))()`);
       await drag(middle.x, middle.y, 0, -90, 1);
@@ -4799,7 +4806,8 @@ def viewport(tmp_path_factory):
         plan = {
             "api": str(ROOT / "api"),
             "sizes": [[390, 664], [390, 844], [360, 640],
-                      [320, 568], [1440, 900], [1024, 768]],
+                      [320, 568], [1440, 900], [1366, 768],
+                      [1366, 650], [1024, 768]],
             "target": target,
             "squares": squares,
             # A city inside the run a test publishes, so searching for it
@@ -6040,24 +6048,24 @@ def test_the_header_is_one_band_with_nothing_extra_in_it():
 @pytest.mark.parametrize("size", ["1440x900", "1024x768"])
 def test_a_desktop_puts_the_controls_above_the_map_and_the_card_beside_it(
         viewport, size):
-    """SPEC 11.39, item 7. One grid, the other order.
+    """SPEC 11.39 item 7, as 11.40 leaves it. One grid, the other order.
 
-    The search row and the two pill rows across the top, the map on the
-    left, the card in the column on the right. There is one copy of every
+    The three questions in one row across the top, the map on the left,
+    the card in the column on the right. There is one copy of every
     control in the page: the order is the stylesheet's and not a second
     layout.
     """
     seen = viewport["phone"][size]["first"]
     width = int(size.split("x")[0])
-    for what in ("asks", "pillrow", "mapcard", "card", "days",
+    for what in ("controls", "asks", "pillrow", "mapcard", "card", "days",
                  "amounts"):
         assert seen[what], what
 
-    # The two rows of controls are above the map, in this order.
-    assert seen["asks"]["bottom"] <= seen["pillrow"]["top"] + 1, (
+    # The row of controls is above the map, and the box comes first in it.
+    assert seen["asks"]["top"] <= seen["pillrow"]["top"] + 6, (
         seen["asks"], seen["pillrow"])
-    assert seen["pillrow"]["bottom"] <= seen["mapcard"]["top"] + 1, (
-        seen["pillrow"], seen["mapcard"])
+    assert seen["controls"]["bottom"] <= seen["mapcard"]["top"] + 1, (
+        seen["controls"], seen["mapcard"])
     # The map is on the left and the card on the right, side by side.
     assert seen["mapcard"]["right"] <= seen["card"]["right"] - 200, (
         seen["mapcard"], seen["card"])
@@ -6449,9 +6457,14 @@ def test_one_finger_scrolls_the_page_and_two_move_the_map(viewport, size):
     """
     seen = viewport["phone"][size].get("gestures")
     assert seen, "the gestures were not measured"
-    # One finger: the page moved and the map did not.
-    assert seen["oneFinger"]["scrollY"] > seen["before"]["scrollY"], seen
+    # One finger: the map did not move.
     assert seen["oneFinger"]["bounds"] == seen["before"]["bounds"], seen
+    # And the page did, wherever there was any page to move. SPEC 11.40
+    # fits the desktop map to the screen, so with nothing chosen the
+    # whole page is one screen there and a drag has nothing to scroll --
+    # which is the same answer as far as this rule goes: the map stays.
+    if seen["before"]["max"] > 4:
+        assert seen["oneFinger"]["scrollY"] > seen["before"]["scrollY"], seen
     # And the map said why, in the words MapLibre itself uses.
     assert "Use two fingers to move the map" in (seen["oneFinger"]["hint"]
                                                  or ""), seen["oneFinger"]
@@ -6589,12 +6602,20 @@ def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
     """
     seen = viewport["phone"][size]["first"]
     assert seen["mmwhat"], "the handle is not there"
-    # Under the pills, and not beside them.
-    assert seen["mmwhat"]["top"] >= seen["amountRow"]["bottom"] - 1, (
-        seen["mmwhat"], seen["amountRow"])
-    # At the end of the line, within a few pixels of the pills' own edge.
-    assert abs(seen["mmwhat"]["right"] - seen["amountRow"]["right"]) <= 6, (
-        seen["mmwhat"], seen["amountRow"])
+    if int(size.split("x")[0]) < 1024:
+        # Under the pills, and not beside them: on a phone the three
+        # pills keep the whole width between them.
+        assert seen["mmwhat"]["top"] >= seen["amountRow"]["bottom"] - 1, (
+            seen["mmwhat"], seen["amountRow"])
+        # At the end of the line, within a few pixels of the pills' edge.
+        assert abs(seen["mmwhat"]["right"]
+                   - seen["amountRow"]["right"]) <= 6, (
+            seen["mmwhat"], seen["amountRow"])
+    else:
+        # SPEC 11.40: on a desktop it is on the pills' own line, right
+        # after them, because the three questions are one row there.
+        assert seen["mmwhat"]["top"] < seen["amountRow"]["bottom"], (
+            seen["mmwhat"], seen["amountRow"])
     # It is a link to a real page, and that page has that anchor.
     page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
     assert '<h2 id="amounts">How much rain</h2>' in page
@@ -6625,8 +6646,10 @@ def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
         "roads.",
         "Each is the total over the whole day, averaged over the square.",
     ], shown["mmLines"]
-    # They are under the amount pills and above the map on a phone, which
-    # is where the question was asked.
+    # Open, they are under the amount pills, at every width: on a phone
+    # the handle is already there, and on a desktop the handle takes a
+    # line of its own under the pills when it is opened, which is the
+    # only place there with the width to read four lines on four lines.
     assert shown["mmwhat"]["top"] >= shown["amountRow"]["bottom"] - 1, (
         shown["mmwhat"], shown["amountRow"])
     # And a second tap shuts it, with the page where it was.
@@ -7101,3 +7124,112 @@ def test_the_footer_is_inside_the_panel_on_a_desktop(viewport):
     assert narrow["footerInPanel"] is True
     assert narrow["footer"]["width"] >= narrow["card"]["width"] - 2, (
         narrow["footer"], narrow["card"])
+# ------------------- SPEC 11.40: the desktop, and the map that fills it
+
+# The four screens item 8 names. 1366 by 768 is the laptop; 1366 by 650 is
+# that laptop after Chrome's own bars have taken their 118 pixels, which is
+# what a reader actually has. 1024 by 768 is the narrowest desktop this
+# site claims, and 1440 by 900 the widest it is measured at.
+DESKTOPS = ("1366x768", "1366x650", "1440x900", "1024x768")
+
+# How far down the map may start, and how tall it must be: measured, and
+# written here rather than in a comment.
+MAP_TOP = {"1366x768": 230, "1366x650": 230, "1440x900": 260,
+           "1024x768": 300}
+MAP_TALL = {"1440x900": 520}
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1366x768", "1440x900"])
+def test_the_desktop_asks_everything_in_one_row(viewport, size):
+    """SPEC 11.40. The box, the five days and the three amounts, in one row.
+
+    They were three rows -- the search box, then "Which day?" and its five
+    pills, then "How much rain?" and its three -- with the gaps between
+    groups doubled, and together they took 300 pixels off the top of the
+    screen before the map began. The three of them are one row now, each
+    group with its own small label above it, at ordinary spacing.
+    """
+    seen = viewport["phone"][size]["first"]
+    for what in ("controls", "asks", "days", "amounts", "mapcard"):
+        assert seen[what], what
+    # One row: the three groups start within a few pixels of each other.
+    tops = [seen["asks"]["top"], seen["days"]["top"], seen["amounts"]["top"]]
+    assert max(tops) - min(tops) <= 6, tops
+    # And the row is one row high: no group is below another.
+    assert seen["controls"]["height"] <= 110, seen["controls"]
+    # "What does mm mean?" is on the amount pills' own line, after them.
+    assert seen["mmwhat"]["top"] >= seen["amountRow"]["top"] - 4, (
+        seen["mmwhat"], seen["amountRow"])
+    assert seen["mmwhat"]["bottom"] <= seen["amountRow"]["bottom"] + 4, (
+        seen["mmwhat"], seen["amountRow"])
+    assert seen["mmwhat"]["top"] < seen["amountRow"]["bottom"], (
+        seen["mmwhat"], seen["amountRow"])
+    # The content is a centred column of at most 1280 pixels.
+    assert seen["controls"]["width"] <= 1280, seen["controls"]
+    assert seen["mapcard"]["width"] + seen["card"]["width"] <= 1280, (
+        seen["mapcard"], seen["card"])
+    assert seen["overlapping"] == [], seen["overlapping"]
+
+
+@needs_node
+@pytest.mark.parametrize("size", DESKTOPS)
+def test_the_map_fills_what_is_left_of_the_screen(viewport, size):
+    """SPEC 11.40. The map starts near the top and reaches the fold.
+
+    What is above it is the header band, the warning bar and the one row
+    of controls. The map takes the rest: `min(100dvh - 260px, 640px)`,
+    with the 260 measured against these four screens and the ceiling
+    there so that a tall screen does not stretch one square to the size
+    of a town.
+
+    "What does mm mean?" is shut, which is how the page opens.
+    """
+    seen = viewport["phone"][size]["first"]
+    height = int(size.split("x")[1])
+    assert seen["mmOpen"] is False, "the measurement is with it shut"
+    assert seen["mapcard"]["top"] <= MAP_TOP[size], (
+        size, seen["mapcard"], MAP_TOP[size])
+    if size in MAP_TALL:
+        assert seen["map"]["height"] >= MAP_TALL[size], (
+            size, seen["map"])
+    # The whole map card is on the screen: nothing of it needs a scroll.
+    assert seen["mapcard"]["bottom"] <= height, (size, seen["mapcard"])
+    assert seen["scrollY"] == 0, seen["scrollY"]
+
+
+@needs_node
+@pytest.mark.parametrize("size", DESKTOPS)
+def test_every_india_square_is_in_the_visible_map_on_a_desktop(viewport,
+                                                               size):
+    """SPEC 11.40. Kerala and Ladakh, with no page scrolled.
+
+    The map is fitted to the box of 1.4 and the box is the whole country,
+    so this is not a check of the fit for its own sake: it is a check
+    that the box the fit is given is entirely on the screen. All 4,613
+    forecast squares and every point of the drawn outline are projected
+    into the canvas's own pixels from the bounds the map reports, and
+    every one of them has to land inside the part of the canvas a reader
+    can see without scrolling the page.
+    """
+    seen = viewport["phone"][size]["first"]
+    height = int(size.split("x")[1])
+    view = seen["view"]
+    if not view:
+        pytest.skip("the map did not draw")
+    box = seen["map"]
+    width = box["width"]
+    tall = box["height"]
+    # How much of the canvas is above the fold.
+    visible = min(tall, height - box["top"])
+    assert visible >= tall - 1, (size, box, height)
+    for lat, lon, x, y in on_screen(india_points(), view["bounds"],
+                                    width, tall):
+        assert -1 <= x <= width + 1, (size, lat, lon, x)
+        assert -1 <= y <= visible + 1, (size, lat, lon, y, visible)
+    # Kerala's south and Ladakh's north by name, so a failure says which.
+    for name, (lat, lon) in {"Kerala": (8.25, 77.0),
+                             "Ladakh": (34.75, 77.5)}.items():
+        inside = on_screen([(lat, lon)], view["bounds"], width, tall)[0]
+        assert 0 <= inside[2] <= width, (size, name, inside)
+        assert 0 <= inside[3] <= visible, (size, name, inside)

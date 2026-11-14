@@ -160,22 +160,25 @@ export function ThresholdChoice({ threshold, onThreshold }) {
   return (
     <div className="group amounts">
       <span className="grouplabel" id="amountlabel">How much rain?</span>
-      <div className="radios" role="radiogroup" aria-labelledby="amountlabel">
-        {AMOUNTS.map((amount) => (
-          <button
-            key={amount.mm}
-            type="button"
-            role="radio"
-            aria-checked={amount.mm === threshold}
-            className={amount.mm === threshold ? 'on' : ''}
-            aria-label={`${amount.nickname}, ${amount.mm} mm or more`}
-            onClick={() => onThreshold(amount.mm)}
-          >
-            <span className="pilltop">{amount.nickname}</span>
-            <span className="pillunder">{amount.mm} mm+</span>
-          </button>
-        ))}
-      </div>
+      <div className="amountline">
+        <div className="radios" role="radiogroup"
+          aria-labelledby="amountlabel"
+        >
+          {AMOUNTS.map((amount) => (
+            <button
+              key={amount.mm}
+              type="button"
+              role="radio"
+              aria-checked={amount.mm === threshold}
+              className={amount.mm === threshold ? 'on' : ''}
+              aria-label={`${amount.nickname}, ${amount.mm} mm or more`}
+              onClick={() => onThreshold(amount.mm)}
+            >
+              <span className="pilltop">{amount.nickname}</span>
+              <span className="pillunder">{amount.mm} mm+</span>
+            </button>
+          ))}
+        </div>
       {/* SPEC 11.40. The question is answered where it is asked.
 
           It was a link to the How to read this map page, which took a
@@ -193,10 +196,11 @@ export function ThresholdChoice({ threshold, onThreshold }) {
           On its own line under the pills, at the end of it, with no rule
           above it and no icon beside it: the three pills keep the whole
           width between them. */}
-      <details className="mmwhat">
-        <summary>What does mm mean?</summary>
-        <AmountWords />
-      </details>
+        <details className="mmwhat">
+          <summary>What does mm mean?</summary>
+          <AmountWords />
+        </details>
+      </div>
     </div>
   );
 }
