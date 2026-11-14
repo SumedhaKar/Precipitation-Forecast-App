@@ -3827,8 +3827,9 @@ def test_the_forbidden_words_hold_on_both_pages(rendered):
                 assert not re.search(r"\bcertain\b", low), text[:200]
                 continue
             if word == "warn":
-                # "Not an official warning" is the footer's, and it is the
-                # one warning word this site is required to say.
+                # "Not an official warning" is the header's, and it is
+                # the one warning word this site is required to say.
+                # SPEC 11.40 took the footer's second copy of it out.
                 assert "warn" not in low.replace("official warning", ""), \
                     text[:200]
                 continue
@@ -4282,6 +4283,17 @@ const LOOK = `(async () => {
     backlink: box('.backtomap a'),
     cardLinks: [...document.querySelectorAll('.cardlinks a')]
       .map((e) => [e.textContent.trim(), e.getAttribute('href')]),
+    // SPEC 11.40. One footer, with no second copy of the warning and one
+    // handle to the credits, and on a desktop it is inside the panel.
+    footer: box('footer'),
+    footerInPanel: !!document.querySelector('.cardcol footer'),
+    warnings: [...document.querySelectorAll('p')]
+      .filter((e) => e.textContent.trim()
+        .startsWith('Not an official warning')).length,
+    creditControls: document.querySelectorAll(
+      'footer summary, footer a[href="#credits"]').length,
+    creditText: (document.querySelector('footer .credit') || {})
+      .textContent || null,
     sheet: box('.sheetbar'),
     handle: box('.handle'),
     summaryRow: box('.summaryline'),
@@ -7013,3 +7025,63 @@ def test_only_the_dot_bands_that_happened_are_listed(forecast_words):
         seen += 1
     assert seen > 20, seen
     assert hidden, "no card had a band with no dots in it"
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "1440x900"])
+def test_one_footer_with_no_second_warning_and_one_credits_handle(
+        viewport, size):
+    """SPEC 11.40. The same sentence twice is the second one unread.
+
+    11.39 made the warning a bar across the width of the header on all
+    four pages. The footer's copy of it was then the second time a reader
+    met that sentence, and the footer also had two controls for one
+    thing: a link reading "Credits and licences in full" that opened the
+    disclosure whose own handle, two lines below, read "Credits and
+    licences".
+
+    What is left is the attribution ECMWF's licence asks for, visible
+    whatever a reader does, and one handle to the full form of it.
+    """
+    seen = viewport["phone"][size]["first"]
+    assert seen["warnings"] == 1, seen["warnings"]
+    assert seen["warnText"].startswith("Not an official warning."), (
+        seen["warnText"])
+    assert seen["creditControls"] == 1, seen["creditControls"]
+    # The attribution itself is still outside the disclosure.
+    assert "ECMWF" in (seen["creditText"] or ""), seen["creditText"]
+    assert "CC BY 4.0" in seen["creditText"], seen["creditText"]
+    assert "in full" not in seen["creditText"], seen["creditText"]
+    # And the two document pages carry the same footer, with one handle.
+    for path, page in viewport["pages"].items():
+        assert page["warnings"] == 1, (path, page["warnings"])
+        assert page["creditControls"] == 1, (path, page["creditControls"])
+
+
+@needs_node
+def test_the_footer_is_inside_the_panel_on_a_desktop(viewport):
+    """SPEC 11.40. Under the two links, at the bottom of the right column.
+
+    On a phone the footer is the last block of the one column, which is
+    where a footer goes. On a desktop it was a band under the map, which
+    is a third thing competing for the width the map wants; it is the
+    bottom of the right-hand panel now, under "How to read this map" and
+    "Report card".
+    """
+    wide = viewport["phone"]["1440x900"]["first"]
+    assert wide["footerInPanel"] is True
+    assert wide["footer"], "no footer"
+    # Inside the panel's own column: its left edge is the card's, not the
+    # page's, and the map is to the left of it.
+    assert wide["footer"]["right"] <= wide["card"]["right"] + 2, (
+        wide["footer"], wide["card"])
+    assert wide["footer"]["width"] <= wide["card"]["width"] + 2, (
+        wide["footer"], wide["card"])
+    assert wide["footer"]["top"] >= wide["card"]["bottom"] - 1, (
+        wide["footer"], wide["card"])
+    assert wide["mapcard"]["right"] < wide["footer"]["top"] + 10_000
+    assert wide["footer"]["width"] < wide["innerWidth"] - 200, (
+        wide["footer"], wide["innerWidth"])
+    # On a phone it is the last block of the one column and has the width.
+    narrow = viewport["phone"]["390x664"]["first"]
+    assert narrow["footerInPanel"] is True
+    assert narrow["footer"]["width"] >= narrow["card"]["width"] - 2, (
+        narrow["footer"], narrow["card"])

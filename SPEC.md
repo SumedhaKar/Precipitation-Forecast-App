@@ -6292,6 +6292,27 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### One footer, inside the panel
+
+Two things in the footer were said twice. 11.39 made the warning a bar
+across the width of the header on all four pages, which left the footer's
+copy as the second time a reader meets that sentence on the same page. And
+"Credits and licences in full" was a link that opened the disclosure whose
+own handle, two lines under it, read "Credits and licences": two controls
+for one thing.
+
+What is left is the attribution ECMWF's licence asks for — visible
+whatever a reader does — and one handle to the full form of it. The
+warning is the header's, on every page, and is measured as exactly one
+paragraph beginning "Not an official warning" on the forecast page and on
+both document pages.
+
+The footer is the last block inside the card's own column. On a phone that
+is the last block of the page, where a footer goes; on a desktop it is the
+bottom of the right-hand panel, under "How to read this map" and "Report
+card", rather than a band under the map competing for the width the map
+wants. There is no `foot` row in the grid any more.
+
 #### Only the dot bands that happened
 
 All 51 dots are drawn, always. The four band names under them were listed

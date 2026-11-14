@@ -239,8 +239,7 @@ button {
     "asks"
     "map"
     "pills"
-    "cardcol"
-    "foot";
+    "cardcol";
   gap: var(--gap);
   width: 100%;
   max-width: 96rem;
@@ -258,7 +257,6 @@ button {
 
 .mapcard { grid-area: map; }
 .cardcol { grid-area: cardcol; min-width: 0; }
-.forecast > footer { grid-area: foot; }
 
 /* ---------------------------------------------------------- the map card */
 
@@ -1220,7 +1218,6 @@ footer {
   color: var(--quiet);
 }
 
-footer .warning { color: var(--ink); }
 footer .credit { margin-bottom: 0.4rem; }
 footer summary { cursor: pointer; margin-bottom: 0.4rem; }
 footer p { max-width: 70ch; }
@@ -1239,8 +1236,7 @@ footer p { max-width: 70ch; }
     grid-template-areas:
       "asks  asks"
       "pills pills"
-      "map   cardcol"
-      "foot  foot";
+      "map   cardcol";
     column-gap: var(--gap-across);
     padding: var(--gap) 1rem calc(var(--gap) * 2);
   }

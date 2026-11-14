@@ -262,33 +262,28 @@ export function PageHead({ run, nav, onGo }) {
   );
 }
 
+/**
+ * The footer, on every page. SPEC 11.28, cut back by 11.40.
+ *
+ * Two things were said twice. The warning was here and in the header --
+ * 11.39 made the header's copy a bar across the width of all four pages,
+ * so this one was the second time a reader met the same sentence on the
+ * same screen, several screens apart. And "Credits and licences in full"
+ * was a link that opened the disclosure whose own handle, two lines
+ * below, read "Credits and licences": two controls for one thing.
+ *
+ * What is left is the attribution ECMWF's licence asks for, visible
+ * whatever a reader does, and one handle to the full form of it.
+ */
 export function Footer() {
   return (
     <footer>
-      {/* SPEC 11.38: the same words as the chip in the header, so the one
-          caveat a reader must not miss is one sentence and not two. The
-          two document pages have no chip of their own, so it stays here. */}
-      <p className="warning">
-        <strong>Not an official warning.</strong> For alerts, see{' '}
-        <a href="https://mausam.imd.gov.in/">IMD</a>
-        , the India Meteorological Department.
-      </p>
       {/* SPEC 11.28: ECMWF's licence asks for attribution wherever the data
           is shown, so one line of it is outside the details and visible
           whatever the reader does. The full three-paragraph form is inside. */}
       <p className="credit">
         Model data from ECMWF (AIFS ENS), CC BY 4.0. Checked against NASA
-        satellite rain estimates.{' '}
-        <a
-          href="#credits"
-          onClick={() => {
-            const details = document.getElementById('credits');
-            if (details) details.open = true;
-          }}
-        >
-          Credits and licences in full
-        </a>
-        .
+        satellite rain estimates.
       </p>
       <details id="credits">
         <summary>Credits and licences</summary>
@@ -738,9 +733,12 @@ export default function App({ health, healthError, onGo }) {
             {nothingChosen ? null : <HowToReadLink onGo={onGo} />}
             <ReportCardLink onGo={onGo}>Report card</ReportCardLink>
           </p>
+          {/* SPEC 11.40. Inside the card's own column, under those two
+              links: on a phone that is the last block of the page, where
+              a footer goes, and on a desktop it is the bottom of the
+              right-hand panel rather than a band under the map. */}
+          <Footer />
         </div>
-
-        <Footer />
       </main>
     </>
   );
