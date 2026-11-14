@@ -4202,7 +4202,13 @@ const LOOK = `(async () => {
     ortap: box('.ortap'),
     pillrow: box('.pills'),
     days: box('.days'),
+    dayRow: box('.days .radios'),
     amounts: box('.amounts'),
+    amountRow: box('.amounts .radios'),
+    pillWidths: [...document.querySelectorAll(
+      '.days .radios button, .amounts .radios button')]
+      .map((e) => [e.parentElement.parentElement.className,
+        Math.round(e.getBoundingClientRect().width)]),
     mmlink: box('.mmlink'),
     mmHref: document.querySelector('.mmlink a')
       ? document.querySelector('.mmlink a').getAttribute('href') : null,
@@ -6331,3 +6337,41 @@ def test_at_least_250_pixels_of_the_map_is_on_the_screen_at_390_by_664(
     assert seen["scrollY"] == 0
     shown = min(seen["mapcard"]["bottom"], 664) - max(seen["mapcard"]["top"], 0)
     assert shown >= 250, (shown, seen["mapcard"])
+
+
+# ---------------------------------------- SPEC 11.39: the day pills
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "320x568", "1440x900"])
+def test_the_day_pills_are_two_lines_and_all_five_are_there(viewport, size):
+    """SPEC 11.39, item 4. The name over the date.
+
+    "Sat 15" put two facts on one line and the date was the one that got
+    cut; "Today" with no date under it left a reader counting days on
+    their fingers. Five pills, each with a name and a date, all of them
+    on the screen without opening anything and without the row scrolling
+    sideways.
+    """
+    seen = viewport["phone"][size]["first"]
+    pills = seen["dayPills"]
+    assert len(pills) == 5, pills
+    for top, under, _ in pills:
+        assert top, pills
+        assert re.fullmatch(r"\d{1,2} [A-Z][a-z]{2}", under), pills
+    tops = [top for top, _, _ in pills]
+    # The reader's own date names two of the five, by the rule of 11.38.
+    assert "Today" in tops and "Tomorrow" in tops, tops
+    for top in tops:
+        assert (top in ("Today", "Tomorrow")
+                or re.fullmatch(r"[A-Z][a-z]{2}", top)), tops
+    # Exactly one is chosen, and the fill is what says so.
+    assert sum(1 for _, _, on in pills if on) == 1, pills
+    # The five share the row rather than running off it.
+    assert seen["dayRow"]["right"] <= int(size.split("x")[0]) + 1
+    widths = [w for where, w in seen["pillWidths"] if "days" in where]
+    assert len(widths) == 5
+    if int(size.split("x")[0]) < 1024:
+        # A fifth each, so the row cannot overflow however long the
+        # longest word is. On a desktop they take the width of their own
+        # words, because there is room for them.
+        assert max(widths) - min(widths) <= 2, widths

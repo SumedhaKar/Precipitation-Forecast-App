@@ -6129,6 +6129,26 @@ untouched.
 Both are measured with real touch events, on a screen with two touch
 points, and not by reading the option back out of the source.
 
+#### The day pills
+
+Five pills, two lines each: the name over the date.
+
+| top | under |
+|---|---|
+| Today | 14 Nov |
+| Tomorrow | 15 Nov |
+| Mon | 16 Nov |
+
+"Sat 15" put two facts on one line and the date was the one that got cut;
+"Today" with no date under it left a reader counting days on their
+fingers. The name comes from the reader's own IST date by the rule of
+11.38, and the date is the run's published `short_ist` with the weekday
+taken off the front of it, so nothing here formats a date a second time.
+
+On a phone each pill takes a fifth of the row, so the row cannot overflow
+however long the longest word is; on a desktop they take the width of
+their own words.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
