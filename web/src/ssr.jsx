@@ -21,7 +21,7 @@ import HowWeChecked, {
 } from './HowWeChecked';
 import HowToRead from './HowToRead';
 import TopNav from './TopNav';
-import Panel, { Welcome, summaryLine } from './Panel';
+import Panel, { Welcome } from './Panel';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
 import { UNITS, noMatch, tooBig, townLabel, townsIn } from './places';
 import MapKey from './Legend';
@@ -29,7 +29,6 @@ import { Footer, Freshness, StaleBanner } from './App';
 import { OUTSIDE, THE_BOX } from './messages';
 import { ISLANDS, islandGroup } from './islands';
 import { NO_LOCATION, locationProblem, mapProblem } from './messages';
-import { PICK_A_PLACE } from './record';
 
 /** Both pages as HTML, and the menu as it is drawn on each path. */
 export function pages() {
@@ -201,17 +200,9 @@ export function forecastWords(answers) {
     <Panel notice={{ where: null, note: OUTSIDE, why: THE_BOX }}
       day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
 
-  // The bar of 11.37: both labels the handle can carry, the button, and
-  // every line a chosen square can put in it.
-  out.push(PICK_A_PLACE, 'Hide the details');
-  answers.forEach((place) => {
-    [1, 10, 50].forEach((threshold) => {
-      place.days.forEach((entry) => {
-        out.push(summaryLine(place, place.square.asked, entry.lead_day,
-          threshold) || '');
-      });
-    });
-  });
+  // SPEC 11.39. The bar of 11.37, its one-line summary and the prompt it
+  // showed with nothing chosen are gone: the card is on the page, so
+  // there is no second copy of the headline to sweep.
 
   return out;
 }

@@ -649,6 +649,23 @@ button {
 
 .fcard summary { display: flex; align-items: center; }
 
+/* SPEC 11.39. The way back to the map, at the top right of the card,
+   where the eye lands after the page has scrolled to it. On a desktop
+   the map is beside the card and already on the screen, so this is not
+   drawn: a link to something a reader is looking at is noise. */
+.backtomap {
+  display: none;
+  float: right;
+  margin: 0 0 0 0.6rem;
+  font-size: var(--card-sm);
+}
+
+@media (max-width: 1023px) {
+  .backtomap { display: block; }
+  .backtomap a { display: inline-flex; align-items: center;
+    min-height: 44px; }
+}
+
 .fcard h2 { font-size: var(--card-lg); }
 .fcard h3 { font-size: var(--card-md); }
 .fcard p, .fcard li, .fcard summary, .fcard button, .fcard dt, .fcard dd {

@@ -6170,6 +6170,35 @@ read this map. It is what replaced "10 mm of rain is water 1 cm deep if
 none of it ran away", which was a help sentence under a control, on the
 screen whether or not anybody had asked.
 
+#### Choosing a place brings the card up
+
+The Location forecast card is the last block of the page on a phone, so
+choosing a place fills in something a reader cannot see. The page scrolls
+to the **day pills**, which puts the pills, the amount pills and the top
+of the card on one screen: the answer, and the two controls that change
+it, which is what a reader reaches for next.
+
+Measured at 390 x 664, for all three ways of choosing — a city typed into
+the box and submitted, the location button with a real fix, and a tap on
+the map — the pills land 36 pixels down and the card's top 269.
+
+It scrolls only when the card is not already on the screen, which is what
+makes it a phone rule without being written as one: on a desktop the card
+is the column beside the map and nothing moves. Nothing in the code asks
+how wide the screen is. The scroll is smooth unless the reader has asked
+for less movement, because a page that jumps on a tap is a page that has
+lost its place.
+
+At the top right of the card, a small **Back to map** link: a real `#map`
+anchor, so it jumps with no script and glides with it. It is not drawn at
+all where the map is already on the screen.
+
+Three things left with the drawer: the bar, its handle, and the one-line
+summary of the answer the handle carried. That line was a second copy of
+the headline written to fit in a drawer, and the rule it existed to keep —
+that a number is never shown under the wrong place's name — is kept where
+it always was, at the top of the card.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

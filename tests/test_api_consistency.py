@@ -4247,6 +4247,7 @@ const LOOK = `(async () => {
       };
     })(),
     card: box('.fcard'),
+    backlink: box('.backtomap a'),
     cardLinks: [...document.querySelectorAll('.cardlinks a')]
       .map((e) => [e.textContent.trim(), e.getAttribute('href')]),
     sheet: box('.sheetbar'),
@@ -4516,6 +4517,38 @@ try {
     here.afterSearch = await evaluate(LOOK);
     here.searchCard = await evaluate(INSIDE);
     await shoot(`${key}-searched`);
+
+    // SPEC 11.39. And the way back to the map, from the card.
+    const back = await evaluate(
+      "!!document.querySelector('.backtomap a')"
+      + " && (document.querySelector('.backtomap a').click() || true)");
+    await new Promise((go) => setTimeout(go, 1200));
+    here.afterBack = await evaluate(LOOK);
+    here.hasBack = back;
+
+    // SPEC 11.39. The third way of choosing a place: the location
+    // button. The position is the square the run covers, handed to the
+    // page by the browser as a real fix, and the permission is granted
+    // the way a reader grants it -- the page never asks for it twice and
+    // never sees the position itself leave the page (11.19).
+    if (PLAN.target) {
+      await send('Browser.grantPermissions', {
+        origin: `http://127.0.0.1:${port}`,
+        permissions: ['geolocation'],
+      });
+      await send('Emulation.setGeolocationOverride', {
+        latitude: PLAN.target[0] + 0.02,
+        longitude: PLAN.target[1] - 0.03,
+        accuracy: 40,
+      }, sessionId);
+      await evaluate("window.scrollTo(0, 0)");
+      await new Promise((go) => setTimeout(go, 300));
+      await evaluate("document.querySelector('.locate').click()");
+      await new Promise((go) => setTimeout(go, 1800));
+      here.afterLocate = await evaluate(LOOK);
+      here.locateCard = await evaluate(INSIDE);
+      await shoot(`${key}-located`);
+    }
 
     // Back to the top of the page before the map is tapped: the tap is
     // aimed with the canvas's own screen coordinates, and after a search
@@ -5464,8 +5497,10 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
     """A sweep that renders nothing passes. This says what it rendered."""
     every = " ".join(words_of(html) for html in forecast_words)
     for must in ("of 51 runs", "How to read this map", "It is not a "
-                 "probability.", "Lakshadweep", "Tap the map to pick a place",
-                 "Hide the details", "no WebGL 2",
+                 "probability.", "Lakshadweep", "no WebGL 2",
+                 # SPEC 11.39: the drawer's own two lines are gone with
+                 # it, and this is the one that replaced them.
+                 "Back to map",
                  # SPEC 11.38: a tap on the sea or on a neighbour's land is
                  # a calm line now, not a red box about a coordinate box.
                  "That's outside India. Tap the map over India or find a "
@@ -6433,3 +6468,99 @@ def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
     rule = css.split("\n.mmlink {")[1].split("}")[0]
     assert "border" not in rule, rule
     assert "text-align: right;" in rule
+
+
+
+# ----------------------- SPEC 11.39: choosing a place brings the card up
+
+@needs_node
+@pytest.mark.parametrize("how", ["afterSearch", "afterLocate",
+                                 "afterMapTap"])
+def test_choosing_a_place_scrolls_to_the_pills_and_the_card(viewport, how):
+    """SPEC 11.39, item 6. All three ways in, on a phone.
+
+    The card is the last block of the page, so choosing a place fills in
+    something a reader cannot see. The page scrolls to the day pills,
+    which puts the pills, the amounts and the top of the card on the
+    screen together: the answer, and the two controls that change it.
+
+    The three ways are a city typed into the search box and submitted, the
+    location button with a real fix handed to the page by the browser, and
+    a tap on the map. Each is done for real here, not simulated.
+    """
+    here = viewport["phone"]["390x664"]
+    page = here.get(how)
+    assert page, f"{how} was never measured"
+    # The page moved, and the pills and the card's top are on the screen.
+    assert page["scrollY"] > 0, page["scrollY"]
+    assert 0 <= page["pillrow"]["top"] <= 80, page["pillrow"]
+    assert page["pillrow"]["bottom"] <= 664, page["pillrow"]
+    assert 0 < page["card"]["top"] < 664, page["card"]
+    # And the card holds an answer rather than the prompt.
+    card = here.get({"afterSearch": "searchCard",
+                     "afterLocate": "locateCard"}.get(how, "card"))
+    assert card and card["has"]["counts"], how
+
+
+@needs_node
+def test_nothing_scrolls_on_a_desktop_because_nothing_has_to(viewport):
+    """SPEC 11.39, item 6. The card is the column beside the map there.
+
+    The same rule, written once: the page scrolls only when the card is
+    not already on the screen. Nothing in the code asks how wide the
+    screen is.
+    """
+    here = viewport["phone"]["1440x900"]
+    for how in ("afterSearch", "afterLocate", "afterMapTap"):
+        page = here.get(how)
+        assert page, how
+        assert page["scrollY"] == 0, (how, page["scrollY"])
+        assert page["card"]["top"] < 900, (how, page["card"])
+    app = APP.read_text("utf-8")
+    bring = app.split("const bringCardUp")[1].split("}, []);")[0]
+    assert "innerHeight" in bring and "matchMedia" not in bring
+
+
+@needs_node
+def test_back_to_map_returns_and_is_not_drawn_where_the_map_is_in_view(
+        viewport):
+    """SPEC 11.39, item 6. One small link, and only where it is needed."""
+    phone = viewport["phone"]["390x664"]
+    assert phone["hasBack"] is True, "there is no way back to the map"
+    back = phone["afterBack"]
+    assert back["map"]["top"] <= 2, back["map"]
+    assert back["map"]["bottom"] > 200, back["map"]
+    # It is a tap target on a phone...
+    assert phone["afterSearch"]["backlink"]["height"] >= 43.5, (
+        phone["afterSearch"]["backlink"])
+    # ...and not drawn at all where the map is already on the screen.
+    wide = viewport["phone"]["1440x900"]["afterSearch"]
+    assert wide["backlink"]["height"] == 0, wide["backlink"]
+
+
+@needs_node
+def test_no_bottom_sheet_and_no_summary_row_remain(forecast_words):
+    """SPEC 11.39. The drawer, its handle and its one-line summary.
+
+    Every one of them is gone from the page and from the code: the card
+    is on the page, so there is nothing to open, nothing to drag, and no
+    second copy of the answer to keep in step with the first.
+    """
+    for name in ("App.jsx", "Panel.jsx", "Controls.jsx", "Site.jsx"):
+        said = (ROOT / "web" / "src" / name).read_text("utf-8")
+        code = re.sub(r"/\*.*?\*/", "", said, flags=re.S)
+        code = " ".join(line.split("//")[0] for line in code.split("\n"))
+        for gone in ("sheetbar", "sheetbody", "summaryLine", "handle",
+                     "sheetOpen", "panel-body\" onClick"):
+            assert gone not in code, (name, gone)
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    for gone in (".sheetbar", ".sheetbody", ".handle", ".sheetsearch",
+                 ".shell.open", ".shell.answered", ".stage"):
+        assert gone not in bare, gone
+    for html in forecast_words:
+        if not isinstance(html, str):
+            continue
+        for gone in ('class="sheetbar"', 'class="handle"',
+                     'class="summaryline"'):
+            assert gone not in html, gone

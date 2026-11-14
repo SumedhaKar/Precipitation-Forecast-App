@@ -16,7 +16,7 @@ import { squareText } from './snap';
 import { placeName } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
-import { PICK_A_PLACE, headline } from './record';
+import { headline } from './record';
 import { HowToReadLink, ReportCardLink } from './TopNav';
 import { AMOUNTS } from './Controls';
 import { dayButton, dayDate, dayName, dayWord, istToday } from './days';
@@ -43,19 +43,11 @@ function summarise(values) {
   };
 }
 
-/* SPEC 11.37. The one line the closed bar carries on a phone, in the words
-   the panel itself uses: the place, the count, the amount. Pure, and
-   exported, so a test can drive it against a real answer.
-
-   `square` is what the reader last asked for. While a newer square is still
-   loading the bar says the prompt rather than the old square's number,
-   because a number under the wrong place name is the worst thing this page
-   could do (SPEC 11.30). */
-export function summaryLine(place, square, day, threshold) {
-  if (square && place && place.square
-    && !sameSquare(place.square.asked, square)) return PICK_A_PLACE;
-  return headlineFor(place, day, threshold) || PICK_A_PLACE;
-}
+/* SPEC 11.39. The one line the closed bar carried on a phone is gone
+   with the bar. It was a second copy of the headline, written to fit in
+   a drawer handle, and the rule it existed to keep -- that a number is
+   never shown under the wrong place's name -- is kept where it always
+   was, by `answered` at the top of the card below. */
 
 /**
  * The headline for the chosen day and amount, or null. SPEC 11.38.
@@ -80,6 +72,48 @@ export function headlineFor(place, day, threshold, today) {
     chosen.short_ist);
   return headline(placeName(where.lat, where.lon), when, entry.count,
     place.members, threshold);
+}
+
+/**
+ * The way back to the map, from the card. SPEC 11.39.
+ *
+ * On a phone the card is the last block of the page and choosing a place
+ * scrolls to it, so the map is now above the fold behind the reader. One
+ * small link takes them back to it, and a reader who wants to pick again
+ * does not have to work out that the page scrolls.
+ *
+ * A real `#map` anchor: with no script it jumps, and with script it goes
+ * smoothly unless the reader has asked for less movement. On a desktop
+ * the map is beside the card and already on the screen, so the
+ * stylesheet does not draw this at all -- a link to something a reader
+ * is looking at is noise (11.39).
+ */
+export function BackToMap() {
+  return (
+    <p className="backtomap">
+      <a
+        href="#map"
+        onClick={(event) => {
+          const found = document.getElementById('map');
+          if (!found || !found.scrollIntoView) return;
+          event.preventDefault();
+          found.scrollIntoView({
+            behavior: stillness() ? 'auto' : 'smooth',
+            block: 'start',
+          });
+        }}
+      >
+        Back to map
+      </a>
+    </p>
+  );
+}
+
+/** Has the reader asked for less movement? SPEC 11.32 asks the same way. */
+export function stillness() {
+  return typeof window !== 'undefined'
+    && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /** The headline, at the top of the panel, under the place name. */
@@ -613,6 +647,7 @@ export default function Panel({
   // the end, and that now includes the three amount rows.
   return (
     <div className="panel-body">
+      <BackToMap />
       <PlaceLine place={place} from={from} day={day} threshold={threshold} />
       <Headline place={place} day={day} threshold={threshold} />
       <DayStrip

@@ -22,7 +22,7 @@ import {
   Component, Suspense, lazy, useCallback, useEffect, useRef, useState,
 } from 'react';
 
-import Panel, { Welcome } from './Panel';
+import Panel, { Welcome, stillness } from './Panel';
 import {
   HowToReadLink, ReportCardLink, SITE, plainClick,
 } from './TopNav';
@@ -509,6 +509,37 @@ export default function App({ health, healthError, onGo }) {
   }, []);
 
   /**
+   * Bring the answer onto the screen. SPEC 11.39.
+   *
+   * On a phone the card is the last block of the page, so choosing a
+   * place fills in something a reader cannot see. The page scrolls to the
+   * day pills, which puts the pills, the amounts and the top of the card
+   * on the screen together: the answer, and the two controls that change
+   * it, which is what a reader reaches for next.
+   *
+   * It scrolls only when the card is not already on the screen, which is
+   * what makes it a phone rule without being written as one: on a desktop
+   * the card is the column beside the map and nothing moves.
+   *
+   * `smooth`, unless the reader has asked for less movement, because a
+   * page that jumps on a tap is a page that has lost its place.
+   */
+  const bringCardUp = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => {
+      const card = document.querySelector('.fcard');
+      const pills = document.querySelector('.pills');
+      if (!card || !pills || !pills.scrollIntoView) return;
+      const seen = card.getBoundingClientRect();
+      if (seen.top < window.innerHeight - 80) return;
+      pills.scrollIntoView({
+        behavior: stillness() ? 'auto' : 'smooth',
+        block: 'start',
+      });
+    });
+  }, []);
+
+  /**
    * Every way of choosing a place ends up here. SPEC 11.19 and 11.28.
    *
    * The point is snapped in the page before anything is sent, so only a
@@ -530,7 +561,8 @@ export default function App({ health, healthError, onGo }) {
     setFrom(how);
     setShown(label || squareText(here.lat, here.lon));
     load(here.lat, here.lon);
-  }, [load]);
+    bringCardUp();
+  }, [load, bringCardUp]);
 
   const pick = useCallback(
     (lat, lon) => show(lat, lon, 'map'), [show]);
@@ -565,10 +597,11 @@ export default function App({ health, healthError, onGo }) {
         where: `${chosen.name}, ${chosen.not_forecast}`,
         note: notFoundNote(chosen.lat, chosen.lon),
       });
+      bringCardUp();
       return;
     }
     show(chosen.lat, chosen.lon, 'town', chosen.name);
-  }, [show]);
+  }, [show, bringCardUp]);
 
   const snapTo = useCallback(
     (lat, lon) => (inBox(lat, lon) ? snap(lat, lon) : null), []);
@@ -630,7 +663,7 @@ export default function App({ health, healthError, onGo }) {
           />
         </div>
 
-        <div className="mapcard">
+        <div className="mapcard" id="map">
           <div className="mapwrap">
             {/* SPEC 11.29. Three states, in this order: the map could not
                 be drawn, the numbers have not arrived yet, or the map. The
