@@ -51,6 +51,35 @@ export function dayName(fromIst, todayYmd, shortIst = null) {
 }
 
 /**
+ * The first line of a two-line pill: "Today", "Tomorrow" or "Sat".
+ *
+ * SPEC 11.39. The pills carry the name above and the date below, so the
+ * weekday is wanted on its own: "Sat 15" put two facts on one line and the
+ * date was the one that got cut.
+ */
+export function dayWord(fromIst, todayYmd, shortIst = null) {
+  const name = dayName(fromIst, todayYmd, shortIst);
+  if (name === 'Today' || name === 'Tomorrow') return name;
+  const words = String(name || '').trim().split(/\s+/);
+  return words[0] || null;
+}
+
+/**
+ * The second line of a two-line pill: "15 Nov", from "Sat 15 Nov".
+ *
+ * SPEC 11.39. The published `short_ist` is the only date on the page, and
+ * the weekday is taken off the front of it rather than formatted again
+ * here: a second date formatter is a second chance to disagree with the
+ * run about which day this is.
+ */
+export function dayDate(shortIst) {
+  const words = String(shortIst || '').trim().split(/\s+/);
+  if (!words[0]) return null;
+  if (words.length < 2) return words[0];
+  return /^\d/.test(words[0]) ? words.join(' ') : words.slice(1).join(' ');
+}
+
+/**
  * The same name, short enough for one of five buttons on a 390 pixel phone.
  *
  * "Today" and "Tomorrow" are already short. A date is cut to its weekday

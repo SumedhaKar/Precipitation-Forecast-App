@@ -19,7 +19,7 @@ import { trustFor } from './trust';
 import { PICK_A_PLACE, headline } from './record';
 import { plainClick } from './TopNav';
 import { AMOUNTS } from './Controls';
-import { dayButton, dayName, istToday } from './days';
+import { dayButton, dayDate, dayName, dayWord, istToday } from './days';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -124,13 +124,40 @@ export function Headline({ place, day, threshold, today }) {
  * "Your location" stays what a location is called (SPEC 11.28): the reader
  * knows where they are, and the square is on the line below.
  */
-export function PlaceLine({ place, from }) {
+/**
+ * What the card is answering, in one line. SPEC 11.39.
+ *
+ * "Today, 15 Nov · 5:30 am to 5:30 am IST · A rainy day (10 mm+)". The
+ * three things a count is meaningless without -- which day, what a day is
+ * here, and how much rain -- said once, under the place name, instead of
+ * being spread over a heading, a help sentence under the day buttons and a
+ * second one under the amounts.
+ *
+ * Pure and exported, so a test can drive it against a real answer.
+ */
+export function whenLine(entry, threshold, today) {
+  if (!entry) return null;
+  const amount = AMOUNTS.find((item) => item.mm === threshold);
+  if (!amount) return null;
+  const word = dayWord(entry.from_ist, today || istToday(), entry.short_ist);
+  const date = dayDate(entry.short_ist);
+  const when = [word, date].filter(Boolean).join(', ');
+  return `${when} · 5:30 am to 5:30 am IST · ${amount.nickname} `
+    + `(${amount.mm} mm+)`;
+}
+
+export function PlaceLine({ place, from, day, threshold, today }) {
   const where = place.square;
   const name = from === 'location' ? 'Your location'
     : placeName(where.lat, where.lon);
+  const chosen = place.days
+    ? (place.days.find((entry) => entry.lead_day === day) || place.days[0])
+    : null;
+  const when = whenLine(chosen, threshold, today);
   return (
     <div className="placeline" aria-live="polite">
       <h2>{name}</h2>
+      {when ? <p className="whenline">{when}</p> : null}
       <p className="atsquare">{squareText(where.lat, where.lon)}</p>
       {/* SPEC 11.28: a location is reported as its square and nothing
           finer, and the name appears only because that square is exactly
@@ -182,10 +209,12 @@ export function DayStrip({ place, day, threshold, onDay, today }) {
           );
         })}
       </ol>
-      <p className="small">
-        Each cell is that day&apos;s count of runs at {threshold} mm, in the
-        same colours as the map. Dates are IST. Choose one to change the day.
-      </p>
+      {/* SPEC 11.39. The line that explained the cells is gone from here.
+          What it said -- the colours, the amount, that the dates are IST --
+          is in the one line under the place name and in How to read this
+          map, and the cells each carry their own full sentence to a screen
+          reader. A help sentence under every block is how a page becomes
+          the wall of text three reviews read. */}
     </div>
   );
 }
@@ -229,17 +258,30 @@ export function TrustBlock({ place, day, threshold, onGo }) {
   if (!trust) return null;
   return (
     <div className="trust">
+      {/* SPEC 11.39. One line: the label, why it has it, and where to go
+          and check. The reason, the better-than-usual sentence and the
+          link were three paragraphs in a row, and which of the four
+          conditions it was and the long track-record sentence were two
+          more; those two are in More detail now. */}
       <p className="trustline">
         <Chip trust={trust} /> {trust.reason}
+        {trust.better ? ` ${trust.better}` : null}{' '}
+        <ReportCardLink onGo={onGo}>See the record</ReportCardLink>
       </p>
-      {/* SPEC 11.38: the one unambiguously good thing the record can say,
-          said only where the check it rests on passed. */}
-      {trust.better ? (
-        <p className="betterline">
-          {trust.better}{' '}
-          <ReportCardLink onGo={onGo}>See the record</ReportCardLink>
-        </p>
-      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Which of the four checks this label came from. SPEC 11.33, moved by 11.39.
+ *
+ * Inside More detail, with the long track-record sentence: it is a
+ * paragraph about our method rather than about this square.
+ */
+export function TrustWhy({ trust }) {
+  if (!trust) return null;
+  return (
+    <>
       <details className="whylabel">
         <summary>Why this label?</summary>
         {/* SPEC 11.38. Which of the four checks went wrong used to be the
@@ -270,7 +312,10 @@ export function TrustBlock({ place, day, threshold, onGo }) {
           ))}
         </dl>
       </details>
-    </div>
+      {/* The long track-record sentence: the period, the band of agreement,
+          the region and the day number, all of which change the answer. */}
+      {trust.past ? <p className="pastline">{trust.past}</p> : null}
+    </>
   );
 }
 
@@ -452,25 +497,36 @@ export function RunDetail({ run }) {
 }
 
 /**
- * Everything a reader can choose to open. SPEC 11.38.
+ * Everything a reader can choose to open. SPEC 11.38, extended by 11.39.
  *
  * Three reviews called this page too textual, and the count of sentences
- * was most of why. Nothing is deleted: the 51 values, the square's own
- * arithmetic, the run's name and time, and the long form of the track
+ * was most of why. Nothing is deleted: the three amount rows, the 51
+ * values, the square's own arithmetic, the run's name and time, which of
+ * the four checks the label came from, and the long form of the track
  * record are all here, in one place, shut until they are asked for.
+ *
+ * The three amount rows came in here from the front of the card (11.39).
+ * They are a second copy of the amount buttons above the map -- the same
+ * three choices, kept in step with them -- and a reader who has already
+ * chosen an amount up there does not need to be shown the choice again to
+ * read the answer.
  */
-export function ForTheCurious({ place, day, threshold }) {
+export function MoreDetail({ place, day, threshold, onThreshold }) {
   const k = THRESHOLDS.indexOf(threshold);
   const count = day.counts_by_threshold[k].count;
   const trust = trustFor(place.square.region, day.lead_day, threshold, count,
     place.members);
   return (
-    <details className="curious">
-      <summary>For the curious: the numbers behind this</summary>
+    <details className="more">
+      <summary>More detail</summary>
+      <Counts
+        place={place}
+        day={day}
+        threshold={threshold}
+        onThreshold={onThreshold}
+      />
       <MemberValues day={day} />
-      {/* The long track-record sentence: the period, the band of agreement,
-          the region and the day number, all of which change the answer. */}
-      {trust && trust.past ? <p className="pastline">{trust.past}</p> : null}
+      <TrustWhy trust={trust} />
       <SquareUsed place={place} />
       <RunDetail run={place.run} />
     </details>
@@ -634,13 +690,14 @@ export default function Panel({
   }
   const chosen = place.days.find((entry) => entry.lead_day === day)
     || place.days[0];
-  // SPEC 11.38. The order is the answer first and the working after it:
-  // where, what, the five days, the 51 runs, the three amounts, how much
-  // this label has been worth, and then one caveat said once. Everything a
-  // reader can choose to open is in the one closed section at the end.
+  // SPEC 11.39. The order is the answer first and the working after it:
+  // where, which day and how much, the headline, the five days, the 51
+  // runs, the one caveat, and what the record says about this label.
+  // Everything a reader can choose to open is in the one closed section at
+  // the end, and that now includes the three amount rows.
   return (
     <div className="panel-body">
-      <PlaceLine place={place} from={from} />
+      <PlaceLine place={place} from={from} day={day} threshold={threshold} />
       <Headline place={place} day={day} threshold={threshold} />
       <DayStrip
         place={place}
@@ -649,14 +706,6 @@ export default function Panel({
         onDay={onDay}
       />
       <Dots place={place} day={chosen} />
-      <Counts
-        place={place}
-        day={chosen}
-        threshold={threshold}
-        onThreshold={onThreshold}
-      />
-      <TrustBlock place={place} day={chosen} threshold={threshold}
-        onGo={onGo} />
       {/* SPEC 11.38. The one caveat, said once. It was under the legend,
           under the counts and inside How to read this map, three times on
           one screen, which is how a sentence stops being read. */}
@@ -667,7 +716,10 @@ export default function Panel({
         </ReportCardLink>
         .
       </p>
-      <ForTheCurious place={place} day={chosen} threshold={threshold} />
+      <TrustBlock place={place} day={chosen} threshold={threshold}
+        onGo={onGo} />
+      <MoreDetail place={place} day={chosen} threshold={threshold}
+        onThreshold={onThreshold} />
     </div>
   );
 }

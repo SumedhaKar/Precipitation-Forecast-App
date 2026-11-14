@@ -140,7 +140,7 @@ def exports(tmp_path):
         args.write_text(json.dumps(calls), encoding="utf-8")
         done = subprocess.run(
             [node, str(path), Path(module).as_uri(), name, str(args)],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, encoding="utf-8", check=False)
         assert done.returncode == 0, f"node failed: {done.stderr}"
         return json.loads(done.stdout)
 
@@ -156,7 +156,7 @@ def call(harness: Path, function: str, query: str, base: str,
     environment.update(env or {})
     done = subprocess.run(
         [node, str(harness), (ROOT / "api" / f"{function}.mjs").as_uri(), url],
-        capture_output=True, text=True, check=False, env=environment)
+        capture_output=True, text=True, encoding="utf-8", check=False, env=environment)
     assert done.returncode == 0, f"node failed: {done.stderr}"
     reply = json.loads(done.stdout)
     reply["json"] = json.loads(reply["body"])
@@ -1170,7 +1170,7 @@ def test_the_committed_town_list_is_what_the_script_writes():
     """SPEC 11.28: the file is built, not hand-edited."""
     done = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "build_towns.py"), "--check"],
-        capture_output=True, text=True, check=False, cwd=ROOT)
+        capture_output=True, text=True, encoding="utf-8", check=False, cwd=ROOT)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "byte for byte" in done.stdout
 
@@ -2836,7 +2836,7 @@ def record(tmp_path):
             [node, str(harness),
              (ROOT / "web" / "src" / "record.js").as_uri(),
              str(summary), str(args)],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, encoding="utf-8", check=False)
         assert done.returncode == 0, f"node failed: {done.stderr}"
         return json.loads(done.stdout)
 
@@ -3368,9 +3368,17 @@ def test_the_panel_shows_the_chip_the_sentence_and_the_expander():
     assert "<summary>Why this label?</summary>" in panel
     assert ("<TrustBlock place={place} day={chosen} threshold={threshold}"
             in panel)
-    # The long sentence is in the closed section, once.
+    # SPEC 11.39. Which of the four checks it was, and the long sentence,
+    # are both inside More detail: one is a paragraph about our method and
+    # the other names the period, the band, the region and the day number.
+    # The chip's own line carries the reason and the link and nothing else.
     assert panel.count('className="pastline"') == 1
-    assert 'className="pastline"' in panel.split("ForTheCurious")[1]
+    why = panel.split("export function TrustWhy")[1].split(
+        "export function MoreDetail")[0]
+    assert 'className="pastline"' in why
+    assert '<summary>Why this label?</summary>' in why
+    more = panel.split('<details className="more">')[1]
+    assert "<TrustWhy trust={trust} />" in more
 
     # Nothing in the panel decides a label or a frequency.
     for word in ("Good track record", "Treat as a rough guide",
@@ -3428,7 +3436,7 @@ def pages(tmp_path):
             [node, str(harness),
              (ROOT / "web" / "src" / "pages.js").as_uri(),
              str(BUNDLED), str(BUNDLED_DETAILS), str(args)],
-            capture_output=True, text=True, check=False)
+            capture_output=True, text=True, encoding="utf-8", check=False)
         assert done.returncode == 0, f"node failed: {done.stderr}"
         return json.loads(done.stdout)
 
@@ -3452,7 +3460,7 @@ def rendered():
     done = subprocess.run(
         [str(vite), "build", "--ssr", "src/ssr.jsx", "--outDir",
          "node_modules/.ssr-test", "--logLevel", "error"],
-        capture_output=True, text=True, check=False, cwd=web, shell=False)
+        capture_output=True, text=True, encoding="utf-8", check=False, cwd=web, shell=False)
     assert done.returncode == 0, f"vite failed: {done.stdout}\n{done.stderr}"
 
     script = """
@@ -3466,7 +3474,7 @@ process.stdout.write(JSON.stringify({
     runner.write_text(script, encoding="utf-8")
     done = subprocess.run(
         [node, str(runner), (out / "ssr.js").as_uri()],
-        capture_output=True, text=True, check=False, cwd=web)
+        capture_output=True, text=True, encoding="utf-8", check=False, cwd=web)
     assert done.returncode == 0, f"node failed: {done.stderr}"
     return json.loads(done.stdout)
 
@@ -4452,7 +4460,7 @@ def viewport(tmp_path_factory):
         done = subprocess.run(
             [str(vite), "build", "--outDir", "node_modules/.view-test",
              "--emptyOutDir", "--logLevel", "error"],
-            capture_output=True, text=True, check=False, cwd=web, shell=False)
+            capture_output=True, text=True, encoding="utf-8", check=False, cwd=web, shell=False)
         assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
 
         runner = out / "measure.mjs"
@@ -4465,7 +4473,7 @@ def viewport(tmp_path_factory):
         }
         done = subprocess.run(
             [node, str(runner), str(out), json.dumps(plan)],
-            capture_output=True, text=True, check=False, cwd=web,
+            capture_output=True, text=True, encoding="utf-8", check=False, cwd=web,
             timeout=600, env={**os.environ, "STORE_BASE_URL": base})
         assert done.returncode == 0, f"the browser check failed: {done.stderr}"
         seen = json.loads(done.stdout)
@@ -4604,7 +4612,7 @@ def built_css(tmp_path_factory):
     done = subprocess.run(
         [str(vite), "build", "--outDir", str(out), "--emptyOutDir",
          "--logLevel", "error"],
-        capture_output=True, text=True, check=False, cwd=web, timeout=600)
+        capture_output=True, text=True, encoding="utf-8", check=False, cwd=web, timeout=600)
     assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
     sheets = sorted((out / "assets").glob("*.css"))
     assert sheets, "the build wrote no stylesheet"
@@ -5143,7 +5151,7 @@ def forecast_words(tmp_path_factory):
         done = subprocess.run(
             [str(vite), "build", "--ssr", "src/ssr.jsx", "--outDir",
              "node_modules/.ssr-test", "--logLevel", "error"],
-            capture_output=True, text=True, check=False, cwd=web)
+            capture_output=True, text=True, encoding="utf-8", check=False, cwd=web)
         assert done.returncode == 0, f"vite failed: {done.stdout}{done.stderr}"
 
         given = tmp / "answers.json"
@@ -5159,7 +5167,7 @@ def forecast_words(tmp_path_factory):
         runner.write_text(script, encoding="utf-8")
         done = subprocess.run(
             [node, str(runner), (out / "ssr.js").as_uri(), str(given)],
-            capture_output=True, text=True, check=False, cwd=web)
+            capture_output=True, text=True, encoding="utf-8", check=False, cwd=web)
         assert done.returncode == 0, f"node failed: {done.stderr}"
         said = json.loads(done.stdout)
         assert len(said) > 50, len(said)
@@ -5207,8 +5215,8 @@ def forbidden_in(text: str, allowed: dict) -> str | None:
 
 
 # SPEC 11.38. The panel's order, by the class each block is drawn with.
-ANSWER_FIRST = ("placeline", "headline", "strip", "dots", "counts",
-                "notpromise", "curious")
+ANSWER_FIRST = ("placeline", "whenline", "headline", "strip", "dots",
+                "notpromise", "trust", "more")
 
 ONCE_ONLY = "A count of runs, not a promise of rain."
 
@@ -5261,7 +5269,7 @@ def test_the_dots_are_readable_without_opening_anything(forecast_words):
         if not isinstance(html, str) or 'class="dots"' not in html:
             continue
         # Outside the closed section, which comes after them.
-        assert html.index('class="dots"') < html.index('class="curious"')
+        assert html.index('class="dots"') < html.index('class="more"')
         text = words_of(html)
         assert "The 51 runs, one dot each" in text
         assert ("Each dot is one run; its colour shows how much rain it "
@@ -5397,7 +5405,7 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "Will it rain where you are in the next 5 days?",
                  "The next five days", "The 51 runs, one dot each",
                  "A count of runs, not a promise of rain.",
-                 "For the curious: the numbers behind this",
+                 "More detail", "5:30 am to 5:30 am IST",
                  "When the runs said this before in",
                  "Which day?", "How much rain?", "A rainy day",
                  "A lot of rain", "Runs bringing", "All 51",
@@ -5410,3 +5418,113 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "Kerala is too big for one forecast",
                  "We don't have Ooty yet."):
         assert must in every, must
+
+
+# --------------------------- SPEC 11.39: the Location forecast card's order
+
+CARD_ORDER = ("placeline", "whenline", "atsquare", "headline", "strip",
+              "dots", "notpromise", "trust", "more")
+
+WHEN_LINE = re.compile(
+    r"^(Today|Tomorrow|Mon|Tue|Wed|Thu|Fri|Sat|Sun), "
+    r"(\d{1,2} [A-Z][a-z]{2}) · 5:30 am to 5:30 am IST · "
+    r"(Some rain|A rainy day|A lot of rain) \((1|10|50) mm\+\)$")
+
+
+@needs_node
+def test_the_card_is_in_the_order_the_spec_sets(forecast_words):
+    """SPEC 11.39. Name, what is being asked, answer, working.
+
+    The order is the whole of the card's design, so it is pinned by class in
+    the rendered page rather than described in a comment: place name, the
+    one line saying which day and how much, the square, the headline, the
+    five days, the 51 dots, the caveat, the label, and then the one closed
+    section.
+    """
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="placeline"' not in html:
+            continue
+        at = []
+        for name in CARD_ORDER:
+            mark = f'class="{name}'
+            assert mark in html, (name, html[:200])
+            at.append(html.index(mark))
+        assert at == sorted(at), list(zip(CARD_ORDER, at))
+        seen += 1
+    assert seen > 20, seen
+
+
+@needs_node
+def test_the_three_amount_rows_are_inside_more_detail(forecast_words):
+    """SPEC 11.39. The choice is above the map; this was a second copy of it.
+
+    They are kept -- the same three counts, the same radio group, in step
+    with the buttons over the map -- and they are behind the one closed
+    section, where a reader who has already chosen an amount is not shown
+    the choice again in order to read the answer.
+    """
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="placeline"' not in html:
+            continue
+        assert html.count('class="countrows"') == 1, html.count('countrows')
+        assert html.index('class="more"') < html.index('class="counts"')
+        # And the 51 values, the arithmetic and the run's name are in there
+        # with them, which is what "nothing is deleted" means.
+        for name in ("members", "arith"):
+            assert html.index('class="more"') < html.index(f'class="{name}"')
+        seen += 1
+    assert seen > 20, seen
+
+
+@needs_node
+def test_the_one_line_under_the_name_says_the_day_and_the_amount(
+        forecast_words):
+    """SPEC 11.39. "Today, 15 Nov · 5:30 am to 5:30 am IST · Some rain (1 mm+)".
+
+    Three things a count means nothing without: which day, what a day is on
+    this site, and how much rain. They were a heading, a help sentence under
+    the day buttons and a second one under the amount buttons; this is the
+    one line that replaces all three, and it is checked against every day
+    and every amount the page renders.
+    """
+    found = []
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="whenline"' not in html:
+            continue
+        said = html.split('class="whenline">')[1].split("</p>")[0]
+        said = re.sub(r"<[^>]+>", "", said).replace("&#x27;", "'")
+        match = WHEN_LINE.match(said)
+        assert match, said
+        found.append((match.group(3), match.group(4)))
+    # Every amount, with its own nickname and never another's.
+    assert len(found) > 20, len(found)
+    assert set(found) == {("Some rain", "1"), ("A rainy day", "10"),
+                          ("A lot of rain", "50")}, sorted(set(found))
+
+
+@needs_node
+def test_the_two_lines_of_a_day_pill_are_the_published_date(exports):
+    """SPEC 11.39. "Today" over "15 Nov", and the date is never reformatted.
+
+    The second line is the published `short_ist` with its weekday taken
+    off. Formatting the date again here would be a second chance to
+    disagree with the run about which day this is.
+    """
+    days = [f"2026-11-{14 + n:02d}T05:30:00+05:30" for n in range(5)]
+    shorts = ["Sat 14 Nov", "Sun 15 Nov", "Mon 16 Nov", "Tue 17 Nov",
+              "Wed 18 Nov"]
+    calls = [[day, "2026-11-14", short]
+             for day, short in zip(days, shorts)]
+    assert exports(DAYS_JS, "dayWord", calls) == [
+        "Today", "Tomorrow", "Mon", "Tue", "Wed"]
+    assert exports(DAYS_JS, "dayDate", [[short] for short in shorts]) == [
+        "14 Nov", "15 Nov", "16 Nov", "17 Nov", "18 Nov"]
+    # Across a month end, where the weekday and the month both change.
+    assert exports(DAYS_JS, "dayDate", [["Tue 1 Dec"]]) == ["1 Dec"]
+    # Nothing is invented: no label, no date.
+    assert exports(DAYS_JS, "dayDate", [[None], [""], ["14"]]) == [
+        None, None, "14"]
+    assert exports(DAYS_JS, "dayWord",
+                   [["", "2026-11-14", None]]) == [None]

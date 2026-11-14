@@ -544,6 +544,16 @@ header {
 
 /* SPEC 11.38. The square's own centre, under the name rather than in
    front of it: a reader who tapped the map wants the place first. */
+/* SPEC 11.39. What the card is answering, in one line under the name:
+   the day, the window, and the amount with its millimetres. It replaces a
+   heading, a help sentence under the day buttons and a second one under
+   the amount buttons. */
+.whenline {
+  margin: 0 0 0.1rem;
+  font-size: 0.875rem;
+  color: var(--quiet);
+}
+
 .atsquare {
   margin: 0 0 0.3rem;
   font-size: 0.82rem;
@@ -849,13 +859,6 @@ header {
 
 .trustline .chip { margin-right: 0.3rem; vertical-align: 1px; }
 
-/* SPEC 11.38. The one good thing the record can say, where it can say it. */
-.betterline {
-  margin: 0.2rem 0 0.4rem;
-  font-size: 0.9rem;
-  color: var(--quiet);
-}
-
 .whylabel { font-size: 0.82rem; color: var(--quiet); }
 .whyline { margin: 0 0 0.5rem; }
 .whylabel summary { cursor: pointer; color: #0b4f8a; }
@@ -999,19 +1002,19 @@ ol.values li.control { outline: 1px solid var(--picked); }
 }
 
 /* Everything a reader can choose to open, in one place and shut. */
-.curious {
+.more {
   margin: 0.6rem 0 0.4rem;
   border-top: 1px solid var(--rule);
   padding-top: 0.5rem;
 }
 
-.curious > summary {
+.more > summary {
   cursor: pointer;
   color: #0b4f8a;
   font-size: 0.9rem;
 }
 
-.curious[open] > summary { margin-bottom: 0.6rem; }
+.more[open] > summary { margin-bottom: 0.6rem; }
 
 .arith {
   margin-top: 0.8rem;
@@ -1316,14 +1319,20 @@ footer p { max-width: 70ch; }
      strip's note is under the cells and is the first thing below the fold,
      because it explains the cells rather than carrying an answer. */
   .panel .placeline h2 { font-size: 1.05rem; margin-bottom: 0; }
-  .panel .atsquare { margin-bottom: 0.15rem; }
+  /* SPEC 11.39. The card gained the one line that says which day and how
+     much rain, and on a phone it is two lines of it. The room comes out of
+     the leading of the three context lines and out of the headline's
+     padding, in that order, and never out of the type: 11.39 says spacing
+     gives way first and the map's height second. */
+  .panel .whenline { line-height: 1.25; margin: 0 0 0.1rem; }
+  .panel .atsquare { margin-bottom: 0.1rem; line-height: 1.25; }
   .panel .headline {
-    margin: 0.15rem 0 0.3rem;
-    padding: 0.25rem 0.5rem;
+    margin: 0.1rem 0 0.25rem;
+    padding: 0.15rem 0.5rem;
     font-size: 1rem;
   }
   .panel .strip { margin-top: 0.1rem; }
-  .panel .strip h3 { font-size: 0.85rem; margin-bottom: 0.1rem; }
+  .panel .strip h3 { font-size: 0.85rem; margin-bottom: 0; }
   /* The cells are what 11.38 says gives way first, so they give way: the
      padding inside them, never the type on them. */
   .panel .strip .cell { padding: 0.1rem 0.1rem; gap: 0; }
@@ -1381,7 +1390,7 @@ footer p { max-width: 70ch; }
   .panel .conds, .panel .trustnotes { font-size: 0.86rem; }
   .panel #credits p, .panel #credits a,
   .panel #credits summary { font-size: 0.86rem; }
-  .panel .reveal, .panel #credits summary, .panel .curious > summary {
+  .panel .reveal, .panel #credits summary, .panel .more > summary {
     min-height: 44px;
     display: flex;
     align-items: center;
@@ -1392,7 +1401,10 @@ footer p { max-width: 70ch; }
      `max-height: none` let the panel grow past the bottom of the screen
      with the 51 member values beyond it and no way to scroll to them; a
      share of the stage keeps `overflow-y: auto` doing its job. */
-  .shell.open .panel { max-height: 78%; }
+  /* SPEC 11.39. 81 rather than 78: the map is at 65 pixels with a floor of
+     56, so nine of them are the panel's to take, and the card is a line
+     taller than it was. */
+  .shell.open .panel { max-height: 81%; }
 
   /* The legend is in the bar at every width, so there is nothing to hide
      when the sheet opens and nothing to lift clear of the attribution. It

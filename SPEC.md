@@ -5816,6 +5816,76 @@ nothing matched is said as four ways on rather than as a refusal:
 | the tabs | each page's own title |
 | the words | the forbidden-word and no-percentage sweep covers every new sentence and every new state, and is shown to catch a "certain" inserted into it |
 
+### 11.39 The calm page: one column, pills, and a card
+
+11.38 fixed the words on the forecast page and left its shape alone. The
+shape was the next thing readers tripped on: on a phone the page was a
+fixed-height shell with a map in the middle and a bottom sheet over it, so
+the answer lived in a drawer that had to be dragged open, the map had a
+floor measured in tens of pixels, and everything competed for one screen
+that never scrolled.
+
+This section replaces that with the ordinary thing: a page that scrolls,
+top to bottom, with the controls above and below the map and one card for
+the answer. Nothing about the forecast changes. Counts are still out of 51,
+there are still no percentages, the forbidden-word list of 11.20 still
+holds, the trust labels of 11.33 are untouched, freshness and the warning
+are still on the first screen of every page, tap targets are still 44
+pixels and sentences still 15, the theme is still light only and the map
+colours are exactly the colours of 11.17.
+
+Where two of those rules fight, spacing gives way first and the map's
+height second. Type size and tap targets never give way.
+
+#### The card: one order, and one closed section
+
+The card is called the Location forecast, and its order is the answer
+first and the working after it:
+
+| | what it holds |
+|---|---|
+| 1 | the place name, large: a city, "near <city>", or "this area" (11.38) |
+| 2 | one small line: `<Day>, <date> · 5:30 am to 5:30 am IST · <amount name> (<N> mm+)` |
+| 3 | the square's own centre, small |
+| 4 | the headline of 11.38, with its band word |
+| 5 | the five-day strip |
+| 6 | the 51 dots, their four counts, and the one line that says what a dot is |
+| 7 | "A count of runs, not a promise of rain.", linked to the report card |
+| 8 | the trust label on one line: the chip, its reason, and a link to the record |
+| 9 | a closed **More detail** |
+
+Line 2 is the one line that replaced three: a heading over the amount
+rows, the help sentence under the day buttons ("Each day runs from 5:30 am
+to 5:30 am the next morning") and the help sentence under the amount
+buttons ("10 mm of rain is water 1 cm deep if none of it ran away"). A
+count means nothing without which day it is for, what a day is on this
+site, and how much rain, so those three are said once, under the name, and
+not once per control.
+
+The day on that line is named by the rule of 11.38 and written as two
+pieces, the word and the date, because the pills above the card are two
+lines and the two have to agree: "Today" over "15 Nov". The date is the
+run's own published `short_ist` with the weekday taken off the front of
+it. Nothing on this page formats a date a second time.
+
+More detail holds everything a reader can choose to open, and nothing is
+deleted to get there:
+
+- the three amount rows, which are a second copy of the buttons above the
+  map and were the fifth block of the card;
+- what each of the 51 runs gives, in whole millimetres, with the control
+  run first;
+- which of the four conditions the label came from ("Why this label?") and
+  the long track-record sentence, both of which are about our method
+  rather than about this square;
+- the square's i, j and tile, and what was asked for;
+- the run's own ID and its 00 UTC time.
+
+The strip's own help sentence goes with the others. The cells still carry
+a full sentence each to a screen reader, and what that sentence said, the
+colours, the amount, and that the dates are IST, is line 2 and How to read
+this map.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
