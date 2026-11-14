@@ -5267,15 +5267,20 @@ def test_every_link_in_the_readme_resolves():
             checks += 1
             assert target.stat().st_size > 0, link
     # Every hand check that wrote a file is linked to its file.
-    assert checks >= 14, checks
+    assert checks >= 15, checks
     for name in ("hc1_20260513.txt", "hc5_cell.csv", "hc_align.txt",
                  "hc_fail.csv", "hc_ecmwf.csv", "hc_report.csv",
-                 "hc_ghats.csv", "hc9_bucket.csv"):
+                 "hc_ghats.csv", "hc9_bucket.csv", "hc10_final.txt"):
         assert f"handchecks/results/{name}" in said, name
-    # HC4 has no file of its own and says so rather than linking to
-    # nothing; HC10 is the checklist at the end of the build.
+    # HC4 is the one with no file of its own, and says so rather than
+    # linking to nothing. HC10 was the other one until the end of the
+    # build: it was done on the live site and wrote its own file, and the
+    # row says what it covered rather than that it is still to come.
     assert "the file was deleted after it was read" in said
-    assert "the final checklist, done at the end" in said
+    assert "the final checklist, done at the end" not in said
+    assert "the final checklist on the live site, checked by hand" in said
+    assert "an automatic search of the repository and its history for " \
+        "secrets" in said
     # The live site, by its one address.
     assert "https://precipitation-forecast-app.vercel.app" in said
 
@@ -5602,12 +5607,22 @@ def test_every_hand_check_on_the_page_links_to_something_that_exists(
             assert (results / file).exists(), (name, file)
         else:
             assert href.endswith("SPEC.md#the-hand-checks"), (name, href)
-            assert name in ("HC4", "HC10"), name
+            # HC4 is the only check with no file of its own: the raw IMERG
+            # file it read was deleted after it was read (SPEC 2.6). HC10
+            # was the other one until the end of the build.
+            assert name == "HC4", name
 
-    # HC10 is listed as what it is: not done, and nothing leaning on it.
+    # HC10 is listed as what it is: done on the live site, with the file it
+    # wrote. "Not done yet" was true until 14 November 2026 and is not now.
+    # Its link is on the name, like every check that wrote one file, so it
+    # is read out of `names` rather than out of the text after the name.
+    assert dict((name, href) for href, name in names)["HC10"] \
+        .endswith("/handchecks/results/hc10_final.txt"), names
     hc10 = html[html.index("HC10"):]
-    assert "not done yet" in hc10[:400], hc10[:400]
-    assert "passed" not in hc10[:400]
+    assert "not done yet" not in hc10[:500], hc10[:500]
+    assert "including a phone on mobile data" in hc10[:500], hc10[:500]
+    assert (ROOT / "handchecks" / "results" / "hc10_final.txt") \
+        .stat().st_size > 0
 
 
 @needs_node

@@ -21,11 +21,12 @@ import { CellMap } from './plots';
 
 const REPO = 'https://github.com/SumedhaKar/Precipitation-Forecast-App';
 // SPEC 11.36. Every hand check that has been done, each with the file it
-// wrote. Two have no file of their own: HC4 read a raw IMERG file that was
-// deleted after it was checked (SPEC 2.6), so what it found is in SPEC 2.3,
-// and HC10 is the checklist for the end of the build and has not been done.
-// Both link to the specification instead. No file is named here that is not
-// in the repository.
+// wrote. One has no file of its own: HC4 read a raw IMERG file that was
+// deleted after it was checked (SPEC 2.6), so what it found is in SPEC 2.3
+// and the name links to the specification instead. HC10 was the other one
+// until the end of the build; it was done on 14 November 2026 on the live
+// site and wrote `hc10_final.txt`. No file is named here that is not in the
+// repository.
 const SPEC_CHECKS = `${REPO}/blob/main/SPEC.md#the-hand-checks`;
 const RESULTS = `${REPO}/blob/main/handchecks/results`;
 
@@ -68,8 +69,10 @@ const HANDCHECKS = [
     + 'outside the pipeline', [['', 'hc_report.csv']]],
   ['HC-GHATS', 'one monsoon day of the remapped satellite field, drawn',
     [['', 'hc_ghats.csv']]],
-  ['HC10', 'the final checklist, to be done at the end of the build: not '
-    + 'done yet, and nothing here depends on it', []],
+  ['HC10', 'the final checklist on the live site, checked by hand, '
+    + 'including a phone on mobile data, plus an automatic search of the '
+    + 'repository and its history for secrets',
+    [['', 'hc10_final.txt']]],
 ];
 
 function Numbers({ rows }) {

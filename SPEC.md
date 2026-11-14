@@ -5430,11 +5430,12 @@ with too few squares, which is what a dashed edge means.
 
 **The list of checks.** How we checked carries every hand check that has
 been done, one line each, each linking to the file it wrote in
-`handchecks/results/`. HC4 and HC10 have no file: HC4's file was deleted
-after it was read (2.6) and HC10 is the checklist for the end of the build,
-listed as not done. Both link to "The hand checks" in the specification. No
-file is named that is not in the repository, and no file is created in order
-to be linked to.
+`handchecks/results/`. HC4 is the one with no file: it was deleted after it
+was read (2.6), so that name links to "The hand checks" in the
+specification instead. HC10 was listed as not done until the end of the
+build; it was done on 14 November 2026 on the live site and links to
+`hc10_final.txt` like the rest. No file is named that is not in the
+repository, and no file is created in order to be linked to.
 
 **The ECMWF line.** How we checked carries what HC-ECMWF found, in the units
 this site publishes: on the 12 November 2026 run, for day 1 at 10 mm, our
@@ -6885,7 +6886,8 @@ How we checked rather than as a second report card. Tier 3, calibrated
 probabilities, is not built and may not be until a held-out record exists
 (5.8); until then the site shows counts out of 51 and no percentage, which
 is the rule 11.33 enforces over every page. The acceptance test for the
-whole of it is HC10, the final checklist, run at the end of the build.
+whole of it is HC10, the final checklist, run at the end of the build on
+the live site: `handchecks/results/hc10_final.txt`.
 
 ## The hand checks
 
@@ -6918,7 +6920,7 @@ Each run wrote its own file and every one of them is linked from the site.
 | HC-ECMWF | ECMWF's own probability of 10 mm against our count | `hc_ecmwf.py` | `hc_ecmwf.csv` |
 | HC-REPORT | the report card's Brier scores, redone | `hc_report.py` | `hc_report.csv` |
 | HC-GHATS | one monsoon day of remapped IMERG, drawn | `hc_ghats.py` | `hc_ghats.csv`, `hc_ghats.png` |
-| HC10 | the final checklist, at the end of the build | not written yet | none: it has not been done, and nothing published depends on it |
+| HC10 | the final checklist on the live site, by hand, plus an automatic search of the repository and its history for secrets | by hand, on the deployed site | `hc10_final.txt` |
 
 `hc6_members.csv` was written on 12 November 2026 and carries a line saying
 ECMWF publishes no probability product. That line is wrong and HC-ECMWF is

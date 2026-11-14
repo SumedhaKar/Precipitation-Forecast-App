@@ -130,7 +130,7 @@ hand or in its own script, and writes its own file:
 | HC-ECMWF | our counts against ECMWF's own figure for 10 mm or more | [hc_ecmwf.csv](handchecks/results/hc_ecmwf.csv) |
 | HC-REPORT | fifteen of the report card's own scores, redone outside the pipeline | [hc_report.csv](handchecks/results/hc_report.csv) |
 | HC-GHATS | one monsoon day of the remapped satellite field, drawn | [hc_ghats.csv](handchecks/results/hc_ghats.csv) |
-| HC10 | the final checklist, done at the end | — |
+| HC10 | the final checklist on the live site, checked by hand, including my phone on mobile data, plus an automatic search of the repository and its history for secrets | [hc10_final.txt](handchecks/results/hc10_final.txt) |
 
 Colours: ColorBrewer YlGnBu; checked under protanopia, deuteranopia,
 tritanopia and achromatopsia in Chrome's vision-deficiency emulation.
@@ -139,15 +139,17 @@ tritanopia and achromatopsia in Chrome's vision-deficiency emulation.
 
 The forecast workflow, `.github/workflows/forecast.yml`, asks GitHub's
 scheduler for 23 attempts a day between 06:17 and 22:23 UTC. In this build
-the schedule fired late and unreliably: of the 12 workflow runs in the
-Actions history, 5 were scheduled and 7 were started by a dispatch, and
+the schedule fired late and unreliably: of the 14 workflow runs in the
+Actions history, 5 were scheduled and 9 were started by a dispatch, and
 **all three runs published so far were published by a dispatch — the
 scheduled runs published nothing.** The five that did fire arrived at 00:55,
 13:27, 14:29, 17:44 and 19:53 UTC, which is 06:25 am to 01:24 am IST: never
 the midday window when the new forecast is ready. Run #12, on 14 November at
 about 8:30 pm IST, was the first call from the outside scheduler below; it
 was a test, and it shows as "Manually run" because the token it uses is
-mine.
+mine. After the merge, a second test call from cron-job.org at about 10:40
+pm IST on 14 November produced run #14, titled "forecast · cron-job.org",
+which finished green in 49 seconds.
 
 When no new run publishes, the site keeps the last good forecast and says how
 old it is, and calls it old past 36 hours. It never shows half a run and
@@ -245,6 +247,14 @@ build and measure the page at nine screen sizes: 390×664, 390×844, 360×640,
   what it would take to turn these counts into chances honestly.
 - **A larger headline count in the card**, which SPEC 11 allows only for a
   forecast carrying a "Good track record" label.
+- **Checking against IMD rain gauges.** The track record is checked only
+  against NASA's satellite estimate; comparing it with India Meteorological
+  Department gauge readings would test the estimate itself.
+- **Rain timing inside the day.** The site shows whole-day totals only; four
+  6-hour windows per day were planned and cut for time.
+- **A plain-language search box**, for questions such as "will it rain in
+  Pune on Saturday?", turned into a place, a day and an amount, which the
+  site then answers from the same counts.
 
 ## Running it locally
 

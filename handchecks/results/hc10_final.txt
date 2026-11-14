@@ -1,0 +1,84 @@
+HC10 - the final checklist, on the live site
+============================================
+
+https://precipitation-forecast-app.vercel.app
+Checked by hand by Sumedha Kar on 14 November 2026, about 10:45 to 11:00 pm
+IST, on the deployment of commit 691e0c7 (main). One line per item.
+
+The last line is the only automatic one: it was run from the repository by
+Claude Code, and it is marked as automatic so that nobody reads it as
+something a person saw on a screen.
+
+
+THE PHONE - Samsung Galaxy A32, mobile data, Wi-Fi off
+------------------------------------------------------
+PASS  the page loads on mobile data with Wi-Fi off
+PASS  search finds a place and the panel answers for it
+PASS  a tap on the map selects a square and the panel answers for it
+PASS  the first day pill reads "Tomorrow" and the note beside "Which day?"
+      is there: "(starts tomorrow, because today is already under way when
+      the forecast arrives)"
+PASS  the Menu opens, lists the four pages, marks the page being read
+      darker, and says no "(you are here)" anywhere
+PASS  the report card opens with TL;DR and its sentences
+PASS  How to read this map ends in the shut section "The fine print", which
+      opens
+
+
+THE LAPTOP - 100% zoom
+-----------------------
+PASS  the colour key is on the map's left side, over the Arabian Sea
+PASS  the map card stays in view as the page scrolls, and nothing inside
+      the page has a scrollbar of its own
+PASS  the header's contents line up with the column of content under them
+PASS  all four pages load from their own address: /, /report-card,
+      /how-we-checked, /how-to-read
+PASS  all four pages still load on a reload, as themselves
+PASS  the browser's back button goes back through the pages
+
+
+THE WORDS
+---------
+PASS  no "%" seen anywhere on the site
+PASS  none of the forbidden words seen: chance, probability (outside the
+      two sentences that refuse to give one), certain, likely, wet, heavy
+PASS  the limits are visible on the site
+PASS  the credits are visible on the site
+
+
+THE README
+----------
+PASS  how to run it locally is there
+PASS  what "X of 51" means is there
+PASS  the track record is there
+PASS  daily updates and cron-job.org are there
+PASS  "Phones and laptops" is there
+PASS  "Limits" is there
+PASS  "Future work" is there
+PASS  "How this was built, and the help I used" is there, with its three
+      edits: the scheduler bullet naming cron-job.org, the new bullet about
+      choosing to support phones, and the secrets bullet naming the three
+      dashboards
+
+
+THE REPOSITORY
+--------------
+PASS  CI green
+PASS  tags present: g4-done, results-v1, ux-done
+
+
+AUTOMATIC - no secret in the repository or its history
+-------------------------------------------------------
+PASS  searched for github_pat, ghp_, vercel_blob_rw, password=, .netrc and
+      any Earthdata login, and found no real value. Searched: every tracked
+      file in the working tree; every file in the working tree that is not
+      tracked or is ignored, data/ included; all 145 revisions reachable
+      from any branch or tag, with `git grep` over each; and every commit
+      and tag message. The only matches anywhere are prose and comments
+      saying where a credential lives rather than what it is - CREDITS.md
+      line 47, README.md line 322 and SPEC.md line 295 on the Earthdata
+      login being in netrc on the author's machine, the same in
+      pipeline/nasa_download.py and scripts/run_pile_b.py, and
+      BLOB_READ_WRITE_TOKEN as the name of a GitHub secret in
+      .github/workflows/forecast.yml. No token, key or password value is in
+      this repository or in anything it remembers.
