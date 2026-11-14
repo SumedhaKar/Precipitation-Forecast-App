@@ -6,6 +6,20 @@
 # credential, and a step that cannot see the token cannot leak it (SPEC 8.9).
 name: forecast
 
+# What started this run, in the list of runs. GitHub's own schedule is one
+# thing and a dispatch is another, and the dispatches come from three places
+# now: the outside scheduler that calls the API every afternoon, a run
+# started by hand from the Actions tab, and a test. Without this they are all
+# "forecast" and the history cannot be read.
+#
+# The `source` input is optional and defaults to "manual", so the Run
+# workflow button with nothing filled in reads "forecast · manual", and a
+# dispatch of {"ref":"main"} with no inputs at all gets the same default from
+# GitHub. On a scheduled run there are no inputs, so the event name decides.
+run-name: >-
+  forecast · ${{ github.event_name == 'schedule' && 'GitHub schedule'
+  || inputs.source || 'manual' }}
+
 on:
   # The schedule was held back until someone had watched this job work. The
   # first manual publish and HC7 both passed on 12 November 2026, so it is
@@ -25,6 +39,12 @@ on:
     # the run is published costs one listing check and exits 0.
     - cron: '23 12-22 * * *'
   workflow_dispatch:
+    inputs:
+      source:
+        description: 'What started this run (shown in the run title)'
+        required: false
+        default: 'manual'
+        type: string
 
 concurrency:
   group: live
