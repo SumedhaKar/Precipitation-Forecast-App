@@ -18,7 +18,7 @@
 // download.
 
 import { CLASSES, MEMBERS, NEIGHBOURS, notProbability } from './palette';
-import { AMOUNTS } from './Controls';
+import { AMOUNTS, STARTS_TOMORROW } from './Controls';
 import { KeyRows } from './Legend';
 
 /**
@@ -46,7 +46,7 @@ export default function HowToRead() {
     <article className="page howtoread">
       <h1>How to read this map</h1>
       <p className="lead">
-        Three ideas, and then what every colour on the map means.
+        A few ideas, and then what every colour on the map means.
       </p>
 
       <h2>One square</h2>
@@ -64,6 +64,17 @@ export default function HowToRead() {
         the window the model publishes, so it is the window this site adds
         up; it is not the calendar day, and the five days are these five
         windows.
+      </p>
+
+      <h2>The mornings when the five days start tomorrow</h2>
+      <p>
+        The run is the 00 UTC one, and it has to be downloaded, added up and
+        published before this site can show it, which happens around midday
+        IST. Until it arrives, the newest run here is the one whose first day
+        begins tomorrow morning at 5:30 — so the first day button reads
+        &ldquo;Tomorrow&rdquo;, and the day you are in is not one of the
+        five. The page says so beside the question when it happens:{' '}
+        <em>{STARTS_TOMORROW}</em>
       </p>
 
       <h2 id="amounts">How much rain</h2>

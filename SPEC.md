@@ -6253,6 +6253,28 @@ because a `<summary>` cannot otherwise know what to say. The label is
 measured in the browser both ways round, at a phone's width and at a
 desktop's.
 
+#### The mornings when the five days start tomorrow
+
+The 00 UTC run has to be downloaded, added up and published before this
+site can show it, which happens around midday IST. Between midnight and
+then, the newest run on the store is the one whose first day begins
+tomorrow morning at 5:30 — so the day a reader is in is not one of the
+five, and five date pills cannot say so.
+
+Beside **Which day?**, and only when the first pill really does read
+"Tomorrow":
+
+> (starts tomorrow: the forecast arrives around midday)
+
+One string, in `Controls.jsx`, quoted by the How to read this map page,
+which explains the same thing in a paragraph. Whether it is drawn is
+`startsTomorrow(days, today)` in `days.js` — the first day's own name,
+read by the same rule that names the pills, so there is one answer on the
+page to what a day is called. It is driven directly against the dates a
+reader can have, and the page is measured at every width: where the first
+pill reads "Tomorrow" the note is there, and where it does not the note is
+not in the page at all.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

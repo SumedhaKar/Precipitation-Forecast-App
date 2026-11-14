@@ -4213,6 +4213,10 @@ const LOOK = `(async () => {
       ? document.querySelector('.locate').getAttribute('title') : null,
     ortap: box('.ortap'),
     pillrow: box('.pills'),
+    // SPEC 11.40. The line beside "Which day?", which is drawn only on
+    // the mornings when the five days do not include today.
+    startsNote: (document.querySelector('.startsnote') || {})
+      .textContent || null,
     days: box('.days'),
     dayRow: box('.days .radios'),
     amounts: box('.amounts'),
@@ -5555,6 +5559,11 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "What does mm mean?", "or tap the map",
                  "Beige: land outside India, not forecast",
                  "Today", "Tomorrow",
+                 # SPEC 11.40: the line beside "Which day?" on the
+                 # mornings when the five days do not include today, and
+                 # the section of How to read this map that explains it.
+                 "(starts tomorrow: the forecast arrives around midday)",
+                 "The mornings when the five days start tomorrow",
                  # SPEC 11.39: the help sentences are on the How to read
                  # this map page, in these words, and the page is rendered
                  # into this sweep so they are still checked.
@@ -6699,3 +6708,45 @@ def test_the_detail_handle_says_what_the_next_tap_does(viewport):
         assert again["moreOpen"] is False, size
         assert again["moreLabel"].strip() == "More detail", (
             size, again["moreLabel"])
+@needs_node
+def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
+                                                               viewport):
+    """SPEC 11.40. The five days start tomorrow, and only then is it said.
+
+    Between midnight IST and the run arriving around midday, the newest
+    run's first day begins tomorrow morning and the day the reader is in
+    is not one of the five. Five date pills cannot say that.
+
+    The rule is driven directly, on the dates a reader can really have,
+    and then the page is measured: wherever the first pill reads
+    "Tomorrow" the note is there, and wherever it does not the note is
+    not in the page at all.
+    """
+    days = [{"from_ist": f"2026-11-{14 + n:02d}T05:30:00+05:30",
+             "short_ist": f"{'Sat Sun Mon Tue Wed'.split()[n]} "
+                          f"{14 + n} Nov"}
+            for n in range(5)]
+    # The reader's own date one before the first of the five: it starts
+    # tomorrow, and the note is drawn.
+    assert exports(DAYS_JS, "startsTomorrow", [[days, "2026-11-13"]])[0]         is True
+    # The ordinary case, and the two ways it can be neither.
+    assert exports(DAYS_JS, "startsTomorrow", [[days, "2026-11-14"]])[0]         is False
+    assert exports(DAYS_JS, "startsTomorrow", [[days, "2026-11-12"]])[0]         is False
+    assert exports(DAYS_JS, "startsTomorrow", [[days, "2026-11-15"]])[0]         is False
+    # Nothing to name is not an answer of "yes".
+    for bad in ([[], "2026-11-13"], [None, "2026-11-13"],
+                [days, "not a date"], [days, None]):
+        assert exports(DAYS_JS, "startsTomorrow", [bad])[0] is False, bad
+
+    # And the page itself, at every size it is measured at.
+    said = ("(starts tomorrow: the forecast arrives around midday)")
+    for size, page in viewport["phone"].items():
+        first = page["first"]
+        word = (first["dayPills"] or [[None]])[0][0]
+        if word == "Tomorrow":
+            assert first["startsNote"] is not None, size
+            assert first["startsNote"].strip() == said, (
+                size, first["startsNote"])
+        else:
+            assert first["startsNote"] is None, (size, word,
+                                                 first["startsNote"])

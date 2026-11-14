@@ -12,9 +12,21 @@ import {
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
 import { HowToReadLink } from './TopNav';
 import { Pin } from './Icons';
-import { dayDate, dayName, dayWord, istToday } from './days';
+import {
+  dayDate, dayName, dayWord, istToday, startsTomorrow,
+} from './days';
 
 const THRESHOLDS = [1, 10, 50];
+
+/**
+ * Said beside "Which day?" on the mornings when today is not day one.
+ *
+ * SPEC 11.40. One string, because the How to read this map page explains
+ * the same line and quotes it: two copies of a sentence are two sentences
+ * to keep in step.
+ */
+export const STARTS_TOMORROW = '(starts tomorrow: the forecast arrives '
+  + 'around midday)';
 
 /**
  * The day buttons. SPEC 11.38.
@@ -32,7 +44,17 @@ export function DayChoice({ days, day, onDay, today }) {
   const now = today || istToday();
   return (
     <div className="group days">
-      <span className="grouplabel" id="daylabel">Which day?</span>
+      {/* SPEC 11.40. The question, and on the mornings when the five days
+          do not include today, why. Five date pills cannot say it: a
+          reader who opens the page at 9 am and is given Sun to Thu has no
+          way of knowing whether Saturday is missing or wrong. It is drawn
+          only when the first pill really does read "Tomorrow". */}
+      <span className="labelrow">
+        <span className="grouplabel" id="daylabel">Which day?</span>
+        {startsTomorrow(days, now) ? (
+          <span className="startsnote">{STARTS_TOMORROW}</span>
+        ) : null}
+      </span>
       <div className="radios" role="radiogroup" aria-labelledby="daylabel">
         {days.map((entry) => (
           <button

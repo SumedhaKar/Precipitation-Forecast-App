@@ -164,6 +164,18 @@ export function forecastWords(answers) {
           today={String(today.from_ist).slice(0, 10)} />));
     });
   });
+  // SPEC 11.40. And the morning when the five days start tomorrow, which
+  // none of the twenty-five above can be: the reader's date is the day
+  // before the first of the five, which is the state the note is drawn
+  // in. Without this the sweep would never see those words.
+  if (days.length) {
+    const before = new Date(
+      Date.parse(`${String(days[0].from_ist).slice(0, 10)}T00:00:00Z`)
+      - 86_400_000).toISOString().slice(0, 10);
+    out.push(renderToStaticMarkup(
+      <DayChoice days={days} day={days[0].lead_day} onDay={nothing}
+        today={before} />));
+  }
   [1, 10, 50].forEach((threshold) => {
     out.push(renderToStaticMarkup(
       <ThresholdChoice threshold={threshold} onThreshold={nothing}

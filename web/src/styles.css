@@ -405,6 +405,19 @@ button {
   color: var(--quiet);
 }
 
+/* SPEC 11.40. The question and, on the mornings when it is true, the
+   line saying the five days start tomorrow: one row, wrapping, so the
+   note sits beside the question where there is room and under it where
+   there is not. */
+.labelrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.4rem;
+}
+
+.startsnote { font-size: 0.875rem; color: var(--quiet); }
+
 .radios { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 /* SPEC 11.39. A pill is a fill: the bar used to be fourteen white boxes

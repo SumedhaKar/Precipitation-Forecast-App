@@ -51,6 +51,26 @@ export function dayName(fromIst, todayYmd, shortIst = null) {
 }
 
 /**
+ * Do the five days start tomorrow? SPEC 11.40.
+ *
+ * Usually the first of the five is today. It is not between midnight IST
+ * and whenever the 00 UTC run has been downloaded, added up and published,
+ * which is around midday: until then the newest run on the store is the
+ * one whose first day begins tomorrow morning at 5:30, and the day the
+ * reader is in is not one of the five at all.
+ *
+ * A reader cannot be expected to work that out from five date pills, so
+ * the page says it in a line beside the question -- and says it only when
+ * it is true, which is what this answers. It reads the first day's own
+ * name, so there is one rule on the page for what a day is called.
+ */
+export function startsTomorrow(days, todayYmd) {
+  const first = days && days.length ? days[0] : null;
+  if (!first) return false;
+  return dayName(first.from_ist, todayYmd, first.short_ist) === 'Tomorrow';
+}
+
+/**
  * The first line of a two-line pill: "Today", "Tomorrow" or "Sat".
  *
  * SPEC 11.39. The pills carry the name above and the date below, so the
