@@ -49,13 +49,42 @@ const STALE_HOURS = 36; // SPEC 11.8
 const FIRST_DAY = 1;
 const FIRST_THRESHOLD = 1;
 
-/* SPEC 11.40. The one thing this page used to ask the width for is gone
-   with the floating key. It asked because whether the key was open on
-   first sight was a fact the map had to know in order to pad its fit for
-   it, and a stylesheet cannot tell a map anything; the key is off the
-   canvas now, the fit pays nothing for it, and when it opens is the
-   reader's business and the <details> element's. Nothing in this file
-   asks how wide the screen is. */
+/**
+ * Is this a screen with room on the map for the whole colour key?
+ *
+ * SPEC 11.41. The one thing this page asks the width for, and it asks
+ * because the map has to know: where the key is drawn over the canvas,
+ * the fit is padded by its width so that nothing of India is behind it,
+ * and a stylesheet cannot tell a map anything.
+ *
+ * `matchMedia` and not an `innerWidth` read, with the same query the
+ * stylesheet uses, so the two cannot disagree about where the boundary
+ * is.
+ *
+ * 1280 and not the 1024 the two-column layout begins at, and the
+ * difference is measured. The padding costs nothing while the fit is
+ * limited by the height, which it is at 1280 and over. At 1024 by 768
+ * the map box is 574 by 476: padding 234 pixels of it away makes the fit
+ * width-limited instead, India shrinks from 409 pixels to 305, and
+ * Gujarat ends up behind the key regardless. So below 1280 the key is
+ * the strip at the top of the panel and the fit pays nothing.
+ */
+export const WIDE = '(min-width: 1280px)';
+
+export function useWide(query = WIDE) {
+  const [wide, setWide] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const watch = window.matchMedia(query);
+    const seen = () => setWide(watch.matches);
+    seen();
+    watch.addEventListener('change', seen);
+    return () => watch.removeEventListener('change', seen);
+  }, [query]);
+  return wide;
+}
 
 const search = typeof window !== 'undefined'
   ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -349,6 +378,10 @@ export default function App({ health, healthError, onGo }) {
   const [unitBox, setUnitBox] = useState(null);
   // Why the map is not drawn, if it is not: 'webgl2', 'maplibre' or 'chunk'.
   const [noMap, setNoMap] = useState(forced || null);
+  // SPEC 11.41. Where the colour key goes: over the map's left side at
+  // 1280 pixels and over, and the strip at the top of the panel below
+  // that. The map is told, because its fit pays for the box.
+  const wide = useWide();
   // The number of the most recent request for a square's numbers (11.30).
   const asked = useRef(0);
 
@@ -714,6 +747,7 @@ export default function App({ health, healthError, onGo }) {
                     onPick={pick}
                     onProblem={setNoMap}
                     unitBox={unitBox}
+                    keyOver={wide}
                     handcheck={handcheck}
                   />
                 </Suspense>
@@ -727,6 +761,13 @@ export default function App({ health, healthError, onGo }) {
               </p>
             ) : null}
           </div>
+          {/* SPEC 11.41. The whole key, open, over the map's left side --
+              over the Arabian Sea, where the fit leaves room for it by
+              padding its own left edge by this box's width. Only at 1280
+              pixels and over: below that the padding would cost the
+              country more than the key is worth, and the key is the
+              strip at the top of the panel instead. */}
+          {wide ? <MapKey threshold={threshold} overMap /> : null}
         </div>
 
         {/* SPEC 11.40. The colour key and the card, in one box. On a
@@ -735,7 +776,7 @@ export default function App({ health, healthError, onGo }) {
             phone the box is seen through, and the grid puts the key
             directly under the map and the card at the end of the page. */}
         <div className="panelcol">
-          <MapKey threshold={threshold} />
+          {wide ? null : <MapKey threshold={threshold} />}
 
           <div className="cardcol">
           <section className="fcard" aria-label="Location forecast">

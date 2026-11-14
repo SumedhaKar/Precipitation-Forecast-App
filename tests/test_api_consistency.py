@@ -1633,6 +1633,28 @@ def test_the_legend_names_both_ends_and_both_other_colours(forecast_words):
     assert shut >= 3, shut
     assert opened == 0, opened
 
+    # SPEC 11.41. And the other key: the whole of it, open, over the map
+    # at 1280 pixels and over. Same rows, same title, no handle and no
+    # strip words -- with the rows in front of a reader, "None" and
+    # "All 51" over the colours would be the same facts twice.
+    over = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="mapkey overmap"' not in html:
+            continue
+        text = words_of(html)
+        assert "How many of the 51 runs bring rain?" in text
+        assert "mm or more. The colours, in words." in html
+        assert "<summary" not in html, html[:160]
+        assert 'class="keyends"' not in html
+        for band in ("None", "1-10 runs", "41-50 runs", "All 51 runs",
+                     "White: no forecast for this spot",
+                     "Beige: land outside India, not forecast"):
+            assert band in text, band
+        for word in ("a few", "about half", "almost all"):
+            assert word not in text.lower(), (word, text)
+        over += 1
+    assert over >= 3, over
+
 
 @needs_node
 def test_the_amount_buttons_carry_the_nickname_and_the_millimetres(
@@ -4392,8 +4414,12 @@ const LOOK = `(async () => {
     mapcard: box('.mapcard'),
     mapkey: box('.mapkey'),
     // SPEC 11.40. The key is the top of the panel on a desktop and
-    // directly under the map on a phone, and over the canvas nowhere.
+    // directly under the map on a phone; SPEC 11.41 puts the whole of it
+    // back over the map's left side at 1280 pixels and over, so where it
+    // is is asked of the document rather than assumed.
     keyInPanel: !!document.querySelector('.panelcol > .mapkey'),
+    keyOverMap: !!document.querySelector('.mapcard .mapkey'),
+    keyHandles: document.querySelectorAll('.mapkey summary').length,
     keyEnds: [...document.querySelectorAll('.mapkey .keyends span')]
       .map((e) => e.textContent.trim()),
     keyTitle: (document.querySelector('.mapkey .keytitle') || {})
@@ -4658,13 +4684,32 @@ try {
     here.first = await evaluate(LOOK);
     await shoot(`${key}-first`);
 
-    // The colour key, which is shut on a phone and open on a desktop.
-    await evaluate("document.querySelector('.mapkey summary').click()");
-    await new Promise((go) => setTimeout(go, 1200));
-    here.keyToggled = await evaluate(LOOK);
-    await evaluate("document.querySelector('.mapkey summary').click()");
-    await new Promise((go) => setTimeout(go, 1200));
-    here.keyBack = await evaluate(LOOK);
+    // SPEC 11.41. The colour key, opened and shut again -- wherever
+    // there is anything to press. Over the map at 1280 pixels and over
+    // it is the whole key, open, with no handle at all, so there both
+    // states are the state the page opens in.
+    if (here.first.keyHandles) {
+      await evaluate("document.querySelector('.mapkey summary').click()");
+      await new Promise((go) => setTimeout(go, 1200));
+      here.keyToggled = await evaluate(LOOK);
+      await evaluate("document.querySelector('.mapkey summary').click()");
+      await new Promise((go) => setTimeout(go, 1200));
+      here.keyBack = await evaluate(LOOK);
+    }
+
+    // SPEC 11.41. And the map zoomed in one step by its own button, which
+    // is the other thing the key has to survive: it is drawn over the
+    // canvas and the canvas has just repainted under it.
+    const zoomed = await evaluate(
+      "!!document.querySelector('.maplibregl-ctrl-zoom-in')"
+      + " && (document.querySelector('.maplibregl-ctrl-zoom-in').click()"
+      + " || true)");
+    if (zoomed) {
+      await new Promise((go) => setTimeout(go, 1200));
+      here.afterZoom = await evaluate(LOOK);
+      await open('/');
+      await new Promise((go) => setTimeout(go, 400));
+    }
 
     // SPEC 11.40. "What does mm mean?", opened and shut again. Every
     // measurement after this is made with it shut, which is how the page
@@ -5013,7 +5058,7 @@ def viewport(tmp_path_factory):
             "api": str(ROOT / "api"),
             "sizes": [[390, 664], [390, 844], [360, 640],
                       [320, 568], [1440, 900], [1366, 768],
-                      [1366, 650], [1024, 768]],
+                      [1366, 650], [1280, 720], [1024, 768]],
             "target": target,
             "squares": squares,
             # A city inside the run a test publishes, so searching for it
@@ -6700,7 +6745,8 @@ def on_screen(points, bounds, width, height):
 
 @needs_node
 @pytest.mark.parametrize("size", ["390x664", "390x844", "360x640",
-                                  "320x568", "1440x900", "1024x768"])
+                                  "320x568", "1440x900", "1366x768",
+                                  "1366x650", "1280x720", "1024x768"])
 def test_the_key_covers_no_india_square_at_any_width(viewport, size):
     """SPEC 11.39. The Arabian Sea, and nothing of the country.
 
@@ -6724,10 +6770,18 @@ def test_the_key_covers_no_india_square_at_any_width(viewport, size):
     seen = viewport["phone"][size]["first"]
     over = seen["keyOver"]
     assert over, "the key was not measured"
-    assert over["position"] == "static", over
-    # Nothing of ours is drawn over the canvas: MapLibre's own zoom
-    # buttons and attribution are its own, and are not in this list.
-    assert seen["overTheMap"] == [], (size, seen["overTheMap"])
+    wide = int(size.split("x")[0]) >= 1280
+    # SPEC 11.41. Over the canvas at 1280 and over, and in the flow of
+    # the page below that. The key is the only thing of ours that may be
+    # over the map at any width: MapLibre's own zoom buttons and
+    # attribution are its own and are not in this list.
+    if wide:
+        assert over["position"] == "absolute", over
+        assert seen["overTheMap"] == ["mapkey overmap"], (
+            size, seen["overTheMap"])
+    else:
+        assert over["position"] == "static", over
+        assert seen["overTheMap"] == [], (size, seen["overTheMap"])
     # And the box it does occupy is clear of every point of the country,
     # which for a box outside the canvas is true by where it is -- said
     # as a measurement so that moving it back would be caught here.
@@ -6784,21 +6838,21 @@ def test_the_key_sits_under_the_map_on_a_phone(viewport, size):
 
 
 @needs_node
-@pytest.mark.parametrize("size", ["1440x900", "1366x768", "1366x650",
-                                  "1024x768"])
+@pytest.mark.parametrize("size", ["1024x768"])
 def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
-    """SPEC 11.40. Above the card, always on the screen, off the map.
+    """SPEC 11.40, as 11.41 leaves it. The strip, below 1280 pixels.
 
-    11.39 floated it in the map's lower left corner at 1280 pixels and
-    over, and paid for it by padding the fit on that side. The payment
-    was free only while the fit was limited by the height, and the width
-    of the map is what the country was short of.
+    11.39 floated the key in the map's lower left corner at 1280 and
+    over and paid for it by padding the fit on that side; 11.40 took it
+    off the canvas at every width; 11.41 puts it back over the map at
+    1280 and over, where the measurement says the padding is free, and
+    keeps the strip below that -- which is this test, at the one desktop
+    width narrower than 1280.
 
-    It is the top of the right-hand panel now: the same collapsed strip
-    the phone has, in the flow of the page, with the card under it taking
-    the rest of the panel's height and scrolling inside itself. So it
-    stays where it is when a place is chosen, when a search is made and
-    when the map moves.
+    Here it is the top of the right-hand panel: the same collapsed strip
+    the phone has, in the flow of the page, above the card. So it stays
+    where it is when a place is chosen, when a search is made and when
+    the map moves.
     """
     page = viewport["phone"][size]
     seen = page["first"]
@@ -6888,6 +6942,74 @@ def test_the_header_lines_up_with_the_column_under_it(viewport, size):
     assert seen["controls"]["width"] <= 1280, seen["controls"]
     assert seen["mapcard"]["right"] <= seen["topnav"]["right"] + 2, (
         seen["mapcard"], seen["topnav"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["1280x720", "1366x768", "1366x650",
+                                  "1440x900"])
+def test_the_key_is_the_whole_key_over_the_map_at_1280_and_over(viewport,
+                                                               size):
+    """SPEC 11.41. The nine rows, open, over the Arabian Sea.
+
+    A reader comparing a colour on the map with the key was looking at
+    two things 400 pixels apart, and the strip in the panel names three
+    places on a scale of nine. Over the map it is the whole key, open,
+    beside the thing it explains.
+
+    It is paid for in the fit: Map.jsx measures this box and pads the
+    left edge of the fit by its width, so the box of SPEC 1.4 starts to
+    the right of it. That payment is free while the fit is limited by the
+    height, which it is at 1280 and over -- and is not at 1024, which is
+    why 11.40's measurement stands there and the strip stays.
+
+    What is checked: where it is, that it is open with all nine rows and
+    nothing to press, that no square of India is behind it in the view
+    the page opens with, and that it is still there after a place is
+    chosen, a search is made and the map is zoomed.
+    """
+    page = viewport["phone"][size]
+    seen = page["first"]
+    assert seen["keyOverMap"] is True, size
+    assert seen["keyInPanel"] is False, size
+    assert seen["keyOver"]["position"] == "absolute", seen["keyOver"]
+    # Open, with nothing to open it: no summary anywhere in it.
+    assert seen["keyHandles"] == 0, seen["keyHandles"]
+    assert len(seen["keyRows"]) == 9, seen["keyRows"]
+    assert seen["keyEnds"] == [], seen["keyEnds"]
+    assert seen["keyTitle"].strip() == (
+        "How many of the 51 runs bring rain? (1 mm+)"), seen["keyTitle"]
+    # On the map's left side, and inside the map card.
+    left, top, right, bottom = seen["keyOver"]["box"]
+    width, height = seen["keyOver"]["map"]
+    assert left >= 0, seen["keyOver"]
+    assert right <= width / 2, seen["keyOver"]
+    assert bottom <= height + 1, seen["keyOver"]
+    # The country is clear of it, in the view the page opens with. The
+    # projection is the same one test_the_key_covers_no_india_square
+    # uses, and Lakshadweep is in india_points() with everything else.
+    hidden = [(lat, lon) for lat, lon, x, y
+              in on_screen(india_points(), seen["view"]["bounds"],
+                           width, height)
+              if left <= x <= right and top <= y <= bottom]
+    assert not hidden, (size, len(hidden), hidden[:4], seen["keyOver"])
+    # And it stays: a place chosen three ways, and a zoom.
+    for how in ("afterSearch", "afterLocate", "afterMapTap", "afterZoom"):
+        later = page.get(how)
+        if not later:
+            continue
+        assert later["keyOverMap"] is True, how
+        assert len(later["keyRows"]) == 9, (how, later["keyRows"])
+        assert later["mapkey"]["height"] > 100, (how, later["mapkey"])
+        # Still over the canvas, and still in the map's own lower left.
+        assert later["keyOver"]["position"] == "absolute", how
+        assert later["keyOver"]["box"][0] >= 0, (how, later["keyOver"])
+        assert (later["keyOver"]["box"][2]
+                <= later["keyOver"]["map"][0] / 2), (how, later["keyOver"])
+    # The zoom really did move the map, so that "it stays" is a claim
+    # about a canvas that repainted under it.
+    zoom = page.get("afterZoom")
+    assert zoom and zoom["view"]["bounds"] != seen["view"]["bounds"], (
+        zoom["view"]["bounds"] if zoom else None)
 
 
 # ------------------------------- SPEC 11.39: the header, on every page

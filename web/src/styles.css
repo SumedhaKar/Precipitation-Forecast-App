@@ -685,11 +685,42 @@ button {
 
 .mapkey .keyrows li { min-height: 1.5rem; }
 
-/* SPEC 11.40. The floating key of 11.39 is gone, and with it the one
-   query this page asked the width for. What it bought was never worth
-   the width: at 1024 by 768 the map box was 574 by 476, and padding 234
-   pixels of it away made the fit width-limited, shrank India from 409
-   pixels to 305, and put Gujarat behind the key regardless. */
+/* SPEC 11.41. The key over the map, at 1280 pixels and over: the whole
+   of it, open, in the lower left corner over the Arabian Sea, where the
+   fit leaves room by padding its own left edge by this box's width.
+
+   Only at 1280 and over, which is 11.40's measurement kept: at 1024 by
+   768 the map box is 574 by 476, and padding 234 pixels of it away makes
+   the fit width-limited, shrinks India from 409 pixels to 305 and puts
+   Gujarat behind the key regardless. Below 1280 the key is the strip at
+   the top of the right-hand panel.
+
+   It is drawn by the page only where this rule applies -- App.jsx asks
+   the same query with matchMedia -- so there is never a second key in
+   the document, and `position: absolute` here is what Map.jsx reads to
+   know whether the fit owes it anything. */
+@media (min-width: 1280px) {
+  .mapcard { position: relative; }
+
+  .mapkey.overmap {
+    position: absolute;
+    left: 0.7rem;
+    bottom: 0.7rem;
+    z-index: 2;
+    width: 13.5rem;
+    max-width: calc(100% - 1.4rem);
+    padding: 0.5rem 0.65rem 0.6rem;
+    border: 1px solid var(--rule);
+    box-shadow: 0 1px 6px rgba(31, 41, 51, 0.14);
+  }
+
+  .mapkey.overmap .keytitle {
+    display: block;
+    margin: 0 0 0.35rem;
+  }
+
+  .mapkey.overmap .keyrows { margin-top: 0.45rem; }
+}
 
 /* SPEC 11.31. A colour, and nothing that can be pressed.
    These were 0.95rem squares with a hairline border and a 2px radius, which

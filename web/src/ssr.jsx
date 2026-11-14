@@ -199,6 +199,11 @@ export function forecastWords(answers) {
     // are in the page whether or not a reader has opened them, so the
     // sweep reads them either way.
     out.push(renderToStaticMarkup(<MapKey threshold={threshold} />));
+    // SPEC 11.41. And the other key: the whole of it, open, which is
+    // what a screen 1280 pixels wide or more is given over the map. Two
+    // renderings of the same rows, so the sweep reads both.
+    out.push(renderToStaticMarkup(
+      <MapKey threshold={threshold} overMap />));
   });
   out.push(renderToStaticMarkup(
     <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}

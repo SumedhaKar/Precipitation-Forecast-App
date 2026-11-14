@@ -15,11 +15,23 @@
 // by padding the fit on that side, and sat under the map at every width
 // where that padding would have cost the country anything.
 //
-// 11.40 takes it off the map everywhere. Nothing is drawn over the canvas
-// now but MapLibre's own zoom buttons: on a desktop the key is the top of
-// the right-hand panel, above the card and always on the screen, and on a
-// phone it is directly under the map as it was. So nothing of the fit is
-// spent on it, which is the width the whole country was competing for.
+// 11.40 took it off the map everywhere. Nothing was drawn over the canvas
+// but MapLibre's own zoom buttons: on a desktop the key was the top of the
+// right-hand panel, above the card and always on the screen, and on a phone
+// it was directly under the map as it was.
+//
+// 11.41 puts the full key back over the map at 1280 pixels and over, open,
+// with all nine rows -- and this time the measurement says it is affordable
+// there. What 11.40 was right about was 1024: the map box is 574 by 476
+// and the left padding makes the fit width-limited, so India shrinks and
+// Gujarat ends up behind the key anyway. At 1280 and over the fit is
+// limited by the height, the padding is free, and a reader comparing a
+// colour with the key is looking at one thing instead of two. Below 1280
+// the key is the panel strip of 11.40, sticky at the top of the panel.
+//
+// So there are two keys in this file: the strip, which opens and shuts,
+// and the box over the canvas, which is always open and has nothing to
+// toggle. The rows and the title are the same components in both.
 //
 // It is a module of its own rather than part of Map.jsx so that it is in the
 // first chunk: the key paints with the controls, before MapLibre's 325 KB
@@ -107,7 +119,33 @@ export const KEY_ENDS = ['None', 'About half', `All ${MEMBERS}`];
  * something and the chosen pill is a row of controls away; the strip's
  * three words are its two ends and its middle.
  */
-export default function MapKey({ threshold }) {
+export default function MapKey({ threshold, overMap = false }) {
+  /* SPEC 11.41. Over the canvas it is not a disclosure at all: there is
+     nothing to open, so there is no summary to press and no state for
+     anybody to get wrong. A heading, the strip and the nine rows.
+
+     The strip's three words are not here: "None", "About half" and
+     "All 51" are what the shut strip says instead of the rows, and with
+     the rows in front of a reader they would be the same facts twice. */
+  if (overMap) {
+    return (
+      <section
+        className="mapkey overmap"
+        aria-label={`${KEY_TITLE} At ${threshold} mm or more. `
+          + 'The colours, in words.'}
+      >
+        <p className="keytitle">
+          {KEY_TITLE} ({threshold} mm+)
+        </p>
+        <span className="ministrip" aria-hidden="true">
+          {CLASSES.map((band) => (
+            <span key={band.label} style={{ background: band.colour }} />
+          ))}
+        </span>
+        <KeyRows />
+      </section>
+    );
+  }
   return (
     <details className="mapkey">
       <summary

@@ -614,7 +614,7 @@ function makeLabels(container, mapFor) {
 
 export default function ForecastMap({
   counts, grid, threshold, day, square, squareName, onPick, onProblem,
-  unitBox,
+  unitBox, keyOver,
   handcheck,
 }) {
   const holder = useRef(null);
@@ -778,22 +778,33 @@ export default function ForecastMap({
       // which is 38 N 98 E and thereabouts -- China, drawn beige, with no
       // forecast square anywhere near it. Nothing of India is under them.
       const seenRight = most(right);
-      // SPEC 11.40. The left edge is padded by nothing.
+      // SPEC 11.41. And the colour key, where it is over the canvas.
       //
-      // 11.39 floated the colour key in the map's lower left corner at
-      // 1280 pixels and over, and paid for it here: the left edge was
-      // padded by the key's own measured width, so that India began to
-      // the right of it and nothing of the country was ever behind it.
+      // It is the whole key, open, in the map's lower left corner over
+      // the Arabian Sea, at 1280 pixels and over. The only way to be
+      // sure that nothing of India is behind it is to pay for it in the
+      // fit: the left edge is padded by its measured width, so the box
+      // of SPEC 1.4 starts to the right of it. Measured and not assumed,
+      // because the box's width is the reader's own font's.
       //
-      // The key is off the canvas at every width now, so there is nothing
-      // to pay for and the whole box of 1.4 gets the whole canvas. What
-      // is over the map is MapLibre's own zoom buttons and its
-      // attribution, which are the three things measured above.
+      // Where it would cost something, the page does not put the key
+      // over the canvas: 11.40 measured 1024 by 768, where paying 234
+      // pixels of a 574 pixel map makes the fit width-limited and puts
+      // Gujarat behind the key regardless. There, and on a phone, the
+      // key is in the panel and this returns the plain gap.
+      const keyWidth = () => {
+        const card = created.getContainer().closest('.mapcard');
+        const found = card ? card.querySelector('.mapkey') : null;
+        if (!found) return 0;
+        if (getComputedStyle(found).position !== 'absolute') return 0;
+        const seen = box(found);
+        return seen ? seen.width : 0;
+      };
       return {
         top: gap,
         right: cap(seenRight, canvas.width),
         bottom: cap(most(bottom), canvas.height),
-        left: gap,
+        left: cap(keyWidth(), canvas.width),
       };
     };
 
@@ -1144,11 +1155,27 @@ export default function ForecastMap({
     else created.once('load', go);
   }, [unitBox ? unitBox.join(',') : null]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* SPEC 11.40. The refit when the colour key opened or shut is gone
-     with the key's place over the canvas: opening it changes the size of
-     a box in the panel beside the map, which the fit knows nothing
-     about. The refit on a resize of the container is still there, and it
-     is what answers a window being made wider or a phone turned. */
+  /**
+   * Fit again when the colour key arrives over the canvas, or leaves it.
+   *
+   * SPEC 11.41. The fit is padded by the key's measured width wherever
+   * the key is over the map, and `keyOver` is the page's answer to
+   * whether it is -- the same media query the stylesheet uses. A window
+   * dragged across 1280 pixels resizes the container as well, and the
+   * resize observer answers that; this is for the first paint, where the
+   * box is in the page but has not been laid out when the fit is first
+   * worked out.
+   *
+   * The key does not open or shut over the canvas -- it is open, and
+   * there is nothing to press -- so this is the only event that can
+   * change what the fit owes it.
+   */
+  useEffect(() => {
+    const created = map.current;
+    if (!created || !ready.current) return;
+    const again = created.getContainer().refit;
+    if (again) window.requestAnimationFrame(again);
+  }, [keyOver]);
 
   // Changing day or threshold: one paint property, nothing else.
   useEffect(() => {
