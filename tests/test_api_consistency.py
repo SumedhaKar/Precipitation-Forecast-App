@@ -4148,7 +4148,33 @@ const LOOK = `(async () => {
     handleText: document.querySelector('.handle')
       ? document.querySelector('.handle').textContent : null,
     handleLines: lines('.handle'),
+    // The bar's "Search" button, which SPEC 11.39 removed: still asked
+    // for, so a check can say it is gone rather than assume it.
     search: box('.sheetsearch'),
+    // SPEC 11.39, the calm look: a pill is a fill and not an outline,
+    // the chosen one is filled navy, the search box keeps its border, and
+    // nothing on the page is set in capitals.
+    pills: [...document.querySelectorAll(
+      '.radios button, .countrow')].map((e) => {
+      const s = getComputedStyle(e);
+      return { what: e.className, on: /(^| )on( |$)/.test(e.className),
+        fill: s.backgroundColor, border: s.borderTopWidth,
+        ink: s.color };
+    }),
+    inputBorder: document.querySelector('.searchrow input')
+      ? getComputedStyle(document.querySelector('.searchrow input'))
+        .borderTopWidth : null,
+    outlined: [...document.querySelectorAll(
+      '.welcome, .notice, .headwarn, .mapgone span, .more, .curious')]
+      .map((e) => [e.className, getComputedStyle(e).borderTopWidth,
+        getComputedStyle(e).borderLeftWidth]),
+    allCaps: [...document.querySelectorAll('*')].filter((e) => {
+      if (!e.getBoundingClientRect().height) return false;
+      if (![...e.childNodes].some(
+        (n) => n.nodeType === 3 && n.textContent.trim())) return false;
+      return getComputedStyle(e).textTransform === 'uppercase';
+    }).map((e) => [String(e.className || e.tagName),
+      e.textContent.trim().slice(0, 30)]),
     whiteHere: !!document.querySelector('.whitehere'),
     legendWhite: document.querySelector('.legend-white')
       ? getComputedStyle(document.querySelector('.legend-white'))
@@ -4294,13 +4320,9 @@ try {
     await new Promise((go) => setTimeout(go, 700));
     here.afterHandleCloses = await evaluate(LOOK);
 
-    // "Search" opens it and asks for the keyboard.
-    await evaluate("document.querySelector('.sheetsearch').click()");
-    await new Promise((go) => setTimeout(go, 700));
-    here.afterSearch = await evaluate(LOOK);
-    await evaluate("document.querySelector('.handle').click()");
-    await new Promise((go) => setTimeout(go, 700));
-
+    // SPEC 11.39. There is no second button in the bar to click: the
+    // "Search" button is gone with "Find my city", and the line is the
+    // one control in it.
     // The longest line this page can say, put in the bar to see whether the
     // button survives it. The words are the page's own; only the place name
     // and the count are the worst case the town list allows.
@@ -4891,8 +4913,10 @@ def test_the_closed_bar_is_the_whole_panel_and_the_map_has_the_rest(viewport):
         assert shut["bar"] is not None, "no bottom bar"
         assert shut["bar"]["bottom"] <= height + 1, (key, shut["bar"])
         assert shut["handle"]["bottom"] <= height + 1
-        assert shut["search"]["bottom"] <= height + 1
-        assert shut["search"]["right"] <= int(key.split("x")[0]) + 1
+        assert shut["handle"]["right"] <= int(key.split("x")[0]) + 1
+        # SPEC 11.39: one line and nothing else. The button that stood
+        # beside it is gone with "Find my city".
+        assert shut["search"] is None, "the Search button is back"
         # The bar is the whole of the shut panel: nothing under it.
         assert shut["panel"]["height"] - shut["bar"]["height"] <= 2, (
             key, shut["panel"], shut["bar"])
@@ -4910,13 +4934,22 @@ def test_the_line_before_a_place_is_chosen_fits_one_line_at_390(viewport):
 
 @needs_node
 def test_the_search_button_survives_the_longest_line_at_320(viewport):
-    """SPEC 11.37. The line gives way, never the button."""
+    """SPEC 11.37, as SPEC 11.39 leaves it: the line gives way.
+
+    There is no button beside it any more -- "Search" and "Find my city"
+    are both gone, because the search box is the way in and both of them
+    only moved the keyboard into it. So what has to survive the longest
+    line this page can say is the line itself: two lines, cut with an
+    ellipsis after that, and inside the screen either way.
+    """
     seen = viewport["phone"]["320x568"]["withLongestLine"]
     assert seen["handleText"] == longest_bar_line()
     assert "Thiruvananthapuram" in seen["handleText"]
-    assert seen["search"]["height"] >= 44, seen["search"]
-    assert seen["search"]["bottom"] <= 568 + 1, seen["search"]
-    assert seen["search"]["right"] <= 320 + 1, seen["search"]
+    assert seen["search"] is None, "the Search button is back"
+    assert seen["handle"]["height"] >= 44, seen["handle"]
+    assert seen["handle"]["bottom"] <= 568 + 1, seen["handle"]
+    assert seen["handleLines"] <= 2, seen["handleLines"]
+    assert seen["handle"]["right"] <= 320 + 1, seen["handle"]
     # The line is what wrapped or was cut, and it has not pushed the bar off
     # the screen either.
     assert seen["bar"]["bottom"] <= 568 + 1
@@ -4939,9 +4972,13 @@ def test_each_control_in_the_bar_does_one_thing(viewport):
     assert here["afterHandleCloses"]["handleText"] \
         == "Tap the map to pick a place"
 
-    # "Search" opens it with the keyboard in the search box.
-    assert here["afterSearch"]["open"] is True
-    assert here["afterSearch"]["focus"] == "place", here["afterSearch"]
+    # SPEC 11.39. And it is the only control in the bar: nothing there
+    # asks for the keyboard, because nothing needs to. The box the
+    # keyboard would go to is in the panel the line opens.
+    assert here["afterLine"]["search"] is None
+    app = APP.read_text("utf-8")
+    assert "sheetsearch" not in app
+    assert "askFocus" not in app
 
 
 @needs_node
@@ -5079,8 +5116,7 @@ def test_the_closed_bar_is_a_phone_rule_and_the_desktop_keeps_its_panel():
     assert ".handle, .sheetbar { display: none; }" in desktop
     # The blocks themselves are indented, which is to say inside the media
     # query; the only mention above it is the one that hides them.
-    for rule in ("  .sheetbar {", "  .sheetsearch {",
-                 "  .shell:not(.open) .sheetbody"):
+    for rule in ("  .sheetbar {", "  .shell:not(.open) .sheetbody"):
         assert rule not in desktop, rule
         assert rule in css, rule
 
@@ -5428,7 +5464,8 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  "city.",
                  # SPEC 11.38: the new blocks, so a sweep that stopped
                  # rendering them could not pass quietly.
-                 "Will it rain where you are in the next 5 days?",
+                 "Will it rain where you are?",
+                 "Tap the map or search a city to see its next five days.",
                  "The next five days", "The 51 runs, one dot each",
                  "A count of runs, not a promise of rain.",
                  "More detail", "5:30 am to 5:30 am IST",
@@ -5687,3 +5724,95 @@ def test_the_forecast_page_keeps_no_help_sentence_of_its_own(forecast_words):
     assert len(cards) > 20, len(cards)
     for html in cards:
         assert html.count('class="whenline"') == 1
+
+
+# ------------------------------------- SPEC 11.39: the calm look, measured
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "1440x900"])
+def test_an_unchosen_pill_is_a_fill_and_the_chosen_one_is_navy(
+        viewport, size):
+    """SPEC 11.39. Fourteen outlined white boxes read as fourteen jobs.
+
+    The controls bar was a row of white rectangles with hairline borders,
+    which is what an empty form looks like; three of them were already
+    answered and a reader could not see which at a glance. A pill is a
+    pale fill with no outline, and the one that is chosen is filled navy
+    -- the same navy the map marks the chosen square with.
+    """
+    for state in ("shut", "afterLine"):
+        pills = viewport["phone"][size][state]["pills"]
+        if not pills:
+            continue
+        chosen = [pill for pill in pills if pill["on"]]
+        assert chosen, (size, state)
+        for pill in pills:
+            assert pill["border"] == "0px", (pill["what"], pill["border"])
+            # A fill, and not the page or a transparent nothing.
+            assert pill["fill"] not in ("rgba(0, 0, 0, 0)", "transparent"), (
+                pill["what"], pill["fill"])
+        for pill in chosen:
+            # #0b2b4a, the --picked of the map's own mark.
+            assert pill["fill"] == "rgb(11, 43, 74)", pill
+            assert pill["ink"] == "rgb(255, 255, 255)", pill
+        for pill in pills:
+            if not pill["on"]:
+                assert pill["fill"] != "rgb(11, 43, 74)", pill
+
+
+@needs_node
+def test_the_search_box_keeps_its_border_and_the_cards_lose_theirs(viewport):
+    """SPEC 11.39. The one control a reader puts something into.
+
+    Every pill and every card lost its outline; the input did not, because
+    a field with no edge reads as a line of text rather than somewhere to
+    type.
+    """
+    seen = viewport["phone"]["390x664"]["afterLine"]
+    assert seen["inputBorder"] == "1px", seen["inputBorder"]
+    assert seen["outlined"], "no card was measured at all"
+    for name, top, left in seen["outlined"]:
+        assert top == "0px", (name, top)
+        # A 3 pixel bar down one edge is how a quoted note is told from the
+        # page and is not an outline; a border on all four sides is.
+        if left != "0px":
+            assert name in ("unitfound", "loadingsquare"), (name, left)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "1440x900"])
+def test_nothing_on_the_page_is_set_in_capitals(viewport, size):
+    """SPEC 11.39. No all-caps labels, anywhere on the forecast page.
+
+    Capitals were being used to make three ordinary questions look like
+    system labels -- "DAY", "AMOUNT" -- and the map's state names were set
+    in them too. Mixed case is read about a fifth faster, and the words
+    say the same thing.
+    """
+    for state in ("shut", "afterLine", "afterMapTap"):
+        page = viewport["phone"][size].get(state)
+        if not page:
+            continue
+        assert page["allCaps"] == [], (size, state, page["allCaps"])
+    # And the two document pages, which share the stylesheet.
+    for path, page in viewport["pages"].items():
+        assert page["allCaps"] == [], (path, page["allCaps"])
+    # The rule itself is gone, rather than overridden somewhere.
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    assert "text-transform: uppercase" not in css
+
+
+def test_every_control_keeps_a_focus_ring():
+    """SPEC 11.39. The calm look never costs the keyboard its place.
+
+    A fill with no outline is one keystroke away from a control nobody can
+    see they are on, so the ring is declared once, for everything, and
+    nothing on this site may turn an outline off.
+    """
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    ring = css.split(":focus-visible {")[1].split("}")[0]
+    assert "outline: 2px solid var(--picked);" in ring
+    assert "outline-offset: 2px;" in ring
+    # Nothing anywhere takes it away again.
+    for killed in ("outline: none", "outline: 0", "outline-width: 0"):
+        assert killed not in css, killed

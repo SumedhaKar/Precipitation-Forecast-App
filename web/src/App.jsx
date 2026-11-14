@@ -269,9 +269,6 @@ export default function App({ nav, onGo }) {
   const [from, setFrom] = useState(null);
   const [shown, setShown] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
-  // SPEC 11.37. Counting up asks the search box to take the keyboard; the
-  // box watches the number rather than a boolean, so asking twice works.
-  const [askSearch, setAskSearch] = useState(0);
   // SPEC 11.38. The state or union territory the search box last named,
   // which the map is fitted to. It is never a chosen place and never a
   // count: a state is a list of cities here, not a square.
@@ -490,14 +487,6 @@ export default function App({ nav, onGo }) {
     setUnitBox(unit && unit.box ? unit.box : null);
   }, []);
 
-  // SPEC 11.38. "Find my city" opens the panel and gives the search box
-  // the keyboard. SPEC 11.39: the card's other way on is a link to the How
-  // to read this map page, which needs nothing of the page at all.
-  const findCity = useCallback(() => {
-    setSheetOpen(true);
-    setAskSearch((before) => before + 1);
-  }, []);
-
   // SPEC 11.38. Nothing chosen at all: no square, no island note and no
   // failure. The card is the page's whole answer to "what is this and what
   // do I do", so it is shown exactly while there is no answer to show, and
@@ -610,7 +599,7 @@ export default function App({ nav, onGo }) {
               hides it at desktop widths, where the panel's copy is shown
               instead, so only one of the two is ever in the page. */}
           {nothingChosen ? (
-            <Welcome where="map" onFind={findCity} onGo={onGo} />
+            <Welcome where="map" onGo={onGo} />
           ) : null}
         </div>
 
@@ -630,18 +619,11 @@ export default function App({ nav, onGo }) {
               {sheetOpen ? 'Hide the details'
                 : summaryLine(place, square, day, threshold)}
             </button>
-            {sheetOpen ? null : (
-              <button
-                type="button"
-                className="sheetsearch"
-                onClick={() => {
-                  setSheetOpen(true);
-                  setAskSearch((asked) => asked + 1);
-                }}
-              >
-                Search
-              </button>
-            )}
+            {/* SPEC 11.39. The "Search" button that stood here is gone
+                with "Find my city": both of them opened the panel so that
+                the search box could have the keyboard, and the search box
+                is itself the way in. The line opens the panel; what is in
+                the panel is the box. */}
           </div>
           <div className="sheetbody">
           <div className="finder">
@@ -651,7 +633,6 @@ export default function App({ nav, onGo }) {
               onUnit={toUnit}
               busy={busy}
               shown={shown}
-              askFocus={askSearch}
             />
             {/* `from` is passed so that this control's own message clears
                 when some other place is chosen. SPEC 11.29. */}
@@ -668,7 +649,6 @@ export default function App({ nav, onGo }) {
             onDay={setDay}
             onThreshold={setThreshold}
             from={from}
-            onFind={findCity}
             onGo={onGo}
           />
           <Footer />

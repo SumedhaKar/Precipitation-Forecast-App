@@ -115,18 +115,15 @@ export function ThresholdChoice({ threshold, onThreshold }) {
  * and the answer never disagree. `shown` is that text and the box falls back
  * to it whenever the reader is not in the middle of typing.
  */
-export function Search({ onTown, onPoint, onUnit, busy, shown, askFocus }) {
+export function Search({ onTown, onPoint, onUnit, busy, shown }) {
   const [text, setText] = useState(null); // null means "not typing"
   const [said, setSaid] = useState(null);
   const [near, setNear] = useState([]);
   const box = useRef(null);
 
-  // SPEC 11.37. The bottom bar's "Search" button opens the panel and asks
-  // for the keyboard by counting up; nothing else focuses this box, so the
-  // line beside it can open the panel without a keyboard appearing.
-  useEffect(() => {
-    if (askFocus) box.current?.focus();
-  }, [askFocus]);
+  // SPEC 11.39. Nothing asks this box for the keyboard any more: the two
+  // buttons that did -- "Find my city" and the bar's "Search" -- are gone,
+  // and a reader puts the keyboard where they want it.
 
   const typing = text !== null;
   const value = typing ? text : (shown || '');

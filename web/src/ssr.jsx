@@ -143,9 +143,9 @@ export function forecastWords(answers) {
   const days = answers.length ? answers[0].days : [];
   const run = answers.length ? answers[0].run : null;
   out.push(renderToStaticMarkup(
-    <Welcome where="map" onFind={nothing} onGo={nothing} />));
+    <Welcome where="map" onGo={nothing} />));
   out.push(renderToStaticMarkup(
-    <Welcome where="panel" onFind={nothing} onGo={nothing} />));
+    <Welcome where="panel" onGo={nothing} />));
   // SPEC 11.39. How to read this map, which is a page of its own now. It
   // is swept with the forecast page and not with the two document pages,
   // because it is the one page that may say "it is not a probability" --
@@ -167,7 +167,7 @@ export function forecastWords(answers) {
   });
   out.push(renderToStaticMarkup(
     <Search onTown={nothing} onPoint={nothing} onUnit={nothing} busy={false}
-      shown="" askFocus={0} />));
+      shown="" />));
   // SPEC 11.38. The state block, for every one of the 36, and the line a
   // query that matched nothing is answered with.
   UNITS.forEach((unit) => {
@@ -202,7 +202,7 @@ export function forecastWords(answers) {
 
   // The bar of 11.37: both labels the handle can carry, the button, and
   // every line a chosen square can put in it.
-  out.push(PICK_A_PLACE, 'Hide the details', 'Search');
+  out.push(PICK_A_PLACE, 'Hide the details');
   answers.forEach((place) => {
     [1, 10, 50].forEach((threshold) => {
       place.days.forEach((entry) => {

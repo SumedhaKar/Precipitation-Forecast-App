@@ -5950,6 +5950,48 @@ buttons.
 What the forecast page keeps is one explanatory line, the one under the
 place name. Nothing else on it explains anything.
 
+#### The calm look
+
+The page was not loud because of its colours; the map colours are 11.17's
+and are untouched. It was loud because everything on it was drawn as a box
+with an edge. The controls bar was fourteen white rectangles with hairline
+borders, which is what an empty form looks like, and three of those
+rectangles were already answered without a reader being able to see which.
+
+So:
+
+| | |
+|---|---|
+| an unchosen pill | a pale grey fill, `#e9edf1`, and no border at all |
+| the chosen pill | filled `#0b2b4a`, white ink, the same navy the map marks the chosen square with |
+| cards and notes | the fill is what says it is a card; no outline round it |
+| a quoted note | may keep a 3 pixel bar down its left edge, which is not an outline |
+| the search box | keeps its 1 pixel border: it is the one control a reader puts something into, and a field with no edge reads as a line of text |
+| every control | keeps the focus ring, declared once as `:focus-visible { outline: 2px solid #0b2b4a; outline-offset: 2px }`. Nothing on this site may set `outline: none` |
+| labels | no all-caps, anywhere. Mixed case is read about a fifth faster, and capitals were being used to make three ordinary questions look like system labels |
+
+Two rules about how much of each thing there may be: at most two text
+sizes in the header, and at most three in the card. And the space between
+one group and the next is about one and a half times what it was on a
+phone and about twice on a desktop; both numbers are one custom property
+each, so the whole page reads them and a change is one line.
+
+The map's own state names lose their capitals with everything else. A
+state is told from a city by weight, colour and letter spacing, which is
+what told them apart before as well, and the width of every one of those
+words is measured at runtime before it is placed (11.31), so the placement
+follows the words rather than an assumption about them.
+
+#### Three buttons that are gone
+
+"Find my city", "Find a city" and the bar's "Search" are all removed. Each
+of them did the same thing: open the panel and move the keyboard into the
+search box. A button whose whole job is to focus a box that is already on
+the screen is a second way in competing with the first, and it was the
+first way in that readers could not find. What replaces all three is the
+search row itself, with the box in it, and the card saying what to do:
+"Tap the map or search a city to see its next five days."
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

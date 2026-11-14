@@ -562,47 +562,43 @@ export function HowToReadLink({ onGo, to = '/how-to-read', children }) {
 }
 
 /**
- * What the page says before anything has been chosen at all. SPEC 11.38.
+ * What the card says before anything has been chosen. SPEC 11.38, 11.39.
  *
  * Two real first-time readers failed here: one could not tell what the site
  * was for, and one did not know how to start. The page opened on a map of
  * counts with no sentence saying what a count was and no visible way in —
  * the only control on a phone's first screen was a line of grey text.
  *
- * So the empty state carries exactly two things: what this is, in words that
- * assume nothing, and what to do next. It is drawn over the map on a phone
- * and in the empty panel on a desktop; the stylesheet hides whichever copy
- * is not this reader's, so only one is ever in the page a reader is given.
+ * So the empty card carries exactly two things: what this is, in words that
+ * assume nothing, and what to do next.
  *
- * It never covers the "Not an official warning" chip, which is in the header
- * above the map and on the screen whatever else is.
+ * SPEC 11.39 took the "Find my city" button off it. A button whose whole
+ * job was to move the keyboard into a box already on the screen is a
+ * second way in competing with the first, and the search row is the first:
+ * the card says what to do and the box is right there to do it in.
  */
-export function Welcome({ onFind, onGo, where }) {
+export function Welcome({ onGo, where }) {
   return (
     <div className={`welcome welcome-${where || 'panel'}`}>
-      <h2>Will it rain where you are in the next 5 days?</h2>
+      <h2>Will it rain where you are?</h2>
       <p>
-        One weather model from Europe&apos;s weather centre (ECMWF), run 51
-        times, each from a slightly different start. We show how many of the
-        51 bring rain where you are.
+        One weather model, run 51 times from slightly different starts. We
+        show how many of the 51 bring rain where you are.
       </p>
-      <button type="button" className="findcity" onClick={onFind}>
-        Find my city
-      </button>
-      <p className="ortap">
-        or tap the map
-        {/* SPEC 11.39. A link to a page now, not a button that opened a
-            drawer: the explanation is its own page and can be linked to,
-            bookmarked and sent to somebody. */}
-        <HowToReadLink onGo={onGo} />
+      <p className="prompt">
+        Tap the map or search a city to see its next five days.
       </p>
+      {/* SPEC 11.39. A link to a page, not a button that opened a drawer:
+          the explanation is its own page and can be linked to, bookmarked
+          and sent to somebody. */}
+      <HowToReadLink onGo={onGo} />
     </div>
   );
 }
 
 export default function Panel({
   place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
-  onFind, onGo,
+  onGo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
   // are shown for the chosen square or not at all. `place.square.asked` is
@@ -649,7 +645,7 @@ export default function Panel({
         ) : null}
         {!square && !busy ? (
           <>
-            <Welcome where="panel" onFind={onFind} onGo={onGo} />
+            <Welcome where="panel" onGo={onGo} />
           </>
         ) : null}
       </div>

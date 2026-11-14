@@ -29,6 +29,23 @@
   --font: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif;
   --panel: 380px;
+
+  /* SPEC 11.39, the calm look. A pill is a fill and not an outline: the
+     controls bar was fourteen white boxes with hairline borders, which
+     reads as fourteen things to do rather than three questions with an
+     answer chosen in each. The chosen one is filled navy, which is the
+     same --picked the map marks the chosen square with. */
+  --pill: #e9edf1;
+  --pill-ink: #1f2933;
+  --pill-on: var(--picked);
+  --pill-on-ink: #ffffff;
+
+  /* The space between one group and the next. SPEC 11.39 asks for about
+     one and a half times what it was on a phone and about twice on a
+     desktop; these are those numbers, and every group reads one of them
+     rather than setting its own. */
+  --gap: 1rem;
+  --gap-across: 3.2rem;
 }
 
 * { box-sizing: border-box; }
@@ -144,14 +161,16 @@ header {
 }
 
 /* SPEC 11.28: visible without scrolling, on every screen. */
+/* SPEC 11.39: the amber says it is a warning about warnings; the outline
+   round the amber said nothing the fill did not. */
 .headwarn {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   color: var(--warn-ink);
   background: var(--warn-bg);
-  border: 1px solid #f0d9b5;
+  border: 0;
   border-radius: 6px;
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.5rem;
 }
 
 .headwarn a { color: #7a4100; }
@@ -220,7 +239,6 @@ header {
   text-align: center;
   padding: 0.7rem 0.9rem;
   background: var(--card);
-  border: 1px solid var(--rule);
   border-radius: 8px;
 }
 
@@ -235,7 +253,7 @@ header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 0.5rem 1.6rem;
+  gap: var(--gap) var(--gap-across);
   padding: 0.5rem 1rem;
   background: var(--card);
   border-bottom: 1px solid var(--rule);
@@ -245,28 +263,30 @@ header {
 
 /* SPEC 11.38: 12 pixels is the floor for the whole forecast page, not the
    phone alone. These were 11.5 and 10.6 on a desktop. */
+/* SPEC 11.39: no all-caps anywhere on this page. Capitals are 20 per cent
+   harder to read than the same words in mixed case and these were being
+   used to make three ordinary questions look like system labels. */
 .grouplabel {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--faint);
+  font-size: 0.8125rem;
+  color: var(--quiet);
 }
 
 .radios { display: flex; flex-wrap: wrap; gap: 0.25rem; }
 
 .radios button {
   padding: 0.3rem 0.55rem;
-  background: var(--card);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
+  background: var(--pill);
+  color: var(--pill-ink);
+  border: 0;
+  border-radius: 8px;
   font-size: 0.82rem;
   white-space: nowrap;
 }
 
 .radios button.on {
-  background: var(--picked);
-  border-color: var(--picked);
-  color: #ffffff;
+  background: var(--pill-on);
+  color: var(--pill-on-ink);
+  font-weight: 600;
 }
 
 
@@ -313,11 +333,16 @@ header {
    12 now. The fit of 11.31 measures the drawn word, so a bigger word
    simply means a code where a name used to fit and nothing where a code
    used to -- which is the algorithm doing its job and not a layout bug. */
+/* SPEC 11.39: no all-caps. A state is told from a city by its weight, its
+   colour and its letter spacing, which is what told them apart before as
+   well; capitals were doing nothing the other three were not, and they
+   were the last all-caps text on the page. The width of every one of
+   these words is measured at runtime before it is drawn (11.31), so the
+   placement follows the words rather than an assumption about them. */
 .maplabel.state {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
   color: var(--quiet);
   text-shadow:
     0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff, 0 0 5px #ffffff;
@@ -443,15 +468,16 @@ header {
 
 .search label {
   display: block;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--faint);
+  font-size: 0.8125rem;
+  color: var(--quiet);
   margin-bottom: 0.2rem;
 }
 
 .searchrow { display: flex; gap: 0.35rem; }
 
+/* SPEC 11.39. Every pill lost its outline and this did not: an input is
+   the one control a reader puts something into, and a field with no edge
+   reads as a line of text. */
 .searchrow input {
   flex: 1 1 auto;
   min-width: 0;
@@ -599,7 +625,7 @@ header {
 /* ---------------------------------- a whole state searched, SPEC 11.38 */
 
 .unitfound {
-  margin: 0.4rem 0 0;
+  margin: var(--gap) 0 0;
   padding: 0.5rem 0.6rem;
   background: var(--page);
   border-left: 3px solid var(--picked);
@@ -624,7 +650,6 @@ header {
    one is in the page a reader is given and a screen reader hears it once. */
 .welcome {
   background: var(--card);
-  border: 1px solid var(--rule);
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
@@ -640,38 +665,19 @@ header {
   color: var(--quiet);
 }
 
-/* Large, because the review's reader could not find a way in at all. */
-.welcome .findcity {
-  display: block;
-  width: 100%;
-  min-height: 48px;
-  padding: 0.6rem 1rem;
-  background: var(--picked);
-  border: 1px solid var(--picked);
-  border-radius: 8px;
-  color: #ffffff;
-  font-size: 1.02rem;
-  font-weight: 600;
-}
-
-.welcome .ortap {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0 0.6rem;
-  margin: 0.3rem 0 0;
-  font-size: 0.9rem;
-  color: var(--faint);
+/* What to do next, which is the whole job the button used to have. */
+.welcome .prompt {
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+  font-size: 1rem;
 }
 
 .welcome .howtolink {
+  display: inline-flex;
+  align-items: center;
   min-height: 44px;
-  padding: 0.3rem 0.2rem;
-  background: none;
-  border: 0;
   color: #0b4f8a;
-  font-size: 0.95rem;
+  font-size: 1rem;
   text-decoration: underline;
 }
 
@@ -707,12 +713,12 @@ header {
   font-variant-numeric: tabular-nums;
 }
 
-/* An island the grid cannot carry is not an error, and is not red. */
+/* An island the grid cannot carry is not an error, and is not red. The
+   fill is what says it is a note; SPEC 11.39 took the outline off. */
 .notice {
   margin-bottom: 1rem;
   padding: 0.55rem 0.7rem;
   background: var(--page);
-  border: 1px solid var(--rule);
   border-radius: 8px;
 }
 
@@ -750,20 +756,25 @@ header {
   width: 100%;
   padding: 0.35rem 0.45rem;
   text-align: left;
-  background: var(--card);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
+  background: var(--pill);
+  color: var(--pill-ink);
+  border: 0;
+  border-radius: 8px;
   font-size: 0.88rem;
   font-variant-numeric: tabular-nums;
 }
 
-.countrow:hover { background: var(--page); }
+.countrow:hover { background: #dde3e9; }
 
+/* The chosen row is filled, like the chosen pill, and the fill is what
+   says so: the ring round it was a box inside a box. */
 .countrow.on {
-  border-color: var(--picked);
-  box-shadow: inset 0 0 0 1px var(--picked);
-  background: var(--page);
+  background: var(--pill-on);
+  color: var(--pill-on-ink);
 }
+
+.countrow.on .rowwhat, .countrow.on .rowband { color: inherit; }
+.countrow.on:hover { background: #123c63; }
 
 .rowwhat { color: var(--quiet); }
 .rowband { font-size: 0.78rem; color: var(--quiet); white-space: nowrap; }
@@ -1009,7 +1020,9 @@ footer p { max-width: 70ch; }
 /* ------------------------------------- phone and tablet: a bottom sheet */
 
 @media (max-width: 1023px) {
-  header { gap: 0.3rem; }
+  :root { --gap: 0.6rem; --gap-across: 1.5rem; }
+
+  header { gap: 0.4rem; }
 
   /* SPEC 11.38. The phone's header is three short rows and no more: the
      name with the warning chip beside it, the tagline and the freshness
@@ -1085,7 +1098,7 @@ footer p { max-width: 70ch; }
      handle. */
   .mapwrap { flex: 1 1 auto; min-height: 6rem; order: 1; }
 
-  .controls { gap: 0.25rem 1rem; padding: 0.3rem 0.6rem; }
+  .controls { padding: 0.4rem 0.6rem; }
 
   .radios { flex-wrap: nowrap; }
 
@@ -1195,18 +1208,6 @@ footer p { max-width: 70ch; }
     color: var(--ink);
   }
 
-  .sheetsearch {
-    flex: 0 0 auto;
-    min-height: 44px;
-    padding: 0.35rem 0.85rem;
-    background: var(--card);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    font-size: 0.95rem;
-    color: #0b4f8a;
-    white-space: nowrap;
-  }
-
   /* Closed, everything below the bar is out of the way and the map has the
      rest of the screen: the search box, Use my location, the counts, the
      dots and How to read this map are all things to read once the panel is
@@ -1269,8 +1270,7 @@ footer p { max-width: 70ch; }
   }
   .welcome-map h2 { font-size: 1rem; margin-bottom: 0.3rem; }
   .welcome-map p { font-size: 0.85rem; margin-bottom: 0.4rem; }
-  .welcome-map .findcity { min-height: 46px; font-size: 1rem; }
-  .welcome-map .ortap { margin: 0.25rem 0 0; font-size: 0.85rem; }
+  .welcome-map .prompt { font-size: 0.95rem; margin-bottom: 0.3rem; }
 
   .titles { flex: 1 1 100%; }
 
@@ -1407,7 +1407,7 @@ footer p { max-width: 70ch; }
   .run { font-size: 0.7rem; line-height: 1.35; }
   .runid { margin-left: 0.4rem; font-size: 0.66rem; }
 
-  .controls { gap: 0.2rem 0.6rem; padding: 0.25rem 0.6rem; }
+  .controls { padding: 0.35rem 0.6rem; }
 
   /* SPEC 11.38. "Which day?" is a question and it is asked out loud. The
      label used to be the word "Day", which five dates in a row did not
