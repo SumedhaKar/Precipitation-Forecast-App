@@ -6099,6 +6099,36 @@ the "Show" button that used to sit beside the box is gone with "Find my
 city" and the bar's "Search", and what a reader taps instead is one of the
 matches, which appear as the name is typed.
 
+#### The map card, and the two gestures
+
+The map is a card with rounded corners. Its height is the smaller of 55
+per cent of the visible viewport and 480 pixels, and never under 280:
+
+| screen | the map |
+|---|---|
+| 390 x 844 | 464 pixels, and the whole card including the key is on the first screen |
+| 390 x 664 | 365 pixels |
+| 320 x 568 | 312 pixels |
+| 1024 and over | the smaller of 62 per cent and 600, never under 360 |
+
+This is the one height on the page that is a share of the viewport, and it
+may be, because the page scrolls: the map cannot squeeze another block off
+it. The fault of 11.35 was a share of the screen asked for inside a
+fixed-height shell, where 52vh left the panel twenty pixels tall with its
+handle behind the browser's bars.
+
+One finger scrolls the page and two move the map, which is MapLibre's own
+`cooperativeGestures` and its own hint ("Use two fingers to move the
+map"). A map that takes a one-finger drag inside a scrolling page is a
+trap: the map is 365 pixels of a 664 pixel screen, so a reader who puts a
+thumb down to scroll past it lands on the map more often than not, and the
+page does not move. The same option asks for ctrl with the wheel, which is
+the same bargain for a mouse. A tap is not a gesture: choosing a square is
+untouched.
+
+Both are measured with real touch events, on a screen with two touch
+points, and not by reading the option back out of the source.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

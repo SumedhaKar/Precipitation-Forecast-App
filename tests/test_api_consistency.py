@@ -4092,7 +4092,30 @@ async function size(width, height) {
   await send('Emulation.setDeviceMetricsOverride', {
     width, height, deviceScaleFactor: 1, mobile: true,
   }, sessionId);
+  // SPEC 11.39. A screen with two fingers on it, so that one finger and
+  // two can be told apart: without this the page has no touch at all and
+  // the gesture checks below would be measuring a mouse.
+  await send('Emulation.setTouchEmulationEnabled',
+    { enabled: true, maxTouchPoints: 2 }, sessionId);
   await new Promise((go) => setTimeout(go, 400));
+}
+
+/** A drag with `many` fingers, from (x, y), by (dx, dy), in six steps. */
+async function drag(x, y, dx, dy, many) {
+  const at = (step) => Array.from({ length: many }, (_, n) => ({
+    x: x + n * 40 + (dx * step) / 6,
+    y: y + (dy * step) / 6,
+  }));
+  await send('Input.dispatchTouchEvent',
+    { type: 'touchStart', touchPoints: at(0) }, sessionId);
+  for (let step = 1; step <= 6; step += 1) {
+    await send('Input.dispatchTouchEvent',
+      { type: 'touchMove', touchPoints: at(step) }, sessionId);
+    await new Promise((go) => setTimeout(go, 40));
+  }
+  await send('Input.dispatchTouchEvent',
+    { type: 'touchEnd', touchPoints: [] }, sessionId);
+  await new Promise((go) => setTimeout(go, 500));
 }
 
 /**
@@ -4429,6 +4452,42 @@ try {
     await evaluate("document.querySelector('.mapkey summary').click()");
     await new Promise((go) => setTimeout(go, 1200));
     here.keyBack = await evaluate(LOOK);
+
+    // SPEC 11.39. One finger scrolls the page and two move the map.
+    //
+    // The scroll is asked for as a gesture rather than as raw touch
+    // events, because scrolling is the browser's own answer to a touch
+    // drag and not the page's; the two-finger drag is raw touch, because
+    // that one is the map's own handler answering.
+    if (here.first.map && here.first.map.height > 40) {
+      const middle = {
+        x: Math.round(here.first.map.width / 2),
+        y: Math.round(here.first.map.top + here.first.map.height / 2),
+      };
+      const before = await evaluate(`(() => ({
+        scrollY: Math.round(window.scrollY),
+        bounds: document.querySelector('.map').mapView().bounds,
+      }))()`);
+      await drag(middle.x, middle.y, 0, -90, 1);
+      const oneFinger = await evaluate(`(() => ({
+        scrollY: Math.round(window.scrollY),
+        bounds: document.querySelector('.map').mapView().bounds,
+        hint: (document.querySelector(
+          '.maplibregl-cooperative-gesture-screen') || {}).textContent
+          || null,
+      }))()`);
+      await evaluate('window.scrollTo(0, 0)');
+      await new Promise((go) => setTimeout(go, 400));
+      await drag(middle.x, middle.y, 70, 0, 2);
+      const twoFingers = await evaluate(`(() => ({
+        scrollY: Math.round(window.scrollY),
+        bounds: document.querySelector('.map').mapView().bounds,
+      }))()`);
+      here.gestures = { before, oneFinger, twoFingers };
+      // Put the map back where it started, so what follows is measured
+      // on the view the page opens with.
+      await open('/');
+    }
 
     // SPEC 11.39. The search box, used: a city typed and the form
     // submitted, which is one of the three ways a place is chosen.
@@ -6193,3 +6252,82 @@ def test_searching_for_a_city_answers_in_the_card(viewport, size):
     # agree (SPEC 11.28).
     assert here["afterSearch"]["searchValue"], here["afterSearch"]
     assert here["afterSearch"]["searchValue"] in card["cardText"]
+
+
+
+# ------------------------------- SPEC 11.39: one finger, and two fingers
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "1440x900"])
+def test_one_finger_scrolls_the_page_and_two_move_the_map(viewport, size):
+    """SPEC 11.39, item 3. A map inside a scrolling page is a trap.
+
+    The map is 365 pixels of a 664 pixel screen, so a reader who puts a
+    thumb down to scroll past it lands on the map more often than not --
+    and if the map takes the drag, the page does not move and the reader
+    is stuck. MapLibre's own cooperativeGestures is the answer, with its
+    own hint: one finger scrolls, two move the map.
+
+    Measured with real touch events on a screen with two touch points,
+    not by reading the option back out of the source.
+    """
+    seen = viewport["phone"][size].get("gestures")
+    assert seen, "the gestures were not measured"
+    # One finger: the page moved and the map did not.
+    assert seen["oneFinger"]["scrollY"] > seen["before"]["scrollY"], seen
+    assert seen["oneFinger"]["bounds"] == seen["before"]["bounds"], seen
+    # And the map said why, in the words MapLibre itself uses.
+    assert "Use two fingers to move the map" in (seen["oneFinger"]["hint"]
+                                                 or ""), seen["oneFinger"]
+    # Two fingers: the map moved and the page did not.
+    assert seen["twoFingers"]["scrollY"] == 0, seen["twoFingers"]
+    moved = abs(seen["twoFingers"]["bounds"][0]
+                - seen["before"]["bounds"][0])
+    assert moved > 1, (seen["before"]["bounds"], seen["twoFingers"]["bounds"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "390x844", "320x568"])
+def test_the_map_card_is_the_size_the_spec_says(viewport, size):
+    """SPEC 11.39, item 3. The smaller of 55 per cent and 480, never under
+    280.
+
+    A share of the viewport, which this page may have exactly once: it
+    scrolls, so the map cannot squeeze another block off it -- which is
+    what the old 52vh inside a fixed-height shell did, leaving the panel
+    twenty pixels tall with its handle off the bottom of the screen.
+    """
+    width, height = (int(n) for n in size.split("x"))
+    seen = viewport["phone"][size]["first"]
+    want = max(min(0.55 * height, 480), 280)
+    # Within a pixel: the browser rounds a percentage of a viewport to a
+    # third of a pixel and the measurement is rounded to a tenth.
+    assert abs(seen["map"]["height"] - want) <= 1, (
+        size, seen["map"], want)
+    # The whole card, the key included, and nothing over the canvas.
+    assert seen["mapcard"]["bottom"] >= seen["mapkey"]["bottom"] - 1
+    assert seen["keyOver"]["position"] == "static"
+
+
+@needs_node
+def test_the_map_card_is_whole_on_the_screen_at_390_by_844(viewport):
+    """SPEC 11.39, item 3's own measurement.
+
+    Everything from the header to the bottom of the map card, the
+    collapsed key included, is on the screen before anybody scrolls.
+    """
+    seen = viewport["phone"]["390x844"]["first"]
+    assert seen["scrollY"] == 0
+    assert seen["mapcard"]["bottom"] <= 844, seen["mapcard"]
+    assert seen["mapkey"]["bottom"] <= 844, seen["mapkey"]
+    assert seen["warn"]["top"] >= 0 and seen["asks"]["top"] >= 0
+
+
+@needs_node
+def test_at_least_250_pixels_of_the_map_is_on_the_screen_at_390_by_664(
+        viewport):
+    """SPEC 11.39, item 3's other measurement."""
+    seen = viewport["phone"]["390x664"]["first"]
+    assert seen["scrollY"] == 0
+    shown = min(seen["mapcard"]["bottom"], 664) - max(seen["mapcard"]["top"], 0)
+    assert shown >= 250, (shown, seen["mapcard"])

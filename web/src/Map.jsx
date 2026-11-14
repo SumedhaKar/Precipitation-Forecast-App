@@ -666,6 +666,18 @@ export default function ForecastMap({
         minZoom: 2,
         maxZoom: 9,
         dragRotate: false,
+        // SPEC 11.39. One finger scrolls the page and two move the map,
+        // which is MapLibre's own cooperativeGestures and its own hint.
+        //
+        // The page scrolls now, and a map that takes a one-finger drag
+        // inside a scrolling page is a trap: the map is 365 pixels of a
+        // 664 pixel screen, so a reader who puts a thumb down to scroll
+        // past it lands on the map more often than not and the page does
+        // not move. The same option asks for ctrl with the wheel, which
+        // is the same bargain for a mouse.
+        //
+        // Tapping a square is untouched: a tap is not a gesture.
+        cooperativeGestures: true,
         pitchWithRotate: false,
         attributionControl: false,
         // SPEC 11.25: reading a pixel back from a WebGL canvas needs this,
