@@ -117,6 +117,31 @@ export function notProbability() {
 }
 
 /**
+ * What the 51 are. SPEC 11.40.
+ *
+ * The empty card said "One weather model, run 51 times from slightly
+ * different starts" and the dots said "Each dot is one run": true, and
+ * neither says what a run is to somebody who has not met an ensemble. A
+ * reader who thinks the 51 are 51 forecasts from 51 sources reads a count
+ * of 26 as a vote. They are not: they are one model, run again from
+ * starting conditions nudged about inside what the observations allow.
+ *
+ * Two sentences, one each, written here because the empty card, the dots
+ * and the How to read this map page all say one of them and the page may
+ * not say it three different ways. "Guesses" is the ordinary word for
+ * what they are and claims nothing: it is not on the forbidden list of
+ * 11.20 and could not be, because the honest word for a forecast of
+ * weather five days out is a guess.
+ */
+export const GUESSES = `The same weather model is run ${MEMBERS} times, `
+  + 'each starting from slightly different conditions: '
+  + `${MEMBERS} slightly different guesses.`;
+
+export const ONE_DOT = `Each dot is one of ${MEMBERS} slightly different `
+  + 'guesses by the same weather model; its colour shows how much rain it '
+  + 'brings that day.';
+
+/**
  * A MapLibre `step` expression for one day and threshold.
  *
  * Switching day or threshold calls setPaintProperty with this, over a

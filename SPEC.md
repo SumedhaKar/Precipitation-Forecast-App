@@ -6275,6 +6275,34 @@ reader can have, and the page is measured at every width: where the first
 pill reads "Tomorrow" the note is there, and where it does not the note is
 not in the page at all.
 
+#### What the 51 are, said once
+
+A reader who meets "26 of 51" and thinks the 51 are 51 forecasts from 51
+sources reads it as a vote. They are not: they are one model, run again
+from starting conditions nudged about inside what the observations allow.
+The page had two sentences about it and neither said that — the empty card
+said "One weather model, run 51 times from slightly different starts", and
+the dots said "Each dot is one run".
+
+Two sentences now, both in `palette.js` beside MEMBERS, so the three
+places that say one of them cannot say it three ways:
+
+> The same weather model is run 51 times, each starting from slightly
+> different conditions: 51 slightly different guesses.
+
+in the empty card and on the How to read this map page, and
+
+> Each dot is one of 51 slightly different guesses by the same weather
+> model; its colour shows how much rain it brings that day.
+
+directly under **The 51 runs, one dot each**, above the 51 squares, so it
+is read before them rather than after. "Guesses" is the ordinary word for
+what they are; it is not on the forbidden list of 11.20 and could not be,
+because the honest word for a forecast of weather five days out is a
+guess. A test reads both out of `palette.js`, checks that no component
+writes either out again, and checks that each is said at most once in
+anything the page renders.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

@@ -5414,8 +5414,16 @@ def test_the_dots_are_readable_without_opening_anything(forecast_words):
         assert html.index('class="dots"') < html.index('class="more"')
         text = words_of(html)
         assert "The 51 runs, one dot each" in text
-        assert ("Each dot is one run; its colour shows how much rain it "
+        # SPEC 11.40. One sentence, and it says what a run is: "each dot
+        # is one run" is only a sentence to a reader who already knows.
+        # It is directly under the heading, above the 51 squares, so it
+        # is read before them and not after.
+        assert ("Each dot is one of 51 slightly different guesses by the "
+                "same weather model; its colour shows how much rain it "
                 "brings that day." in text)
+        assert (html.index("slightly different guesses by the same")
+                < html.index('class="dotgrid"'))
+        assert text.count("slightly different guesses by the same") == 1
         seen += 1
     assert seen > 20, seen
 
@@ -5564,6 +5572,14 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  # the section of How to read this map that explains it.
                  "(starts tomorrow: the forecast arrives around midday)",
                  "The mornings when the five days start tomorrow",
+                 # SPEC 11.40: what the 51 are, said once in the empty
+                 # card and once beside the dots.
+                 "The same weather model is run 51 times, each starting "
+                 "from slightly different conditions: 51 slightly "
+                 "different guesses.",
+                 "Each dot is one of 51 slightly different guesses by the "
+                 "same weather model; its colour shows how much rain it "
+                 "brings that day.",
                  # SPEC 11.39: the help sentences are on the How to read
                  # this map page, in these words, and the page is rendered
                  # into this sweep so they are still checked.
@@ -6004,9 +6020,11 @@ def test_the_empty_card_asks_the_question_and_offers_the_page(
     for html in cards:
         text = words_of(html)
         assert "Will it rain where you are?" in text
-        assert ("One weather model, run 51 times from slightly different "
-                "starts. We show how many of the 51 bring rain where you "
-                "are." in text)
+        # SPEC 11.40. The sentence says what the 51 come out as, in the
+        # same words the dots and the How to read page use.
+        assert ("The same weather model is run 51 times, each starting "
+                "from slightly different conditions: 51 slightly "
+                "different guesses." in text)
         assert ("Tap the map or search a city to see its next five days."
                 in text)
         assert 'href="/how-to-read"' in html
@@ -6750,3 +6768,42 @@ def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
         else:
             assert first["startsNote"] is None, (size, word,
                                                  first["startsNote"])
+@needs_node
+def test_what_the_fifty_one_are_is_written_down_once(forecast_words):
+    """SPEC 11.40. Two sentences, one copy each, three readers.
+
+    The empty card, the dots and the How to read this map page all have
+    to say what the 51 are, and a page that says it three ways says it
+    three times to anybody who reads two of them. Both sentences are
+    strings in `palette.js`, beside MEMBERS and the sentence that refuses
+    the probability reading, and nothing writes them out again.
+    """
+    palette = (ROOT / "web" / "src" / "palette.js").read_text("utf-8")
+    assert "export const GUESSES = " in palette
+    assert "export const ONE_DOT = " in palette
+    # Nothing else writes either sentence out: the components take the
+    # string. Comments are stripped first -- the reason a sentence is
+    # worded the way it is belongs beside it.
+    for name in ("Panel.jsx", "HowToRead.jsx", "Controls.jsx", "App.jsx"):
+        said = (ROOT / "web" / "src" / name).read_text("utf-8")
+        code = re.sub(r"/\*.*?\*/", "", said, flags=re.S)
+        code = re.sub(r"\{/\*.*?\*/\}", "", code, flags=re.S)
+        code = " ".join(line.split("//")[0] for line in code.splitlines())
+        for gone in ("times, each starting from slightly different",
+                     "slightly different guesses by the same weather"):
+            assert gone not in code, (name, gone)
+
+    # And in the rendered page each is said once wherever it is said.
+    for html in forecast_words:
+        if not isinstance(html, str):
+            continue
+        text = words_of(html)
+        for sentence in (
+            "The same weather model is run 51 times, each starting from "
+            "slightly different conditions: 51 slightly different "
+            "guesses.",
+            "Each dot is one of 51 slightly different guesses by the same "
+            "weather model; its colour shows how much rain it brings that "
+            "day.",
+        ):
+            assert text.count(sentence) <= 1, sentence

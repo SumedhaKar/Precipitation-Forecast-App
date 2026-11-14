@@ -11,7 +11,7 @@
 
 import { Fragment, useState } from 'react';
 
-import { colourOf, inkOf, labelOf } from './palette';
+import { GUESSES, ONE_DOT, colourOf, inkOf, labelOf } from './palette';
 import { squareText } from './snap';
 import { placeName } from './places';
 import { sameSquare } from './answers';
@@ -386,6 +386,12 @@ export function Dots({ place, day }) {
   return (
     <div className="dots">
       <h3>The 51 runs, one dot each</h3>
+      {/* SPEC 11.40. Directly under the heading, before the 51 squares: a
+          reader meets the sentence that tells them what a dot is before
+          they meet the dots, not after. It was under the key below them,
+          and it said "Each dot is one run", which is only a sentence to
+          somebody who already knows what a run is. */}
+      <p className="small dotline">{ONE_DOT}</p>
       <ol className="dotgrid">
         {dots.map((category, index) => (
           // eslint-disable-next-line react/no-array-index-key
@@ -404,13 +410,6 @@ export function Dots({ place, day }) {
           </li>
         ))}
       </ul>
-      {/* SPEC 11.38. One line saying what a dot is. The grid of 51 squares
-          was drawn with no sentence to read it by, so a reader who did not
-          already know what an ensemble was met 51 coloured boxes. */}
-      <p className="small">
-        Each dot is one run; its colour shows how much rain it brings that
-        day.
-      </p>
     </div>
   );
 }
@@ -584,10 +583,12 @@ export function Welcome({ onGo }) {
   return (
     <div className="welcome">
       <h2>Will it rain where you are?</h2>
-      <p>
-        One weather model, run 51 times from slightly different starts. We
-        show how many of the 51 bring rain where you are.
-      </p>
+      {/* SPEC 11.40. What the 51 are, in one sentence, and the same
+          sentence the dots and the How to read this map page use. The
+          card used to say "One weather model, run 51 times from slightly
+          different starts", which leaves a reader to work out what a
+          start is; this says what the 51 come out as. */}
+      <p>{GUESSES}</p>
       <p className="prompt">
         Tap the map or search a city to see its next five days.
       </p>

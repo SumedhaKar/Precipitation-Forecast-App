@@ -17,7 +17,9 @@
 // text that scrolls, lazily loaded, so none of this is in the forecast's
 // download.
 
-import { CLASSES, MEMBERS, NEIGHBOURS, notProbability } from './palette';
+import {
+  CLASSES, GUESSES, MEMBERS, NEIGHBOURS, notProbability,
+} from './palette';
 import { AMOUNTS, STARTS_TOMORROW } from './Controls';
 import { KeyRows } from './Legend';
 
@@ -98,9 +100,9 @@ export default function HowToRead() {
       </p>
 
       <h2>The colours</h2>
+      {/* SPEC 11.40: the same sentence the empty card and the dots use. */}
       <p>
-        The model is run {MEMBERS} times from slightly different starting
-        points. A square&apos;s colour is how many of those {MEMBERS} runs
+        {GUESSES} A square&apos;s colour is how many of those {MEMBERS} runs
         bring at least the chosen amount of rain in the chosen day. Darker is
         more runs.
       </p>
