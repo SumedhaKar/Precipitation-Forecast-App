@@ -231,12 +231,15 @@ export default function TopNav({ path, onGo }) {
                   onGo(page.path);
                 }}
               >
+                {/* The words "(you are here)" were beside the name of
+                    the page being read, on a laptop only -- below 1024
+                    pixels the stylesheet has always hidden them and marked
+                    the link bold and underlined instead. They are gone:
+                    the link's own style says it, the same way at every
+                    width, and `aria-current` is what a screen reader is
+                    given. SPEC 11.22 is still satisfied without them,
+                    because weight and an underline are not a colour. */}
                 {page.name}
-                {/* The colour is not the only thing that says which page
-                    this is: SPEC 11.22. */}
-                {here ? (
-                  <span className="small hereword"> (you are here)</span>
-                ) : null}
               </a>
             </li>
           );

@@ -3974,14 +3974,21 @@ def test_the_forbidden_words_hold_on_both_pages(rendered):
 
 @needs_node
 def test_the_menu_is_three_real_links(rendered):
-    """SPEC 11.34: three paths, and the one being read marked in words."""
+    """SPEC 11.34: three paths, and the one being read marked as itself.
+
+    The words "(you are here)" are out of the laptop bar: the link's own
+    style says which page this is -- bold, underlined and the navy, which
+    is more than a colour (11.22) -- and `aria-current` is what a screen
+    reader is given. So the words are checked gone and the
+    attribute is checked present, on exactly one link of the three.
+    """
     navs = rendered["pages"]["nav"]
     assert sorted(navs) == ["/", "/how-we-checked", "/report-card"]
     for path, html in navs.items():
         for other in navs:
             assert f'href="{other}"' in html, (path, other)
         assert html.count('aria-current="page"') == 1
-        assert html.count("(you are here)") == 1
+        assert "(you are here)" not in html, path
         here = html.split('aria-current="page"')[0]
         assert here.rstrip().endswith(f'class="navlink here"') or \
             f'href="{path}"' in here.split("<a")[-1]

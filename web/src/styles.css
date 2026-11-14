@@ -1485,7 +1485,9 @@ footer p { max-width: 70ch; }
   /* SPEC 11.22 is satisfied without the words: the current page is bold
      and underscored, which is not a colour, and the words are still said
      to a screen reader. On a phone they are what wraps the menu onto a
-     second line. */
+     second line. The bold and the underline moved to the base rule,
+     where every width gets them; this still hides the words, which the
+     open menu is the only thing left writing. */
   .hereword {
     position: absolute;
     width: 1px;
@@ -1495,13 +1497,6 @@ footer p { max-width: 70ch; }
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
-
-  .navlink.here {
-    font-weight: 700;
-    text-decoration: underline;
-    text-underline-offset: 4px;
-    text-decoration-thickness: 2px;
   }
 
   /* SPEC 11.38, kept by 11.39: the rows a thumb has to hit are 44 pixels
@@ -1708,11 +1703,18 @@ footer p { max-width: 70ch; }
 
 .navlink:hover { background: var(--page); }
 
-/* The page being read is marked in the text as well as in the colour. */
+/* The page being read, marked by more than its colour at every width:
+   SPEC 11.22, now that the words "(you are here)" are not in the laptop
+   bar to carry it. Bold and underlined was the phone's treatment and is
+   now everyone's. */
 .navlink.here {
   background: var(--picked);
   border-color: var(--picked);
   color: #ffffff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
 }
 
 .navlink.here .small { color: #d8e4ef; }
