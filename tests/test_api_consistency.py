@@ -4446,6 +4446,7 @@ try {
   for (const path of ['/report-card', '/how-we-checked', '/how-to-read']) {
     await open(path);
     out.pages[path] = await evaluate(LOOK);
+    await shoot(`page${path.replace(/\//g, '-')}`);
   }
 
   // The forecast page, at each size the tests ask about.

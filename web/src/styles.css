@@ -1346,6 +1346,15 @@ footer p { max-width: 70ch; }
    what gives is the padding around the menu, because three links at 15
    point come to 258 of the 320 pixels. */
 @media (max-width: 360px) {
+  /* SPEC 11.39. The five-day strip takes two rows here. At 320 pixels the
+     card is 278 wide inside its padding, which is 52 pixels a cell, and
+     "Tomorrow" is 58 of them: the word would be cut. Two rows of three
+     and two gives every cell 90 pixels, and the height costs nothing now
+     that the page scrolls -- which is the whole trade 11.39 makes, and
+     the reason the type does not have to give way. */
+  .strip ol { flex-wrap: wrap; }
+  .strip li { flex: 1 1 30%; }
+
   .topnav ul { gap: 0.2rem; }
   .topnav .navlink { padding: 0.2rem 0.3rem; }
   .radios { gap: 0.25rem; }
