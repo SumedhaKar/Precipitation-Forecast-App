@@ -29,12 +29,12 @@ import {
 import MapKey from './Legend';
 import { Clock, Logo, Warn } from './Icons';
 import { DayChoice, MyLocation, Search, ThresholdChoice } from './Controls';
-import { countKey } from './palette';
+import { MEMBERS, countKey } from './palette';
 import { inBox, snap, squareText } from './snap';
 import { nameOfSquare, placeTitle } from './places';
 import { notFoundNote } from './islands';
 import { OUTSIDE, THE_BOX, mapProblem } from './messages';
-import { keepAnswer } from './answers';
+import { keepAnswer, sameSquare } from './answers';
 
 // SPEC 11.16: MapLibre is 295 KB gzipped, so it is a chunk of its own and
 // the run line, the stale banner and the panel paint without waiting for it.
@@ -608,6 +608,19 @@ export default function App({ health, healthError, onGo }) {
 
   const run = place ? place.run : health;
   const days = (place ? place.days : (health ? health.days : [])) || [];
+  // SPEC 11.40. The chosen place's own count for each of the five days,
+  // for the day pills to carry, and null until there is an answer for
+  // the square that is chosen now. The rule of 11.30 is the same rule
+  // the card follows: a number is shown for the chosen square or not at
+  // all, so the pills ask `sameSquare` exactly as the card does.
+  const answered = place && place.square
+    && sameSquare(place.square.asked, square);
+  const dayCounts = answered
+    ? Object.fromEntries(place.days.map((entry) => [
+      entry.lead_day,
+      entry.counts_by_threshold[THRESHOLDS.indexOf(threshold)].count,
+    ]))
+    : null;
   const squareName = square
     ? (from === 'location' ? 'Your location'
       : nameOfSquare(square.lat, square.lon))
@@ -650,7 +663,14 @@ export default function App({ health, healthError, onGo }) {
 
           <div className="pills">
             {days.length ? (
-              <DayChoice days={days} day={day} onDay={setDay} />
+              <DayChoice
+                days={days}
+                day={day}
+                onDay={setDay}
+                counts={dayCounts}
+                threshold={threshold}
+                members={place ? place.members : MEMBERS}
+              />
             ) : null}
             <ThresholdChoice
               threshold={threshold}
@@ -720,7 +740,6 @@ export default function App({ health, healthError, onGo }) {
               busy={busy}
               day={day}
               threshold={threshold}
-              onDay={setDay}
               onThreshold={setThreshold}
               from={from}
               onGo={onGo}

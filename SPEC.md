@@ -6292,6 +6292,49 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### One row of days, with the counts on it
+
+The page had two rows of days. Five pills above the map chose the day,
+and 400 pixels below them the card drew the same five days again with the
+same five counts for the same amount — each with its own way of drawing a
+day, its own way of drawing a count, and its own tap target for choosing
+one. The forecast is five days long, so one row of five is the whole of
+it.
+
+The card's five-day strip is gone. Once a place is chosen, each day pill
+carries that place's count for the chosen amount as a third line: a bare
+number, with a small square before it in the map's own colour for that
+count, from the one palette table in `palette.js`. The square has a white
+hairline round it so that it is still a square on the navy of the chosen
+pill, and the pill's own fill goes on meaning nothing but "chosen".
+
+Under the row, once there are numbers and not before:
+
+> The number on each day: how many of the 51 runs bring 10 mm or more
+> here.
+
+and each pill says the whole of it to a screen reader — "Today, 15 Nov:
+26 of the 51 runs bring 10 mm or more here" — from `pillSentence` in
+`palette.js`, which is also where the caption comes from, so the two
+cannot say different things. Before a place is chosen the pills are the
+day and the date and nothing else, because a count with no place is not a
+count. Tapping a pill still chooses the day for the map and for the card,
+which is measured by tapping one and reading back the key the canvas is
+painting from.
+
+The counts come from the same rule the card follows (11.30): they are
+drawn for the square that is chosen now or not at all, so the pills and
+the card cannot disagree, and a test checks the chosen pill's number
+against the number in the card's own sentence.
+
+On a desktop this makes the row above the map taller once a place is
+chosen — 77 pixels to 154, so the map's top goes from 199 to 275 — and
+the map's height is worked out from the taller of the two. The whole map
+is on the screen in both states: 733 of 768 at 1366, 615 of 650, 865 of
+900, 729 of 768 at 1024. Holding the row at its taller height from the
+start was the alternative, and it costs 45 pixels of map on every screen
+for ever to save a 45-pixel shift once.
+
 #### The colour key comes off the map
 
 11.39 floated the key in the map's lower left corner, over the Arabian

@@ -97,7 +97,6 @@ export function forecastWords(answers) {
             place={place}
             day={entry.lead_day}
             threshold={threshold}
-            onDay={nothing}
             onThreshold={nothing}
             from={{ how: 'tap' }}
             square={place.square.asked}
@@ -109,19 +108,18 @@ export function forecastWords(answers) {
   // The panel's other states: nothing chosen, waiting, a square still
   // loading, an island the grid cannot carry, and each way it can fail.
   out.push(renderToStaticMarkup(
-    <Panel day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
+    <Panel day={1} threshold={10} onThreshold={nothing} />));
   out.push(renderToStaticMarkup(
-    <Panel busy day={1} threshold={10} onDay={nothing}
-      onThreshold={nothing} />));
+    <Panel busy day={1} threshold={10} onThreshold={nothing} />));
   out.push(renderToStaticMarkup(
-    <Panel square={somewhere} day={1} threshold={10} onDay={nothing}
+    <Panel square={somewhere} day={1} threshold={10}
       onThreshold={nothing} />));
   ISLANDS.forEach((island) => {
     const lat = island.lat[0];
     const lon = island.lon[0];
     out.push(renderToStaticMarkup(
       <Panel notice={{ where: islandGroup(lat, lon), note: island.note }}
-        day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
+        day={1} threshold={10} onThreshold={nothing} />));
   });
   // SPEC 11.38: OUTSIDE is not here. A tap on the sea is a notice now, and
   // it is rendered as one above.
@@ -131,7 +129,7 @@ export function forecastWords(answers) {
     .forEach((said) => {
       out.push(renderToStaticMarkup(
         <Panel error={{ said, detail: said }} day={1} threshold={10}
-          onDay={nothing} onThreshold={nothing} />));
+          onThreshold={nothing} />));
     });
 
   // SPEC 11.38. Everything outside the panel that the forecast page draws:
@@ -164,6 +162,24 @@ export function forecastWords(answers) {
           today={String(today.from_ist).slice(0, 10)} />));
     });
   });
+  // SPEC 11.40. The day pills with a place's own counts on them, for
+  // every amount: the third line, the small square and the caption are
+  // only drawn once a place is chosen, so a sweep that only ever
+  // rendered the empty row would never read them.
+  if (answers.length) {
+    const first = answers[0];
+    [1, 10, 50].forEach((threshold) => {
+      const counts = Object.fromEntries(first.days.map((entry) => [
+        entry.lead_day,
+        entry.counts_by_threshold[[1, 10, 50].indexOf(threshold)].count,
+      ]));
+      out.push(renderToStaticMarkup(
+        <DayChoice days={first.days} day={first.days[0].lead_day}
+          onDay={nothing} counts={counts} threshold={threshold}
+          members={first.members} />));
+    });
+  }
+
   // SPEC 11.40. And the morning when the five days start tomorrow, which
   // none of the twenty-five above can be: the reader's date is the day
   // before the first of the five, which is the state the note is drawn
@@ -221,7 +237,7 @@ export function forecastWords(answers) {
   // The calm line for a tap on the sea or on a neighbour's land.
   out.push(renderToStaticMarkup(
     <Panel notice={{ where: null, note: OUTSIDE, why: THE_BOX }}
-      day={1} threshold={10} onDay={nothing} onThreshold={nothing} />));
+      day={1} threshold={10} onThreshold={nothing} />));
 
   // SPEC 11.39. The bar of 11.37, its one-line summary and the prompt it
   // showed with nothing chosen are gone: the card is on the page, so

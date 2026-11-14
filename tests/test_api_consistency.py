@@ -314,8 +314,6 @@ def test_an_unreachable_store_is_a_503(store, harness):
                  env={"STORE_BASE_URL": "http://127.0.0.1:1"})
     assert reply["status"] == 503
     assert "could not be read" in reply["json"]["error"]
-
-
 def test_the_committed_store_config_is_the_fallback():
     """SPEC 11.5: one committed source of truth, and no credential in it."""
     config = json.loads((ROOT / "config" / "store.json").read_text())
@@ -578,8 +576,6 @@ def test_the_day_sentence_matches_the_counts_of_every_square(store, harness):
             counts = record["c"][day]
             assert answer["days"][day]["sentence"] == expected_sentence(
                 counts, thresholds, members), (lat, lon, day, counts)
-
-
 def test_the_published_counts_are_monotone(store):
     """SPEC 4.2, which is what lets the sentence stop at the first zero."""
     for lat, lon in india_squares(store):
@@ -943,8 +939,6 @@ def load_towns() -> list[dict]:
 
 def load_mask() -> dict:
     return json.loads(MASK_FILE.read_text("utf-8"))
-
-
 def test_the_town_list_is_the_natural_earth_list_it_says_it_is():
     body = json.loads(TOWNS_FILE.read_text("utf-8"))
     assert body["source"]["layer"] == "ne_10m_populated_places"
@@ -1247,6 +1241,8 @@ def test_every_class_is_written_in_an_ink_that_can_be_read_on_it(exports):
 
 
 # ------------- SPEC 11.29: the names the map draws, and what it says when
+
+
 # ------------- something it does not control fails
 
 UNITS_FILE = ROOT / "web" / "src" / "units.json"
@@ -1260,8 +1256,6 @@ INDEX_HTML = ROOT / "web" / "index.html"
 
 def load_units() -> list[dict]:
     return json.loads(UNITS_FILE.read_text("utf-8"))["units"]
-
-
 def test_the_unit_list_is_the_natural_earth_list_it_says_it_is():
     body = json.loads(UNITS_FILE.read_text("utf-8"))
     assert body["source"]["units"] == "ne_10m_admin_1_states_provinces"
@@ -2172,6 +2166,8 @@ def test_the_day_buttons_are_short_and_the_window_is_not():
 
 
 # ----------------- SPEC 11.30: the land around India, the names in the
+
+
 # ----------------- order they are placed, and one answer at a time
 
 ANSWERS = ROOT / "web" / "src" / "answers.js"
@@ -2414,8 +2410,6 @@ def test_the_names_are_placed_cities_first_and_no_unit_is_left_unlabelled():
     assert "if (!put && item.code) {" in map_src
     assert map_src.index("if (!put && item.code) {") \
         < map_src.index("if (!put) {\n        hide(item);")
-
-
 def test_the_twenty_city_list_is_gone_and_nothing_looks_for_it():
     """SPEC 11.30. web/src/cities.json is deleted.
 
@@ -2613,8 +2607,6 @@ def test_the_map_offers_a_unit_s_name_one_place_and_only_one():
     # for anybody else.
     assert ("words.push([item.code, item.codeW, 'coded', CODE_TRIES, 1]);"
             in text)
-
-
 def test_a_colour_swatch_is_not_a_control():
     """SPEC 11.31. Seen on the page: swatches that look like tick boxes.
 
@@ -2689,8 +2681,6 @@ def test_the_hand_check_flag_reaches_the_canvas():
     pinned = json.loads(
         (ROOT / "web" / "package.json").read_text("utf-8"))
     assert pinned["dependencies"]["maplibre-gl"].startswith("6.")
-
-
 def test_the_page_says_what_the_hand_check_has_to_assert():
     """SPEC 11.25. HC8 asserts the two conditions rather than assuming them.
 
@@ -3525,8 +3515,6 @@ def details_file() -> dict:
 
 def verification() -> dict:
     return json.loads(VERIFICATION.read_text(encoding="utf-8"))
-
-
 def test_the_details_file_holds_what_the_verification_holds():
     """SPEC 11.34. Derived again here, and compared row by row.
 
@@ -3867,8 +3855,6 @@ def test_the_menu_is_three_real_links(rendered):
     assert "Forecast" in navs["/"]
     assert "Report card" in navs["/report-card"]
     assert "How we checked" in navs["/how-we-checked"]
-
-
 def test_the_rewrite_sends_the_pages_and_only_the_pages_to_one_file():
     """SPEC 11.34. Three paths, one index.html, and two things left alone.
 
@@ -4257,6 +4243,22 @@ const LOOK = `(async () => {
     mmLinks: document.querySelectorAll('.mmwhat a').length,
     mmLines: [...document.querySelectorAll('.mmwhat .amountwords li')]
       .map((e) => e.textContent.replace(/[ ]+/g, ' ').trim()),
+    // SPEC 11.40. The count on each day pill, the colour of the square
+    // before it, and the caption under the row.
+    dayCounts: [...document.querySelectorAll('.days .radios button')]
+      .map((e) => {
+        const seen = e.querySelector('.pillcount');
+        const sq = e.querySelector('.daysq');
+        return {
+          name: e.getAttribute('aria-label'),
+          on: /(^| )on( |$)/.test(e.className),
+          count: seen ? seen.textContent.trim() : null,
+          colour: sq ? getComputedStyle(sq).backgroundColor : null,
+          edge: sq ? getComputedStyle(sq).borderTopColor : null,
+        };
+      }),
+    pillNote: (document.querySelector('.pillnote') || {})
+      .textContent || null,
     dayPills: [...document.querySelectorAll('.days .radios button')]
       .map((e) => [e.querySelector('.pilltop')
         ? e.querySelector('.pilltop').textContent : null,
@@ -4715,6 +4717,24 @@ try {
       here.afterMapTap = await evaluate(LOOK);
       here.card = await evaluate(INSIDE);
       await shoot(`${key}-tapped`);
+
+      // SPEC 11.40. And a day pill, tapped: the pills carry counts now
+      // and they are still the control that chooses the day. The one
+      // tapped is the last of the five, which is never the one the page
+      // opens on.
+      const pills = await evaluate(
+        "document.querySelectorAll('.days .radios button').length");
+      if (pills > 1) {
+        await evaluate(`(() => {
+          const all = document.querySelectorAll('.days .radios button');
+          all[all.length - 1].click();
+          return true;
+        })()`);
+        await new Promise((go) => setTimeout(go, 1200));
+        here.afterDayTap = await evaluate(LOOK);
+        here.dayTapCard = await evaluate(INSIDE);
+        await shoot(`${key}-dayTapped`);
+      }
     }
     out.phone[key] = here;
   }
@@ -4941,8 +4961,6 @@ def built_css(tmp_path_factory):
     assert sheets, "the build wrote no stylesheet"
     return "\n".join(path.read_text(encoding="utf-8")
                      for path in sheets)
-
-
 def test_every_viewport_height_is_the_map_and_has_a_dvh_pair():
     """SPEC 11.35, as SPEC 11.39 leaves it.
 
@@ -5117,8 +5135,6 @@ def test_the_list_names_every_file_each_check_wrote(rendered):
         line = line[:line.index("</li>")]
         for when in dates:
             assert when in line, (name, when, line[:300])
-
-
 def test_the_list_says_how_many_squares_hc8_covered():
     """SPEC 11.25 and 11.36. Five squares, counted from the file itself."""
     import csv as csv_module
@@ -5446,7 +5462,7 @@ def forbidden_in(text: str, allowed: dict) -> str | None:
 
 
 # SPEC 11.38. The panel's order, by the class each block is drawn with.
-ANSWER_FIRST = ("placeline", "headline", "strip", "dots",
+ANSWER_FIRST = ("placeline", "headline", "dots",
                 "notpromise", "trust", "more")
 
 ONCE_ONLY = "A count of runs, not a promise of rain."
@@ -5583,8 +5599,6 @@ def test_the_panel_and_the_bar_say_no_forbidden_word(forecast_words):
     assert every.count("probability") == sum(
         every.count(sentence)
         for sentence in FORECAST_ALLOWED["probability"])
-
-
 def test_the_forecast_sweep_would_catch_a_forbidden_word():
     """A sweep that cannot fail proves nothing. SPEC 11.38.
 
@@ -5645,7 +5659,7 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  # rendering them could not pass quietly.
                  "Will it rain where you are?",
                  "Tap the map or search a city to see its next five days.",
-                 "The next five days", "The 51 runs, one dot each",
+                 "The 51 runs, one dot each",
                  "A count of runs, not a promise of rain.",
                  "More detail", "5:30 am to 5:30 am IST",
                  "When the runs said this before in",
@@ -5699,8 +5713,8 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
 # the day and the amount and the square's own centre are not in it: the
 # headline carries the day and the amount, and the square and the window
 # are inside More detail.
-CARD_ORDER = ("placeline", "headline", "strip",
-              "dots", "notpromise", "trust", "more")
+CARD_ORDER = ("placeline", "headline", "dots", "notpromise", "trust",
+              "more")
 
 # SPEC 11.40. "Today, 15 Nov: about half of the 51 runs bring 10 mm or
 # more (26 of 51)." The day as the pill names it, the band word, the
@@ -6357,8 +6371,15 @@ def test_the_key_is_the_top_of_the_panel_on_a_desktop(viewport, size):
         if not later:
             continue
         assert later["keyInPanel"] is True, how
-        assert abs(later["mapkey"]["top"] - seen["mapkey"]["top"]) <= 1, (
-            how, later["mapkey"], seen["mapkey"])
+        # Still the top of the panel, which is still the top of the map
+        # beside it: both move together when the row above them grows,
+        # and nothing of the card ever gets above the key.
+        assert later["keyOpen"] is False, how
+        assert abs(later["mapkey"]["top"]
+                   - later["mapcard"]["top"]) <= 1, (
+            how, later["mapkey"], later["mapcard"])
+        assert later["mapkey"]["top"] <= later["card"]["top"] + 1, (
+            how, later["mapkey"], later["card"])
         assert later["overTheMap"] == [], (how, later["overTheMap"])
 
 
@@ -6419,8 +6440,6 @@ def test_a_phone_gets_a_menu_button_and_a_desktop_gets_the_links(
     assert abs(seen["brand"]["top"] - seen["mapkey"]["top"]) > 0
     assert seen["brand"]["bottom"] <= seen["fresh"]["top"] + 1
     assert seen["overlapping"] == [], seen["overlapping"]
-
-
 def test_the_menu_holds_all_four_pages_and_can_be_got_out_of():
     """SPEC 11.39. Four entries, and three ways to shut it.
 
@@ -6964,6 +6983,8 @@ def test_the_sweep_covers_the_header_and_the_menu(forecast_words):
                  "enough to leave the ground damp.",
                  "hours old; a newer one has not arrived yet."):
         assert must in every, must
+
+
 # ------------------------------ SPEC 11.40: the fixes after the rebuild
 
 
@@ -6993,6 +7014,8 @@ def test_the_detail_handle_says_what_the_next_tap_does(viewport):
         assert again["moreOpen"] is False, size
         assert again["moreLabel"].strip() == "More detail", (
             size, again["moreLabel"])
+
+
 @needs_node
 def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
                                                                viewport):
@@ -7035,6 +7058,8 @@ def test_the_starts_tomorrow_note_is_drawn_only_when_it_is_true(exports,
         else:
             assert first["startsNote"] is None, (size, word,
                                                  first["startsNote"])
+
+
 @needs_node
 def test_what_the_fifty_one_are_is_written_down_once(forecast_words):
     """SPEC 11.40. Two sentences, one copy each, three readers.
@@ -7074,6 +7099,8 @@ def test_what_the_fifty_one_are_is_written_down_once(forecast_words):
             "day.",
         ):
             assert text.count(sentence) <= 1, sentence
+
+
 @needs_node
 def test_the_location_is_titled_by_its_place_and_says_so_once(viewport):
     """SPEC 11.40, with 11.28 unchanged. "Near Budaun", then the small lines.
@@ -7115,6 +7142,8 @@ def test_the_location_is_titled_by_its_place_and_says_so_once(viewport):
         assert " N " not in box and box[-1] != "E", (size, box)
         seen += 1
     assert seen >= 4, seen
+
+
 @needs_node
 def test_only_the_dot_bands_that_happened_are_listed(forecast_words):
     """SPEC 11.40. A row with no dots behind it is not a reading.
@@ -7156,6 +7185,8 @@ def test_only_the_dot_bands_that_happened_are_listed(forecast_words):
         seen += 1
     assert seen > 20, seen
     assert hidden, "no card had a band with no dots in it"
+
+
 @needs_node
 @pytest.mark.parametrize("size", ["390x664", "1440x900"])
 def test_one_footer_with_no_second_warning_and_one_credits_handle(
@@ -7216,6 +7247,8 @@ def test_the_footer_is_inside_the_panel_on_a_desktop(viewport):
     assert narrow["footerInPanel"] is True
     assert narrow["footer"]["width"] >= narrow["card"]["width"] - 2, (
         narrow["footer"], narrow["card"])
+
+
 # ------------------- SPEC 11.40: the desktop, and the map that fills it
 
 # The four screens item 8 names. 1366 by 768 is the laptop; 1366 by 650 is
@@ -7325,3 +7358,201 @@ def test_every_india_square_is_in_the_visible_map_on_a_desktop(viewport,
         inside = on_screen([(lat, lon)], view["bounds"], width, tall)[0]
         assert 0 <= inside[2] <= width, (size, name, inside)
         assert 0 <= inside[3] <= visible, (size, name, inside)
+
+
+@needs_node
+def test_the_card_has_no_five_day_strip(forecast_words):
+    """SPEC 11.40. Two rows of days was one row too many.
+
+    The card drew the same five days as the pills above the map, with the
+    same five counts for the same amount, 400 pixels further down, each
+    with its own way of drawing a day and its own way of drawing a count.
+    The forecast is five days long, so one row of five is the whole of
+    it, and the row a reader is already using carries the numbers.
+    """
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="placeline"' not in html:
+            continue
+        for gone in ('class="strip"', 'class="cell', "The next five days"):
+            assert gone not in html, gone
+    # And nothing in the page or the stylesheet draws one.
+    panel = PANEL.read_text("utf-8")
+    code = re.sub(r"/\*.*?\*/", "", panel, flags=re.S)
+    code = "\n".join(line.split("//")[0] for line in code.splitlines())
+    for gone in ("DayStrip", "cellcount", "cellday"):
+        assert gone not in code, gone
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    bare = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    for gone in (".strip", ".cellday", ".cellcount", ".cell {"):
+        assert gone not in bare, gone
+
+
+@needs_node
+def test_a_day_pill_carries_its_own_count_and_says_it_in_words(exports,
+                                                               forecast_words):
+    """SPEC 11.40. A bare number, a square in the map's colour, a sentence.
+
+    The number is what a reader came for and the square is what ties it
+    to the map; neither says what it is, so the pill's accessible name is
+    the whole sentence and the caption under the row says it once in
+    writing. Both come from one function, so the two cannot differ.
+    """
+    said = exports(PALETTE, "pillSentence",
+                   [["Today, 15 Nov", 26, 10, 51]])[0]
+    assert said == ("Today, 15 Nov: 26 of the 51 runs bring 10 mm or more "
+                    "here"), said
+    # With no count -- nothing chosen -- the name is the day and no more.
+    assert exports(PALETTE, "pillSentence",
+                   [["Today, 15 Nov", None, 10, 51]])[0] == "Today, 15 Nov"
+    note = exports(PALETTE, "pillNote", [[50, 51]])[0]
+    assert note == ("The number on each day: how many of the 51 runs bring "
+                    "50 mm or more here."), note
+
+    # And in the rendered row: five pills, five counts inside the 51, the
+    # caption once, and every pill naming its own count in its own name.
+    seen = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or "pillcount" not in html:
+            continue
+        counts = re.findall(r'class="pillcount">.*?</span>(\d+)</span>',
+                            html)
+        assert len(counts) == 5, counts
+        assert all(0 <= int(n) <= 51 for n in counts), counts
+        text = words_of(html)
+        assert text.count("The number on each day:") == 1, text
+        for number in counts:
+            assert f": {number} of the 51 runs bring " in html, number
+        seen += 1
+    assert seen == 3, seen
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "1440x900"])
+def test_the_pills_carry_the_counts_only_once_a_place_is_chosen(viewport,
+                                                                exports,
+                                                                size):
+    """SPEC 11.40. No numbers before, the map's own colours after.
+
+    Before a place is chosen a count would be a count of nothing, so the
+    pills are the day and the date and there is no caption. After one,
+    every pill carries that place's count for the chosen amount with a
+    square in the palette's colour for it -- the map's colour, from the
+    one table in palette.js -- and the chosen pill's number is the number
+    the card's own sentence gives.
+    """
+    page = viewport["phone"][size]
+    first = page["first"]
+    # Before: no numbers, no caption.
+    assert [p["count"] for p in first["dayCounts"]] == [None] * 5, (
+        first["dayCounts"])
+    assert first["pillNote"] is None, first["pillNote"]
+
+    # After, by every way of choosing a place that this size measures.
+    seen = 0
+    for how, which in (("afterSearch", "searchCard"),
+                       ("afterLocate", "locateCard"),
+                       ("afterMapTap", "card")):
+        later = page.get(how)
+        card = page.get(which)
+        if not later or not card:
+            continue
+        pills = later["dayCounts"]
+        assert len(pills) == 5, pills
+        counts = [int(p["count"]) for p in pills]
+        assert all(0 <= n <= 51 for n in counts), counts
+        # The caption, once, with the chosen amount in it.
+        assert later["pillNote"].strip() == (
+            "The number on each day: how many of the 51 runs bring 1 mm "
+            "or more here."), later["pillNote"]
+        # Each square is the palette's colour for its own count, which is
+        # the colour the map paints that square.
+        wanted = exports(PALETTE, "colourOf", [[n] for n in counts])
+        for pill, hexed in zip(pills, wanted):
+            red, green, blue = (int(hexed[at:at + 2], 16)
+                                for at in (1, 3, 5))
+            assert pill["colour"] == f"rgb({red}, {green}, {blue})", (
+                how, pill, hexed)
+            # And a white hairline, so the square is still a square on
+            # the navy of the chosen pill.
+            assert pill["edge"] == "rgb(255, 255, 255)", (how, pill)
+            # The pill's own name says the sentence, not just the number.
+            assert "of the 51 runs bring" in pill["name"], pill
+        # The chosen pill's count is the card's own count.
+        chosen = [p for p in pills if p["on"]]
+        assert len(chosen) == 1, pills
+        said = re.search(r"\((\d+) of 51\)", card["cardText"] or "")
+        assert said, card["cardText"][:160]
+        assert int(chosen[0]["count"]) == int(said.group(1)), (
+            how, chosen, said.group(1))
+        seen += 1
+    assert seen >= 2, seen
+
+
+@needs_node
+def test_tapping_a_day_pill_still_changes_the_day(viewport):
+    """SPEC 11.40. The pills are controls first and a reading second.
+
+    Carrying a number is the new job; the old one -- choosing which day
+    the map paints and the card answers for -- is unchanged. A pill is
+    tapped for real and the map's own paint key, the card's sentence and
+    which pill is filled all follow it.
+    """
+    page = viewport["phone"]["390x664"]
+    after = page.get("afterDayTap")
+    assert after, "the day tap was never measured"
+    before = page["afterMapTap"]
+    # A different day is chosen, and exactly one pill is filled.
+    assert [p["on"] for p in after["dayCounts"]] != [
+        p["on"] for p in before["dayCounts"]], after["dayCounts"]
+    assert sum(1 for p in after["dayCounts"] if p["on"]) == 1
+    # The card answers for the day that is now chosen.
+    chosen = next(p for p in after["dayCounts"] if p["on"])
+    said = re.search(r"\((\d+) of 51\)", page["dayTapCard"]["cardText"])
+    assert said, page["dayTapCard"]["cardText"][:160]
+    assert int(chosen["count"]) == int(said.group(1)), (chosen, said.group(1))
+    # And the map is painting that day: its own key says which.
+    assert after["view"]["paint"] != before["view"]["paint"], (
+        after["view"]["paint"], before["view"]["paint"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", DESKTOPS)
+def test_the_desktop_map_is_whole_on_the_screen_after_a_choice_too(viewport,
+                                                                  size):
+    """SPEC 11.40. Choosing a place moves the map down; it stays on screen.
+
+    Item 10 puts a third line on every day pill and a caption under the
+    row, and both appear only once a place is chosen -- so the row above
+    the map is 77 pixels tall before a choice and 154 after one, and the
+    map's top goes from 199 to 275.
+
+    The map's height is worked out from the taller of the two, so the
+    whole of it is on the screen in both: that is what is checked here,
+    at every size, by all four ways of choosing. Its height never
+    changes, so the fit is untouched and India does not move inside it.
+    """
+    page = viewport["phone"][size]
+    first = page["first"]
+    height = int(size.split("x")[1])
+    seen = 0
+    for how in ("afterSearch", "afterLocate", "afterMapTap", "afterDayTap"):
+        later = page.get(how)
+        if not later:
+            continue
+        assert abs(later["map"]["height"] - first["map"]["height"]) <= 1, (
+            how, later["map"], first["map"])
+        assert later["mapcard"]["bottom"] <= height, (
+            how, later["mapcard"], height)
+        assert later["scrollY"] == 0, (how, later["scrollY"])
+        # And the country is still inside the part of the canvas on the
+        # screen, which is the whole of it.
+        box = later["map"]
+        visible = min(box["height"], height - box["top"])
+        assert visible >= box["height"] - 1, (how, box, height)
+        for lat, lon, x, y in on_screen(india_points(),
+                                        later["view"]["bounds"],
+                                        box["width"], box["height"]):
+            assert -1 <= x <= box["width"] + 1, (how, lat, lon, x)
+            assert -1 <= y <= visible + 1, (how, lat, lon, y)
+        seen += 1
+    assert seen >= 3, seen

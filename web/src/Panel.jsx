@@ -11,14 +11,14 @@
 
 import { Fragment, useState } from 'react';
 
-import { GUESSES, ONE_DOT, colourOf, inkOf, labelOf } from './palette';
+import { GUESSES, ONE_DOT, colourOf, labelOf } from './palette';
 import { squareText } from './snap';
 import { placeTitle } from './places';
 import { sameSquare } from './answers';
 import { trustFor } from './trust';
 import { headline } from './record';
 import { HowToReadLink, ReportCardLink } from './TopNav';
-import { dayAndDate, dayButton, istToday } from './days';
+import { dayAndDate, istToday } from './days';
 
 // SPEC 4.3, in the order the store publishes them. The same colour family as
 // the map's legend, so the page has one visual language.
@@ -176,45 +176,20 @@ export function PlaceLine({ place, from }) {
   );
 }
 
-export function DayStrip({ place, day, threshold, onDay, today }) {
-  const k = THRESHOLDS.indexOf(threshold);
-  const now = today || istToday();
-  return (
-    <div className="strip">
-      <h3>The next five days</h3>
-      <ol>
-        {place.days.map((entry) => {
-          const count = entry.counts_by_threshold[k].count;
-          const chosen = entry.lead_day === day;
-          return (
-            <li key={entry.lead_day}>
-              <button
-                type="button"
-                className={chosen ? 'cell chosen' : 'cell'}
-                style={{ background: colourOf(count), color: inkOf(count) }}
-                aria-pressed={chosen}
-                aria-label={`${entry.short_ist} IST: ${count} of `
-                  + `${place.members} runs bring ${threshold} mm or more`}
-                onClick={() => onDay(entry.lead_day)}
-              >
-                <span className="cellday">
-                  {dayButton(entry.from_ist, now, entry.short_ist)}
-                </span>
-                <span className="cellcount">{count}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-      {/* SPEC 11.39. The line that explained the cells is gone from here.
-          What it said -- the colours, the amount, that the dates are IST --
-          is in the one line under the place name and in How to read this
-          map, and the cells each carry their own full sentence to a screen
-          reader. A help sentence under every block is how a page becomes
-          the wall of text three reviews read. */}
-    </div>
-  );
-}
+/* SPEC 11.40. The five-day strip is gone from the card.
+
+   It was a second row of days: the same five days, each with the same
+   count for the same amount, as the five pills above the map -- one row
+   of five at the top of the screen and another 400 pixels down inside
+   the card, each with its own way of drawing a day and its own way of
+   drawing a count. The forecast is five days long, so one row of five is
+   the whole of it, and the row a reader is already using is the one that
+   carries the numbers now (`DayChoice` in Controls.jsx).
+
+   Nothing is lost. Every one of the five counts is on a pill, in the
+   map's own colour for it; tapping a pill still changes the day for the
+   map and for the card; and the chosen day's three amounts are inside
+   More detail as they were. */
 
 /* SPEC 11.38. The day sentence of 11.20 used to be here, under the place
    name. It says "model runs", it is pinned word for word by its own test,
@@ -604,7 +579,7 @@ export function Welcome({ onGo }) {
 }
 
 export default function Panel({
-  place, error, notice, busy, day, threshold, onDay, onThreshold, from, square,
+  place, error, notice, busy, day, threshold, onThreshold, from, square,
   onGo,
 }) {
   // SPEC 11.30. The last line of defence, and the rule in one place: numbers
@@ -670,12 +645,6 @@ export default function Panel({
       <BackToMap />
       <PlaceLine place={place} from={from} />
       <Headline place={place} day={day} threshold={threshold} />
-      <DayStrip
-        place={place}
-        day={day}
-        threshold={threshold}
-        onDay={onDay}
-      />
       <Dots place={place} day={chosen} />
       {/* SPEC 11.38. The one caveat, said once. It was under the legend,
           under the counts and inside How to read this map, three times on

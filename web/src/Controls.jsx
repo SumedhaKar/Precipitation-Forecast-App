@@ -10,9 +10,10 @@ import {
   townsIn,
 } from './places';
 import { NO_LOCATION, OUTSIDE, locationProblem } from './messages';
+import { colourOf, pillNote, pillSentence } from './palette';
 import { Pin } from './Icons';
 import {
-  dayDate, dayName, dayWord, istToday, startsTomorrow,
+  dayAndDate, dayDate, dayWord, istToday, startsTomorrow,
 } from './days';
 
 const THRESHOLDS = [1, 10, 50];
@@ -28,7 +29,7 @@ export const STARTS_TOMORROW = '(starts tomorrow: the forecast arrives '
   + 'around midday)';
 
 /**
- * The day buttons. SPEC 11.38.
+ * The day buttons. SPEC 11.38, 11.40.
  *
  * A control asks a question, so the label is one. The buttons are named
  * from the reader's own IST date rather than from a lead day, which is why
@@ -38,9 +39,24 @@ export const STARTS_TOMORROW = '(starts tomorrow: the forecast arrives '
  *
  * SPEC 11.39: the line under them, which said where a day starts and ends,
  * is on the How to read this map page now.
+ *
+ * SPEC 11.40: once a place is chosen, each pill carries that place's own
+ * count for the chosen amount as a third line -- a bare number with a
+ * small square in the map's colour for it. There were two rows of days on
+ * the page before that: these five pills, and the card's own five-day
+ * strip saying the same five days with the same five counts, 400 pixels
+ * further down. The forecast is five days long, so one row of five is the
+ * whole of it.
+ *
+ * `counts` is the chosen place's five counts by lead day, or null where
+ * nothing has been chosen -- and then the pills are the day and the date
+ * and nothing else, because a count with no place is not a count.
  */
-export function DayChoice({ days, day, onDay, today }) {
+export function DayChoice({ days, day, onDay, today, counts, threshold,
+  members }) {
   const now = today || istToday();
+  const of = (entry) => (counts && Number.isInteger(counts[entry.lead_day])
+    ? counts[entry.lead_day] : null);
   return (
     <div className="group days">
       {/* SPEC 11.40. The question, and on the mornings when the five days
@@ -62,26 +78,52 @@ export function DayChoice({ days, day, onDay, today }) {
             role="radio"
             aria-checked={entry.lead_day === day}
             className={entry.lead_day === day ? 'on' : ''}
-            aria-label={`${dayName(entry.from_ist, now, entry.short_ist)}`
-              + (entry.label ? `, ${entry.label} IST` : '')}
+            aria-label={pillSentence(
+              dayAndDate(entry.from_ist, now, entry.short_ist),
+              of(entry), threshold, members)
+              + (entry.label ? `. ${entry.label} IST` : '')}
             onClick={() => onDay(entry.lead_day)}
           >
             {/* SPEC 11.39. Two lines: the name over the date. "Sat 15"
                 put two facts on one line and the date was the one that
                 got cut; "Today" with no date under it left a reader
-                counting days on their fingers. */}
+                counting days on their fingers.
+
+                SPEC 11.40 adds the third line once there is a place to
+                count for: the number, and a square in the map's own
+                colour for that number. The square has a white hairline
+                round it so that it is still a square on the navy of the
+                chosen pill; the pill's own fill goes on meaning nothing
+                but "chosen". */}
             <span className="pilltop">
               {dayWord(entry.from_ist, now, entry.short_ist)}
             </span>
             <span className="pillunder">{dayDate(entry.short_ist)}</span>
+            {of(entry) === null ? null : (
+              <span className="pillcount">
+                <span
+                  className="daysq"
+                  aria-hidden="true"
+                  style={{ background: colourOf(of(entry)) }}
+                />
+                {of(entry)}
+              </span>
+            )}
           </button>
         ))}
       </div>
       {/* SPEC 11.39. The line that said where a day starts and ends is on
           the How to read this map page, with every other help sentence this
-          page used to carry. What a reader needs beside an answer is the
-          one line under the place name, which says the day, the window and
-          the amount together. */}
+          page used to carry.
+
+          SPEC 11.40. What is here instead is the one caption the numbers
+          on the pills need, and only once there are numbers: five bare
+          numbers with no sentence are five numbers a reader has to guess
+          the meaning of. Each pill says the same sentence in full to a
+          screen reader. */}
+      {counts ? (
+        <p className="pillnote">{pillNote(threshold, members)}</p>
+      ) : null}
     </div>
   );
 }

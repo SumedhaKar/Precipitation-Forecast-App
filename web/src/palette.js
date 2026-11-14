@@ -142,6 +142,32 @@ export const ONE_DOT = `Each dot is one of ${MEMBERS} slightly different `
   + 'brings that day.';
 
 /**
+ * One day pill's own sentence. SPEC 11.40.
+ *
+ * The pill carries a bare number and a square in this file's colour for
+ * it, which is what ties it to the map; neither of those says what it is,
+ * so this is the pill's accessible name, and `pillNote` says the same
+ * thing once in writing under the row. One function each, so the five
+ * pills and the caption cannot say different things.
+ *
+ * Here rather than in Controls.jsx because this file has no imports and
+ * node can load it, so a test can drive both against the words they must
+ * say (SPEC 11.24).
+ */
+export function pillSentence(name, count, threshold, members = MEMBERS) {
+  if (!name) return null;
+  if (!Number.isInteger(count)) return name;
+  return `${name}: ${count} of the ${members} runs bring `
+    + `${threshold} mm or more here`;
+}
+
+/** The caption under the row, said once for all five. SPEC 11.40. */
+export function pillNote(threshold, members = MEMBERS) {
+  return `The number on each day: how many of the ${members} runs bring `
+    + `${threshold} mm or more here.`;
+}
+
+/**
  * A MapLibre `step` expression for one day and threshold.
  *
  * Switching day or threshold calls setPaintProperty with this, over a

@@ -472,6 +472,38 @@ button {
 .pillunder { font-size: 0.8125rem; color: var(--quiet); }
 .radios button.on .pillunder { color: #dce6f0; }
 
+/* SPEC 11.40. The third line of a day pill, once there is a place to
+   count for: the number, with a small square in the map's own colour for
+   it. The square carries a white hairline, so that it is still a square
+   on the navy of the chosen pill; the pill's own fill goes on meaning
+   nothing but "chosen", and the colour of the square is the map's. */
+.pillcount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.daysq {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border: 1px solid #ffffff;
+  border-radius: 2px;
+  flex: none;
+  pointer-events: none;
+}
+
+/* Said once for all five, and only where there are numbers on them. */
+.pillnote {
+  margin: 0.3rem 0 0;
+  font-size: 0.875rem;
+  color: var(--quiet);
+}
+
+
 /* SPEC 11.39, remade by 11.40. "What does mm mean?" on its own line
    under the amount pills, at the end of it, with no rule above it and no
    icon beside it. The three pills keep the whole width between them.
@@ -1093,39 +1125,10 @@ button {
 .trustnotes dt { color: var(--ink); }
 .trustnotes dd { margin: 0 0 0.4rem; }
 
-/* -------------------------------------------------------- the day strip */
-
-.strip { margin-top: 1rem; }
-
-.strip ol {
-  list-style: none;
-  display: flex;
-  gap: 0.25rem;
-  margin: 0 0 0.3rem;
-  padding: 0;
-}
-
-.strip li { flex: 1 1 0; min-width: 0; }
-
-.cell {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.1rem;
-  width: 100%;
-  padding: 0.35rem 0.1rem;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-}
-
-.cell.chosen { outline: 2px solid var(--picked); outline-offset: 1px; }
-/* `color` comes from the palette's own ink for that class, set inline. */
-.cellday { font-size: var(--card-sm); white-space: nowrap; }
-.cellcount {
-  font-size: var(--card-md);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
+/* SPEC 11.40. The five-day strip's rules are gone with the strip: the
+   five days are the five pills above the map, and their counts are the
+   third line of each pill. What follows is what the card has instead --
+   the dots, and the three amount rows inside More detail. */
 
 /* -------------------------------------------------------------- the dots */
 
@@ -1254,7 +1257,7 @@ footer p { max-width: 70ch; }
   :root { --gap: 0.8rem; --gap-across: 1.4rem; }
 
   .forecast {
-    --maph: min(100vh - 260px, 640px);
+    --maph: min(100vh - 310px, 640px);
     grid-template-columns: minmax(0, 1fr) var(--panel);
     grid-template-areas:
       "controls controls"
@@ -1309,12 +1312,22 @@ footer p { max-width: 70ch; }
   .amountline .mmwhat[open] { flex: 1 1 100%; }
   .amountline .mmwhat .amountwords { margin: 0.2rem 0 0; }
 
-  /* SPEC 11.40. The map takes the rest of the screen. The 260 pixels are
-     what is above it, measured: the band, the warning bar, the one row of
-     controls and the gaps around them come to 180 at 1366 and 236 at 1024
-     where the row wraps, and the remainder is the map with a little under
-     the fold to spare. The ceiling is 640, so a tall screen does not
-     stretch one square to the size of a town.
+  /* SPEC 11.40. The map takes the rest of the screen, and the 310 pixels
+     are measured against the **taller** of the two states the row above
+     it has. The band and the warning bar are 95; the row of questions is
+     77 with nothing chosen and 154 once a place is, because choosing one
+     puts a third line on every day pill and a caption under the row
+     (item 10); with the gaps, the map's own top is 199 before a choice
+     and 275 after one.
+
+     So the height is worked out from the second of those and the map
+     keeps it through both: before a choice it ends a little above the
+     fold, and after one the whole of it is still on the screen with no
+     page scrolled -- 733 of 768 at 1366, 615 of 650, 865 of 900. The
+     alternative was to hold the row at its taller height from the start,
+     which costs 45 pixels of map on every screen for ever to save a
+     45-pixel shift when a reader chooses somewhere. The ceiling is 640,
+     so a tall screen does not stretch one square to the size of a town.
 
      The vh line and the dvh line are two rules on purpose: a minifier
      drops a declaration the next one overrides (SPEC 11.35). */
@@ -1352,23 +1365,23 @@ footer p { max-width: 70ch; }
 
 @supports (height: 1dvh) {
   @media (min-width: 1024px) {
-    .forecast { --maph: min(100dvh - 260px, 640px); }
+    .forecast { --maph: min(100dvh - 310px, 640px); }
   }
 }
 
 /* SPEC 11.40. Below about 1100 pixels the three questions do not fit on
-   one line and the row takes two, which is 80 pixels more above the map:
-   measured at 1024 by 768, where the map's top goes from 180 to 260. The
-   map gives those pixels back, so the whole of it is still on the screen
-   with no page scrolled. 1152 is the top of the range because the three
-   groups' own content comes to about 1135 pixels at this type size. */
+   one line and the row takes two, which is 85 pixels more above the map.
+   The map gives those pixels back, so the whole of it is still on the
+   screen with no page scrolled. 1152 is the top of the range because the
+   three groups' own content comes to about 1135 pixels at this type
+   size. */
 @media (min-width: 1024px) and (max-width: 1151px) {
-  .forecast { --maph: min(100vh - 345px, 640px); }
+  .forecast { --maph: min(100vh - 395px, 640px); }
 }
 
 @supports (height: 1dvh) {
   @media (min-width: 1024px) and (max-width: 1151px) {
-    .forecast { --maph: min(100dvh - 345px, 640px); }
+    .forecast { --maph: min(100dvh - 395px, 640px); }
   }
 }
 
@@ -1477,15 +1490,12 @@ footer p { max-width: 70ch; }
    what gives is the padding around the menu, because three links at 15
    point come to 258 of the 320 pixels. */
 @media (max-width: 360px) {
-  /* SPEC 11.39. The five-day strip takes two rows here. At 320 pixels the
-     card is 278 wide inside its padding, which is 52 pixels a cell, and
-     "Tomorrow" is 58 of them: the word would be cut. Two rows of three
-     and two gives every cell 90 pixels, and the height costs nothing now
-     that the page scrolls -- which is the whole trade 11.39 makes, and
-     the reason the type does not have to give way. */
-  .strip ol { flex-wrap: wrap; }
-  .strip li { flex: 1 1 30%; }
-
+  /* SPEC 11.40. The five-day strip took two rows here, because at 320
+     pixels the card left 52 pixels a cell and "Tomorrow" is 58 of them.
+     The strip is gone and the five pills above the map carry the counts;
+     those have had `flex: 1 1 0` and `min-width: 0` since 11.39, so
+     each takes a fifth of whatever width there is and the three lines
+     on it wrap rather than being cut. */
   .topnav ul { gap: 0.2rem; }
   .topnav .navlink { padding: 0.2rem 0.3rem; }
   .radios { gap: 0.25rem; }

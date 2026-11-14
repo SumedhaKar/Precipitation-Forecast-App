@@ -1061,7 +1061,15 @@ export default function ForecastMap({
       const box = created.getBounds();
       return { zoom: created.getZoom(),
         bounds: [box.getWest(), box.getSouth(),
-          box.getEast(), box.getNorth()] };
+          box.getEast(), box.getNorth()],
+        // SPEC 11.40. Which of the fifteen count arrays the squares are
+        // painted from, read back off the layer itself rather than from
+        // the page's own state: it is how a test can say that tapping a
+        // day pill changed what is on the canvas. The key is the one
+        // `countKey` builds, so it names a day and an amount.
+        paint: created.getLayer('squares')
+          ? created.getPaintProperty('squares', 'fill-color')[1][1]
+          : null };
     };
 
     return () => {
