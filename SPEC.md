@@ -6084,6 +6084,21 @@ carry the warning in the footer only, which on either page is several
 screens down. The back link those two pages had is the mark and the name,
 which is the same way back from everywhere.
 
+#### The search row
+
+One row: a box, and a button at its right end.
+
+| | |
+|---|---|
+| the box | placeholder "Search a city or state"; its label is for a screen reader only, because a label over a box that already says what it is for was one more line of grey text above the map |
+| the button | the pin icon, with "Use my location" as both its accessible name and its tooltip: a pin on its own is a picture, and a picture is not a label (11.22) |
+| under it | "or tap the map", said once |
+
+Both are 44 pixels tall. Nothing in the row submits it but the keyboard:
+the "Show" button that used to sit beside the box is gone with "Find my
+city" and the bar's "Search", and what a reader taps instead is one of the
+matches, which appear as the name is typed.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and

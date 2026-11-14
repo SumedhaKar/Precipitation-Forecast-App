@@ -4165,6 +4165,12 @@ const LOOK = `(async () => {
     warnText: (document.querySelector('.headwarn') || {}).textContent || null,
     asks: box('.asks'),
     searchBox: box('.searchrow input'),
+    searchValue: document.querySelector('.searchrow input')
+      ? document.querySelector('.searchrow input').value : null,
+    searchPlaceholder: document.querySelector('.searchrow input')
+      ? document.querySelector('.searchrow input').placeholder : null,
+    matches: [...document.querySelectorAll('.matches button')]
+      .map((e) => e.textContent.trim().slice(0, 40)),
     locate: box('.locate'),
     locateName: document.querySelector('.locate')
       ? document.querySelector('.locate').getAttribute('aria-label') : null,
@@ -4424,6 +4430,34 @@ try {
     await new Promise((go) => setTimeout(go, 1200));
     here.keyBack = await evaluate(LOOK);
 
+    // SPEC 11.39. The search box, used: a city typed and the form
+    // submitted, which is one of the three ways a place is chosen.
+    const typed = PLAN.city || 'Bhopal';
+    await evaluate(`(() => {
+      const box = document.querySelector('#place');
+      if (!box) return false;
+      const set = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 'value').set;
+      box.focus();
+      set.call(box, ${JSON.stringify(typed)});
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    })()`);
+    await new Promise((go) => setTimeout(go, 500));
+    here.whileTyping = await evaluate(LOOK);
+    await evaluate(
+      "document.querySelector('form.search').requestSubmit()");
+    await new Promise((go) => setTimeout(go, 1500));
+    here.afterSearch = await evaluate(LOOK);
+    here.searchCard = await evaluate(INSIDE);
+    await shoot(`${key}-searched`);
+
+    // Back to the top of the page before the map is tapped: the tap is
+    // aimed with the canvas's own screen coordinates, and after a search
+    // the page has scrolled.
+    await evaluate("window.scrollTo(0, 0)");
+    await new Promise((go) => setTimeout(go, 400));
+
     // A tap on the map itself.
     const map = here.first.map;
     if (map && map.height > 40) {
@@ -4481,6 +4515,21 @@ try {
 }
 """
 
+
+
+def nearest_city(square: list[float]) -> str:
+    """The city of SPEC 11.28 nearest a square, for the search to find.
+
+    The run a test publishes covers a two degree box, and a search for a
+    city outside it answers "outside the forecast area" -- which is a
+    true answer and not the one the check is about. So the city searched
+    for is the nearest one to the square the same run is tapped at.
+    """
+    towns = load_towns()
+    lat, lon = square
+    best = min(towns, key=lambda town: (town["lat"] - lat) ** 2
+               + (town["lon"] - lon) ** 2)
+    return best["name"]
 
 
 @pytest.fixture(scope="module")
@@ -4577,6 +4626,9 @@ def viewport(tmp_path_factory):
                       [1440, 900], [1024, 768]],
             "target": target,
             "squares": squares,
+            # A city inside the run a test publishes, so searching for it
+            # answers with counts rather than with "not forecast".
+            "city": nearest_city(target),
             "shots": os.environ.get("SHOTS") or None,
         }
         done = subprocess.run(
@@ -6080,3 +6132,64 @@ def test_every_page_carries_the_freshness_line_and_the_warning(viewport):
     seen = viewport["phone"]["390x664"]["first"]
     assert seen["warnText"].startswith("Not an official warning.")
     assert seen["freshText"].startswith("Forecast from ")
+
+
+# ------------------------------------------ SPEC 11.39: the search row
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "320x568", "1440x900"])
+def test_the_search_row_is_a_box_and_a_location_button(viewport, size):
+    """SPEC 11.39, item 2. One row, two controls, and a line under it.
+
+    The box says what it is for in its own placeholder; the button at its
+    right end says what it is for in its accessible name and in its
+    tooltip, because a pin on its own is a picture and a picture is not a
+    label (SPEC 11.22).
+    """
+    seen = viewport["phone"][size]["first"]
+    assert seen["searchPlaceholder"] == "Search a city or state"
+    assert seen["locateName"] == "Use my location"
+    assert seen["locateTitle"] == "Use my location"
+    # At the right end of the box, on the same line, both 44 pixels tall.
+    assert seen["locate"]["top"] >= seen["searchBox"]["top"] - 2
+    assert seen["locate"]["top"] <= seen["searchBox"]["bottom"] - 20
+    assert seen["locate"]["right"] > seen["searchBox"]["right"], (
+        seen["locate"], seen["searchBox"])
+    assert seen["searchBox"]["height"] >= 43.5, seen["searchBox"]
+    assert seen["locate"]["height"] >= 43.5, seen["locate"]
+    # And the other way in, said once, under the row.
+    assert seen["ortap"]["top"] >= seen["searchBox"]["bottom"] - 1
+    # The three buttons SPEC 11.39 removed are not back, in the page or
+    # in the source: the search row is the way in.
+    for text, _ in seen["cardLinks"]:
+        assert text not in ("Search", "Find my city", "Find a city")
+    for name in ("App.jsx", "Panel.jsx", "Controls.jsx"):
+        said = (ROOT / "web" / "src" / name).read_text("utf-8")
+        # The comments that say why they are gone are not code.
+        code = re.sub(r"/\*.*?\*/", "", said, flags=re.S)
+        code = " ".join(line.split("//")[0] for line in code.split("\n"))
+        for gone in ("sheetsearch", "findcity", "Find my city",
+                     "Find a city"):
+            assert gone not in code, (name, gone)
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "1440x900"])
+def test_searching_for_a_city_answers_in_the_card(viewport, size):
+    """SPEC 11.39, item 2. The box is the way in, and it works.
+
+    A city is typed into the real box -- through the value setter React
+    listens to, not by assigning past it -- and the form submitted, which
+    is what pressing Enter does. The list of matches appears while the
+    typing is going on and the card holds the answer afterwards.
+    """
+    here = viewport["phone"][size]
+    typing = here["whileTyping"]
+    assert typing["matches"], "nothing was offered while typing"
+    card = here["searchCard"]
+    assert card and card["has"]["counts"], "the search answered nothing"
+    assert "of the 51 runs bring" in card["cardText"], card["cardText"]
+    # The box shows what is being shown, so the question and the answer
+    # agree (SPEC 11.28).
+    assert here["afterSearch"]["searchValue"], here["afterSearch"]
+    assert here["afterSearch"]["searchValue"] in card["cardText"]
