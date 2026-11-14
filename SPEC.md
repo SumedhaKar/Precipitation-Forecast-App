@@ -6292,6 +6292,17 @@ open, so the forbidden-word sweep reads them either way; the handle stays
 at the end of its own line under the pills, 44 pixels tall, and the lines
 it opens read from the left like every other sentence.
 
+#### Only the dot bands that happened
+
+All 51 dots are drawn, always. The four band names under them were listed
+whatever their counts were, so in a quiet week the card read "Under 1 mm:
+51, 1 to 10 mm: 0, 10 to 50 mm: 0, 50 mm or more: 0" — three facts about
+nothing and one about something. A band with no dots behind it is not a
+reading of the dots, so it is not drawn. A test checks every row in the
+rendered page carries a count above zero, that the rows still add up to
+the 51 dots beside them, and that at least one card really does have a
+band hidden, so it cannot pass by never meeting one.
+
 #### The card says each fact once
 
 The card knew four things — the place, the day, the amount and the count —

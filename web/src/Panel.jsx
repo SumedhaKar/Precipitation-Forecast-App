@@ -385,16 +385,24 @@ export function Dots({ place, day }) {
           <li key={index} style={{ background: DOT_COLOURS[category] }} />
         ))}
       </ol>
+      {/* SPEC 11.40. Only the bands that happened. All 51 dots are
+          drawn, always, and the four names were listed under them
+          whatever the counts were -- so in a quiet week the card read
+          "Under 1 mm: 51, 1 to 10 mm: 0, 10 to 50 mm: 0, 50 mm or more:
+          0", which is three facts about nothing and one about something.
+          A row with no dots behind it is not a reading of the dots. */}
       <ul className="dotkey">
         {categories.map((name, category) => (
-          <li key={name}>
-            <span
-              className="swatch"
-              aria-hidden="true"
-              style={{ background: DOT_COLOURS[category] }}
-            />
-            {sentenceCase(name)}: {day.dots[category]}
-          </li>
+          day.dots[category] > 0 ? (
+            <li key={name}>
+              <span
+                className="swatch"
+                aria-hidden="true"
+                style={{ background: DOT_COLOURS[category] }}
+              />
+              {sentenceCase(name)}: {day.dots[category]}
+            </li>
+          ) : null
         ))}
       </ul>
     </div>

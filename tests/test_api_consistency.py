@@ -5435,7 +5435,7 @@ def test_the_caveat_is_said_once(forecast_words):
 
 @needs_node
 def test_the_dots_are_readable_without_opening_anything(forecast_words):
-    """SPEC 11.38. The four counts and the line that says what a dot is."""
+    """SPEC 11.38, as 11.40 leaves it. The counts, and what a dot is."""
     seen = 0
     for html in forecast_words:
         if not isinstance(html, str) or 'class="dots"' not in html:
@@ -6972,3 +6972,44 @@ def test_the_location_is_titled_by_its_place_and_says_so_once(viewport):
         assert " N " not in box and box[-1] != "E", (size, box)
         seen += 1
     assert seen >= 4, seen
+@needs_node
+def test_only_the_dot_bands_that_happened_are_listed(forecast_words):
+    """SPEC 11.40. A row with no dots behind it is not a reading.
+
+    All 51 dots are drawn, always. The four band names under them were
+    listed whatever their counts were, so in a quiet week the card read
+    "Under 1 mm: 51, 1 to 10 mm: 0, 10 to 50 mm: 0, 50 mm or more: 0" --
+    three facts about nothing and one about something.
+
+    Every row in the rendered page is checked to carry a count above
+    zero, the rows are checked to add up to the 51 dots drawn beside
+    them, and at least one card with a hidden row is checked to exist, so
+    this cannot pass by never meeting one.
+    """
+    seen = 0
+    hidden = 0
+    for html in forecast_words:
+        if not isinstance(html, str) or 'class="dots"' not in html:
+            continue
+        block = html.split('class="dots"')[1].split("</div>")[0]
+        rows = re.findall(r"<li>(.*?)</li>", block, flags=re.S)
+        counts = []
+        for row in rows:
+            said = re.sub(r"<[^>]+>", "", row).strip()
+            name, _, number = said.rpartition(": ")
+            assert name, said
+            assert number.isdigit(), said
+            assert int(number) > 0, said
+            counts.append(int(number))
+        assert rows, block[:200]
+        # The rows account for all 51 dots: nothing is dropped, only the
+        # empty names.
+        grid = block.split('class="dotgrid"')[1].split("</ol>")[0]
+        drawn = grid.count("<li")
+        assert drawn == 51, drawn
+        assert sum(counts) == 51, (counts, drawn)
+        if len(rows) < 4:
+            hidden += 1
+        seen += 1
+    assert seen > 20, seen
+    assert hidden, "no card had a band with no dots in it"
