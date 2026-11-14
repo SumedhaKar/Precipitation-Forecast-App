@@ -6539,6 +6539,29 @@ guess. A test reads both out of `palette.js`, checks that no component
 writes either out again, and checks that each is said at most once in
 anything the page renders.
 
+#### What is measured, and where
+
+Everything above is measured in a real browser against the built bundle,
+against a run published through the real publisher and served over HTTP,
+with the real `api/health` and `api/place` answering. 11.39's six sizes
+are now eight: the two laptops item 8 names are measured as well.
+
+| | |
+|---|---|
+| the sizes | 390 x 664, 390 x 844, 360 x 640, 320 x 568, 1440 x 900, 1366 x 768, 1366 x 650, 1024 x 768 |
+| the states | as the page opens, the key opened and shut, "What does mm mean?" opened and shut, a city typed and submitted, the location button with a real fix, a tap on the map, a tap on a day pill, and the detail section opened and shut |
+| the handle | "More detail" shut and "Hide detail" open, at a phone's width and a desktop's |
+| the note | drawn where the first pill reads "Tomorrow" and nowhere else, at all eight sizes |
+| the sentences | what the 51 are, and what a dot is: one string each, said at most once wherever the page says it |
+| "What does mm mean?" | shut on open, the four lines in place on one tap, shut on a second, the path unchanged |
+| the card | the place said once, no coordinates and no window above More detail, the headline carrying the day and the amount, the location titled by its place with the box showing that name |
+| the dots | every row above zero, and the rows adding up to the 51 dots drawn |
+| the footer | one warning on the page, one credits handle, inside the panel on a desktop |
+| the desktop row | the three questions on one line, the map's top and height at the four screens item 8 names, every India square inside the visible canvas with no page scrolled |
+| the key | in the panel on a desktop and under the map on a phone, over the canvas nowhere, nothing else of ours over the canvas either |
+| the pills | five counts in the map's colours, the caption once, the chosen pill's number equal to the card's, a tap changing the day the canvas paints |
+| the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences included |
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
