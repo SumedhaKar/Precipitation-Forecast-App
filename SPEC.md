@@ -6619,6 +6619,251 @@ are now eight: the two laptops item 8 names are measured as well.
 | the pills | five counts in the map's colours, the caption once, the chosen pill's number equal to the card's, a tap changing the day the canvas paints |
 | the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences included |
 
+### 11.41 The last round: the first-time visitor, and the desktop page
+
+11.39 rebuilt the forecast page and 11.40 fixed what reading it on a real
+phone and a real laptop showed. What was left was the thing every reader
+who was asked to use this site said first -- they could not see where to
+start -- and three things about a desktop that no phone could have
+shown.
+
+Nothing here changes a rule. Counts are out of 51, there are no
+percentages, the forbidden words of 11.20 hold, "runs" is the one noun,
+the theme is light, the map's colours are the palette of 11.17
+unchanged, every row a thumb has to hit is 44 pixels and every sentence
+is at least 15 pixels.
+
+#### The day note says why, not when
+
+The note beside **Which day?** read "(starts tomorrow: the forecast
+arrives around midday)", which answers a question a reader has not asked
+yet. What they want to know is why today is missing. It reads:
+
+> (starts tomorrow, because today is already under way when the forecast
+> arrives)
+
+What time the run arrives is on the How to read this map page, in the
+fine print, for somebody who wants it.
+
+It was already drawn only when the first pill reads "Tomorrow"
+(`startsTomorrow` in `days.js`), and that is measured now rather than
+reasoned: the same published run is opened twice in a real browser with
+the visitor's own `Date` replaced -- `Page.addScriptToEvaluateOnNewDocument`
+with a `Proxy` over `Date`, so `Date.now()` and `new Date()` agree -- at
+6 am IST on the run's own first day and at 6 am the morning before. On
+the first the pill reads "Today" and the note is not in the page at all;
+on the second it reads "Tomorrow" and the note is there in these words.
+The five dates on the pills are the same five either way, so the only
+thing that differs is the clock.
+
+#### How to read this map, for a first-time visitor
+
+The page was written in this specification's own order -- one square, one
+day, the mornings when the days start tomorrow, the amounts, the colours,
+what it is not -- which is the order for a reader who already knows what
+a square is. It now answers, in this order:
+
+| | |
+|---|---|
+| Hello, first-time visitor! | this site works a little differently from other weather apps |
+| The colours, in one line | darker means more of our 51 weather runs bring rain there |
+| What are the 51 runs? | the same weather model, run 51 times from slightly different starts |
+| The mm guide | the three amounts, millimetres spelt out |
+| Your mini user manual | search or tap, pick the day and the amount, that's it |
+| No worries if you are colour-blind | the scale is colour-blind-friendly, and a tap gives the number |
+
+Then one line telling a reader who is satisfied that they may stop, and
+one shut section, **The fine print**, holding everything technical: what
+a square is and that it is not street level, the 5:30 to 5:30 day, why
+the days start tomorrow, that each amount is a whole day's total averaged
+over the square and does not say whether it fell in one burst, the nine
+colour classes with white and beige, that a count of runs is not a
+promise of rain, and the way on to How we checked for experts.
+
+Nothing technical is written above that section. A test splits the
+rendered page at it and sweeps the half a first-time visitor reads for
+UTC, lead day, grid, calibrated, probability, IMERG, Brier, ECMWF, AIFS,
+satellite, resample and 0.25 degrees, then checks every one of them is
+still there below.
+
+The mm guide spells the millimetres out -- "Some rain (1 mm or more): the
+ground gets damp" -- where the four lines "What does mm mean?" opens
+under the pills keep the pills' own "1 mm+". Two phrasings of three
+facts, so both are built from the one `AMOUNTS` table in `Controls.jsx`
+and sit beside each other there; only the clause after the colon
+differs. "Damp" again, for 11.40's reason: "wet" is on 11.20's list.
+
+#### The report card answers the question first
+
+The one plain line about the whole record sat under the period, the sixty
+labels, the skill plot and twelve reliability bands, and the readers who
+were asked to use this site never reached it. **TL;DR** is the first
+thing under the heading now, in the site's navy, slightly larger than the
+text under it, with four sentences; then **The full details** over
+everything that was already there.
+
+Every number in the four is counted from `web/src/summary.json` by
+`tldr()` in `pages.js`, and so is the period, quoted out of the file's
+own period line -- so the dates in the summary cannot differ from the
+dates under the heading. The second sentence counts the labels rather
+than claiming them: "everywhere" is written only while every one of the
+60 really is the rough-guide label, and the third names how many groups
+failed the honesty check as soon as that stops being all of them. A test
+drives the function against the file and then reads the rendered page
+against the function.
+
+On the record as it stands that is: 177 old forecasts from 13 May to 5
+November 2026; all 60 labels reading "Treat as a rough guide" and 20 of
+the 60 beating the usual rain for their place and month; the satellite
+seeing rain less often than most of the 51 runs suggested; a helpful hint
+and not a promise.
+
+#### How we checked says who it is for
+
+One line above the method: "For experts: the method and the numbers
+behind the report card. For the plain version, see the Report card", with
+Report card linked. It is the hardest page on the site and the menu
+offered it to a first-time visitor with nothing to say what it was.
+
+#### The repository's own documents
+
+`README.md` said there was no track record and no report card, which
+stopped being true on 13 November. It is rewritten around what is
+deployed, and every claim in it is checkable in the repository or in the
+Actions history: what the site is and the live link, the three steps of
+the mini user manual, what the numbers mean, the track record (the report
+card's own TL;DR, which a test checks sentence by sentence against
+`tldr()`), how the pipeline, publishing, verification and the site work,
+the suite's own size and the fourteen hand checks each linked to the file
+it wrote, the scheduler's record as found, the limits, the future work,
+how to run it locally, and last -- unchanged, and held character for
+character by a test -- the author's own account of how this was built and
+what help was used.
+
+`DECISIONS.md` is new: the Node `api/*.mjs` functions, feature branches
+merged with normal merge commits and no rewritten history,
+`config/regions.json` committed rather than computed, the two workflow
+file names, `config/features.json` (which does not exist: unfinished work
+lives on an unmerged branch instead of behind a flag), `label_colours`
+added to the frozen summary after the `results-v1` tag and why that is
+display metadata and not a number, and Time Machine parked.
+
+Sections 7, 9, 10 and 12 of this file were on the "sections still to
+draft" list from the first draft. Each has its paragraph now, in its
+numbered place, drafted on 14 November 2026 from what was built -- which
+is the right order: the sections that fix rules before results were
+written first and were not allowed to move afterwards.
+
+#### The header's own column
+
+The content is a centred column of at most 1280 pixels (11.40) and the
+header band was the full width of the screen: on a 1440 screen the mark
+stood 80 pixels to the left of the search box under it and the page links
+80 to the right of the panel. The band's contents and the warning's words
+are in the same column now, with the same 1rem of padding the grid has.
+Both bars still run the whole width of the screen, because the white of
+the header and the amber of the warning are the point of them -- which is
+why the warning's words moved into an inner row: the colour stays on the
+bar around them. Measured at 1366 by 768 and 1440 by 900: the mark, the
+warning and the search box begin within 2 pixels of each other, and the
+page links end within 2 pixels of the right-hand panel.
+
+#### The colour key goes back over the map, above 1280
+
+11.39 floated it over the Arabian Sea at 1280 and over; 11.40 took it off
+the canvas at every width, because the payment -- padding the fit's left
+edge by the box's width -- is only free while the fit is limited by the
+height. That measurement was about 1024 by 768, where the map box is 574
+by 476 and the padding makes the fit width-limited, shrinking India from
+409 pixels to 305 and putting Gujarat behind the key anyway.
+
+At 1280 and over the fit is limited by the height and the padding costs
+the country nothing, and a reader comparing a colour on the map with a
+key 400 pixels away in the panel is looking at two things. So the whole
+key is back over the map's left side there: the title with the amount in
+it, the strip, and all nine rows, always open. Over the canvas it is not
+a disclosure at all -- there is nothing to press and no state to get
+wrong. Below 1280 it is 11.40's strip at the top of the panel, sticky, so
+it stays on the screen while the card scrolls past.
+
+`App.jsx` asks `matchMedia` for the same 1280 query the stylesheet uses,
+so there is never a second key in the document, and `Map.jsx` measures
+the box and refits when it arrives over the canvas or leaves it.
+
+The rows over the map are set tighter than the panel's: at 1366 by 650
+the canvas is 340 pixels tall and the box measured 339, with its top at
+-10 and its first row clipped by the card's own overflow. At 13 pixel
+type, 1.25 line height and no row minimum it is 265 tall, and its top is
+inside the canvas at every width it is drawn at.
+
+| screen | the key's box, in the canvas's own pixels |
+|---|---|
+| 1366 x 768 | left 11, top 182, right 227, bottom 447 |
+| 1366 x 650 | left 11, top 64, right 227, bottom 329 |
+| 1440 x 900 | left 11, top 314, right 227, bottom 579 |
+
+and not one of the 4,613 squares or any point of the drawn outline,
+Lakshadweep included, is behind it in the view the page opens with, after
+a search, after the location button, after a tap on the map, or after a
+zoom that moved the view under it.
+
+#### A desktop scrolls once, and the map stays in view
+
+11.40 made the right-hand panel exactly as tall as the map and gave the
+card its own scrollbar so that the key above it could not scroll away.
+That is two scrollbars on one screen: a wheel over the card moved one and
+a wheel two pixels to the left moved the other, and a reader who reached
+the bottom of the card's own box had no way of knowing that the page went
+on.
+
+The panel is as tall as its contents now and nothing inside it scrolls.
+The page scrolls once, and the map card is `position: sticky` half a rem
+below the top of the window -- sticky and not fixed, so it keeps its
+place in the grid and stops at the bottom of its own cell. It is also the
+containing block for the key over it.
+
+| screen | the map, at the top of the page | with a place chosen | at the bottom of the page |
+|---|---|---|---|
+| 1366 x 768 | 202 to 660, 458 tall | 275 to 733 | 8 to 466 |
+| 1366 x 650 | 202 to 542, 340 tall | 275 to 615 | 8 to 348 |
+| 1440 x 900 | 202 to 792, 590 tall | 275 to 865 | 8 to 598 |
+| 1024 x 768 | 260 to 633, 373 tall | 356 to 729 | 8 to 381 |
+
+The last column is the page scrolled to its end with a place chosen and
+More detail open, which is the tallest the card ever is: the whole map
+card is still on the screen and the same height it was at the top.
+
+The wheel needed no code. MapLibre's cooperative gestures were already on
+for 11.39's two-finger rule, and they are what makes a plain wheel over
+the map scroll the page while Ctrl and the wheel zoom, with MapLibre's
+own hint naming Ctrl. It is measured rather than assumed, with real wheel
+events through the DevTools protocol -- the only way to tell a handled
+wheel from an unhandled one: the plain wheel moved the page and not the
+bounds, and Ctrl with the wheel narrowed the bounds from the top of the
+page. The map's layers are untouched.
+
+#### What is measured, and where
+
+As 11.40: in a real browser against the built bundle, against a run
+published through the real publisher and served over HTTP, with the real
+`api/health` and `api/place` answering. 11.40's eight sizes are nine --
+1280 by 720 joins them, because it is the width the key moves at.
+
+| | |
+|---|---|
+| the sizes | 390 x 664, 390 x 844, 360 x 640, 320 x 568, 1440 x 900, 1366 x 768, 1366 x 650, 1280 x 720, 1024 x 768 |
+| the clock | the same run read at 6 am on its own first day and at 6 am the day before, with `Date` replaced in the page |
+| the note | its words, present where the first pill reads "Tomorrow" and absent where it reads "Today" |
+| How to read this map | the six headings and their first sentences in order, the greeting first, and no technical word above the shut fine print |
+| the report card | `tldr()` driven against `summary.json`, then the rendered page against `tldr()`: TL;DR first, the four sentences in order, The full details above everything else |
+| How we checked | the For experts line above the method, with nothing but the heading above it, and its link a path this site answers |
+| README.md | every relative link opened, the fourteen hand-check files non-empty, the suite counted and the functions counted, the TL;DR sentences found in it, and the last section character for character |
+| the header | the mark, the warning and the search box within 2 pixels, the page links within 2 of the panel, both bars still the width of the screen |
+| the key | over the canvas at 1280 and over and in the panel below it, open with nine rows and no handle, its box inside the canvas, no square of India behind it in five states including a zoom |
+| the scrolling | nothing in the panel with a scrollbar of its own in any state, the map card sticky, and the whole of it on the screen with the page scrolled to its end |
+| the wheel | a real wheel over the canvas scrolling the page and not zooming, the hint naming Ctrl, and Ctrl with the wheel narrowing the bounds |
+| the sweeps | the forbidden words and the no-percentage rule over every component the page draws, the new sentences and both keys included |
+
 ## 12. Tiers and acceptance tests
 
 Drafted here on 14 November 2026, from what was built and what was not.
