@@ -5729,7 +5729,28 @@ def test_the_panel_sweep_covers_the_states_it_claims_to(forecast_words):
                  # the section of How to read this map that explains it.
                  "(starts tomorrow, because today is already under way "
                  "when the forecast arrives)",
-                 "The mornings when the five days start tomorrow",
+                 "Why the days start tomorrow",
+                 # SPEC 11.41: How to read this map, rewritten for
+                 # somebody who has never seen the site before.
+                 "Hello, first-time visitor!",
+                 "This site works a little differently from other weather "
+                 "apps, so here are a few quick points to get you going.",
+                 "Darker means more of our 51 weather runs bring rain "
+                 "there.",
+                 "The same weather model, run 51 times from slightly "
+                 "different starts: 51 slightly different guesses.",
+                 "Some rain (1 mm or more): the ground gets damp.",
+                 "A rainy day (10 mm or more): a proper shower, so take "
+                 "an umbrella.",
+                 "A lot of rain (50 mm or more): a very rainy day, and "
+                 "water can collect on roads.",
+                 "Search your city, or just tap the map.",
+                 "Pick the day and the amount of rain you care about.",
+                 "That's it, your forecast shows up.",
+                 "The map uses a colour-blind-friendly scale.",
+                 "Don't like technical stuff? Stop reading here. Nerdy "
+                 "birdies, read on!",
+                 "The fine print",
                  # SPEC 11.40: what the 51 are, said once in the empty
                  # card and once beside the dots.
                  "The same weather model is run 51 times, each starting "
@@ -5908,6 +5929,38 @@ HOW_TO_READ_HOLDS = (
     "Beige: land outside India, not forecast",
 )
 
+# SPEC 11.41. The page, rewritten for a first-time visitor: the six
+# answers in the order they are asked in, each with the words it must
+# carry. The order is checked as well as the words -- a page that answers
+# the right six questions in the specification's own order is the page
+# this one replaced.
+FIRST_TIME = (
+    ("Hello, first-time visitor!",
+     "This site works a little differently from other weather apps, so "
+     "here are a few quick points to get you going."),
+    ("The colours, in one line",
+     "Darker means more of our 51 weather runs bring rain there."),
+    ("What are the 51 runs?",
+     "The same weather model, run 51 times from slightly different "
+     "starts: 51 slightly different guesses."),
+    ("The mm guide",
+     "Some rain (1 mm or more): the ground gets damp."),
+    ("Your mini user manual",
+     "Search your city, or just tap the map."),
+    ("No worries if you are colour-blind",
+     "The map uses a colour-blind-friendly scale. If you're ever unsure "
+     "about a shade, tap the square and you'll get the number."),
+    ("Don't like technical stuff? Stop reading here. Nerdy birdies, read "
+     "on!", "The fine print"),
+)
+
+# Nothing in this list may appear above the fine print: a first-time
+# visitor meets none of it, and every one of them is a word that sent a
+# tester looking for help on a page that was supposed to be the help.
+TECHNICAL = ("UTC", "lead day", "grid", "calibrated", "probability",
+             "0.25 degrees", "IMERG", "Brier", "5:30", "ECMWF", "AIFS",
+             "satellite", "resample")
+
 
 @needs_node
 def test_how_to_read_this_map_holds_what_the_spec_says_it_holds(
@@ -5929,6 +5982,58 @@ def test_how_to_read_this_map_holds_what_the_spec_says_it_holds(
                          ("A lot of rain", 50)):
         assert nickname in text, nickname
         assert f"{nickname} ({mm} mm+)" in text, mm
+
+
+@needs_node
+def test_how_to_read_starts_with_hello_and_answers_six_questions(
+        forecast_words):
+    """SPEC 11.41. The page a first-time visitor is given.
+
+    Every tester said the same thing about this site: they could not see
+    where to start. The page that was supposed to help them was written in
+    the specification's own order -- one square, one day, the mornings
+    when the days start tomorrow -- which is the order for somebody who
+    already knows what a square is.
+
+    So: six short answers in the order the questions were asked, a line
+    saying a reader may stop there, and one shut section with the rest.
+    The order is checked and not only the words, because the words in any
+    order are the page this one replaced.
+    """
+    pages = [html for html in forecast_words
+             if isinstance(html, str) and 'class="page howtoread"' in html]
+    assert len(pages) == 1, len(pages)
+    html = pages[0]
+    text = words_of(html)
+
+    # The greeting is the first thing on the page.
+    assert text.strip().startswith("Hello, first-time visitor!"), text[:120]
+
+    # Every heading and its own first sentence, in this order and no
+    # other: each one is found after the one before it.
+    at = 0
+    for heading, said in FIRST_TIME:
+        where = text.find(heading, at)
+        assert where >= 0, (heading, "not found after", at)
+        body = text.find(said, where)
+        assert body >= 0, (heading, said)
+        at = body
+
+    # The fine print is a section a reader opens, and it is shut.
+    assert '<details class="fineprint">' in html, html[:200]
+    assert 'fineprint" open' not in html
+
+    # And nothing technical is above it. The page is split at the
+    # section, and the half a first-time visitor reads is swept.
+    above, below = html.split('<details class="fineprint">')
+    plain = words_of(above)
+    for word in TECHNICAL:
+        assert word.lower() not in plain.lower(), (word, plain[-200:])
+    # Not because the words are gone from the site: they are all below.
+    deep = words_of(below).lower()
+    for word in ("utc", "0.25 degrees", "probability", "calibrated",
+                 "5:30"):
+        assert word in deep, word
 
 
 def test_the_amount_words_are_ours_and_are_written_down():

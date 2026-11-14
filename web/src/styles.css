@@ -1541,6 +1541,46 @@ footer p { max-width: 70ch; }
 
 .amountwords .wholeday { color: var(--quiet); }
 
+/* SPEC 11.41. How to read this map, for a first-time visitor: the three
+   numbered steps, the line that says a reader may stop, and the one shut
+   section everything technical on the page is inside. */
+.manual {
+  max-width: 42rem;
+  margin: 0 0 0.8rem;
+  padding-left: 1.4rem;
+  font-size: 0.9375rem;
+}
+
+.manual li { padding: 0.25rem 0; }
+
+.stophere {
+  margin: 1.4rem 0 0.6rem;
+  font-size: 1rem;
+  color: var(--quiet);
+}
+
+.fineprint {
+  margin: 0.4rem 0 1rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.4rem;
+}
+
+/* A tap target, so it is the 44 pixels every other handle on this site
+   is, and the page's own link colour so that it reads as something to
+   open rather than as a heading. */
+.fineprint > summary {
+  cursor: pointer;
+  color: #0b4f8a;
+  font-size: 1rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.fineprint[open] > summary { margin-bottom: 0.4rem; }
+
+.fineprint > h3:first-of-type { margin-top: 0.4rem; }
+
 .inlineswatch {
   display: inline-block;
   width: 1.1rem;

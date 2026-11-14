@@ -179,6 +179,29 @@ export const AMOUNT_WORDS = {
   50: 'a very rainy day; water can collect on roads.',
 };
 
+/**
+ * The same three amounts for somebody meeting them for the first time.
+ *
+ * SPEC 11.41. How to read this map is written for a first-time visitor
+ * now, and its mm guide is these words: the millimetres spelt out as
+ * "1 mm or more" rather than the pills' own "1 mm+", and one clause each
+ * with no semicolons in it.
+ *
+ * Two phrasings of three facts, which is one more than this site likes --
+ * so both of them are built from the one AMOUNTS table above, and the
+ * nickname and the millimetres cannot differ between them. What differs
+ * is only the clause after the colon, and the two are side by side in
+ * this file where a change to one is a change in front of the other.
+ *
+ * "Damp" again, for the reason AMOUNT_WORDS gives: "wet" is on 11.20's
+ * list.
+ */
+export const AMOUNT_PLAIN = {
+  1: 'the ground gets damp.',
+  10: 'a proper shower, so take an umbrella.',
+  50: 'a very rainy day, and water can collect on roads.',
+};
+
 /** The one thing true of all three: what is added up, and over what. */
 export const WHOLE_DAY = 'Each is the total over the whole day, averaged '
   + 'over the square.';
@@ -190,6 +213,21 @@ export const WHOLE_DAY = 'Each is the total over the whole day, averaged '
  * map page, so a reader who opens it under the pills and a reader who
  * reads the page are given the same words.
  */
+export function AmountGuide() {
+  return (
+    <ul className="amountwords">
+      {AMOUNTS.map((amount) => (
+        <li key={amount.mm}>
+          <strong>
+            {amount.nickname} ({amount.mm} mm or more):
+          </strong>{' '}
+          <span className="meaning">{AMOUNT_PLAIN[amount.mm]}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function AmountWords() {
   return (
     <ul className="amountwords">
