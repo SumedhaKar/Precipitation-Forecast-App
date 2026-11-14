@@ -6375,3 +6375,61 @@ def test_the_day_pills_are_two_lines_and_all_five_are_there(viewport, size):
         # longest word is. On a desktop they take the width of their own
         # words, because there is room for them.
         assert max(widths) - min(widths) <= 2, widths
+
+
+# ------------------------- SPEC 11.39: the amount pills and the mm link
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "320x568", "1440x900"])
+def test_the_amount_pills_are_two_lines_and_share_the_row(viewport, size):
+    """SPEC 11.39, item 5. The nickname over the millimetres.
+
+    The millimetres are on the pill with the nickname, always, so the
+    nickname is never the only thing a reader is given (11.38). The three
+    of them keep the whole width between them, which is what puts "What
+    does mm mean?" on a line of its own.
+    """
+    seen = viewport["phone"][size]["first"]
+    pills = seen["amountPills"]
+    assert [top for top, _, _ in pills] == [
+        "Some rain", "A rainy day", "A lot of rain"], pills
+    assert [under for _, under, _ in pills] == [
+        "1 mm+", "10 mm+", "50 mm+"], pills
+    assert sum(1 for _, _, on in pills if on) == 1, pills
+    widths = [w for where, w in seen["pillWidths"] if "amounts" in where]
+    assert len(widths) == 3
+    if int(size.split("x")[0]) < 1024:
+        assert max(widths) - min(widths) <= 2, widths
+        # The three of them, with their gaps, are the row.
+        assert sum(widths) >= seen["amountRow"]["width"] - 12, (
+            widths, seen["amountRow"])
+
+
+@needs_node
+@pytest.mark.parametrize("size", ["390x664", "320x568", "1440x900"])
+def test_what_does_mm_mean_is_its_own_line_under_the_pills(viewport, size):
+    """SPEC 11.39, item 5. On its own line, at the end of it, no divider.
+
+    It lands on the amounts rather than at the top of the page, because a
+    reader who asks what a millimetre of rain is wants the three
+    sentences and not the whole of How to read this map.
+    """
+    seen = viewport["phone"][size]["first"]
+    assert seen["mmlink"], "the link is not there"
+    assert seen["mmHref"] == "/how-to-read#amounts", seen["mmHref"]
+    # Under the pills, and not beside them.
+    assert seen["mmlink"]["top"] >= seen["amountRow"]["bottom"] - 1, (
+        seen["mmlink"], seen["amountRow"])
+    # At the end of the line, within a few pixels of the pills' own edge.
+    assert abs(seen["mmlink"]["right"] - seen["amountRow"]["right"]) <= 6, (
+        seen["mmlink"], seen["amountRow"])
+    # It is a link to a real page, and that page has that anchor.
+    page = (ROOT / "web" / "src" / "HowToRead.jsx").read_text("utf-8")
+    assert '<h2 id="amounts">How much rain</h2>' in page
+    nav = (ROOT / "web" / "src" / "TopNav.jsx").read_text("utf-8")
+    assert "path: '/how-to-read'," in nav
+    # And nothing is drawn between the pills and the link.
+    css = (ROOT / "web" / "src" / "styles.css").read_text("utf-8")
+    rule = css.split("\n.mmlink {")[1].split("}")[0]
+    assert "border" not in rule, rule
+    assert "text-align: right;" in rule

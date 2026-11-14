@@ -6149,6 +6149,27 @@ On a phone each pill takes a fifth of the row, so the row cannot overflow
 however long the longest word is; on a desktop they take the width of
 their own words.
 
+#### The amount pills, and "What does mm mean?"
+
+Three pills, two lines each, in the same shape as the day pills:
+
+| top | under |
+|---|---|
+| Some rain | 1 mm+ |
+| A rainy day | 10 mm+ |
+| A lot of rain | 50 mm+ |
+
+The millimetres are on the pill with the nickname, always, so the nickname
+is never the only thing a reader is given (11.38). On a phone the three
+share the whole row.
+
+Under them, on a line of its own, at the end of it, with no rule above it
+and no icon beside it: **What does mm mean?**, which opens
+`/how-to-read#amounts` — the three sentences, and not the whole of How to
+read this map. It is what replaced "10 mm of rain is water 1 cm deep if
+none of it ran away", which was a help sentence under a control, on the
+screen whether or not anybody had asked.
+
 ## The hand checks
 
 A hand check redoes one thing the pipeline did, outside the pipeline, and
