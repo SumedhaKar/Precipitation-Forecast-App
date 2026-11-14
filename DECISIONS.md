@@ -60,6 +60,29 @@ after, and `verification.json`, `verification_meta.json` and `labels.json`
 are byte for byte the frozen ones. Display metadata may be added to a frozen
 file; a number may not.
 
+**The daily trigger is a cron-job.org dispatch at 13:15, 14:15, 16:15 and
+19:15 IST.** A free outside scheduler calls GitHub's API to start
+`forecast.yml`, four times in the window the 00 UTC run is ready in.
+
+The alternatives were GitHub's own schedule alone, which is what was built
+first; running it by hand; and a Vercel cron inside this repository hitting
+a small endpoint that dispatches the workflow. GitHub's schedule stayed, as
+a fallback, but it cannot be the daily trigger: of the first 12 runs in the
+Actions history 5 were scheduled, they arrived at 00:55, 13:27, 14:29, 17:44
+and 19:53 UTC, not one of them inside the midday window, and all three
+publishes came from a dispatch. Running it by hand is not a daily trigger at
+all. The Vercel cron is the right answer and is listed as future work: it
+could not be built in the hours left, and an outside call needs no code in
+this repository beyond the `source` input that names it in the run's title.
+
+It is not free of cost. The token is a fine-grained one, limited to this
+repository's Actions and to nothing else, and it has to be renewed before
+about 12 February 2027 or the daily trigger stops; it is stored only in
+cron-job.org and never in this repository, so nothing here can check it and
+only its own dashboard can. A call that fails emails the author. The first
+call, run #12 on 14 November 2026 at about 8:30 pm IST, was a test, and it
+shows as "Manually run" because the token is the author's own.
+
 **Time Machine is parked on the `time-machine` branch and was never
 merged.** It would have shown what the runs said on seven chosen past days
 beside what the satellite then saw. The branch holds its day-selection rule

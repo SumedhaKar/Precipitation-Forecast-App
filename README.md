@@ -109,7 +109,7 @@ publish it through a fake store into a temporary directory, serve it on
 127.0.0.1 and call the real functions against it, and the page's own pure
 modules are driven by `node`. The browser checks drive a headless Chrome
 over the DevTools protocol against a real `vite build` and measure the page
-at eight screen sizes.
+at nine screen sizes.
 
 Beside the suite, each hand check redoes one step outside the pipeline, by
 hand or in its own script, and writes its own file:
@@ -139,17 +139,55 @@ tritanopia and achromatopsia in Chrome's vision-deficiency emulation.
 
 The forecast workflow, `.github/workflows/forecast.yml`, asks GitHub's
 scheduler for 23 attempts a day between 06:17 and 22:23 UTC. In this build
-the schedule fired late and unreliably: of the 11 workflow runs in the
-Actions history, 5 were scheduled and 6 were started by hand, and **all three
-runs published so far were published by a manual start — the scheduled runs
-published nothing.** The five that did fire arrived at 00:55, 13:27, 14:29,
-17:44 and 19:53 UTC, which is 06:25 am to 01:24 am IST: never the midday
-window when the new forecast is ready.
+the schedule fired late and unreliably: of the 12 workflow runs in the
+Actions history, 5 were scheduled and 7 were started by a dispatch, and
+**all three runs published so far were published by a dispatch — the
+scheduled runs published nothing.** The five that did fire arrived at 00:55,
+13:27, 14:29, 17:44 and 19:53 UTC, which is 06:25 am to 01:24 am IST: never
+the midday window when the new forecast is ready. Run #12, on 14 November at
+about 8:30 pm IST, was the first call from the outside scheduler below; it
+was a test, and it shows as "Manually run" because the token it uses is
+mine.
 
 When no new run publishes, the site keeps the last good forecast and says how
 old it is, and calls it old past 36 hours. It never shows half a run and
-never shows broken data. A second, backup daily trigger from Vercel's cron
-was designed and deliberately left unbuilt (see Future work).
+never shows broken data.
+
+Daily updates. A free outside scheduler (cron-job.org) starts the forecast
+workflow through GitHub's API at 1:15, 2:15, 4:15 and 7:15 pm IST. It uses a
+token limited to this one repository's Actions, stored only in cron-job.org
+and never in this repository. A call that finds no new forecast stops in
+under a minute. GitHub's own schedule, which fired late and unreliably during
+the build, and manual runs remain as fallbacks. Each run's title shows what
+started it ("forecast · cron-job.org", "forecast · GitHub schedule",
+"forecast · manual"). An in-repo Vercel cron trigger was designed and is
+listed as future work.
+
+## Phones and laptops
+
+The site is built for both phone and laptop screens. That was my own choice
+and not something the brief asked for: the people who tested it for me used
+phones, so a page that only worked on a laptop would not have been the page
+they saw.
+
+Both layouts are one grid in two orders, in `web/src/styles.css`. Below 1024
+pixels it is a single column, in the order a thumb reads it: the site name,
+the search row, the map, the colour key, then the day and amount questions
+and the card of numbers. The four pages are reached through a **Menu**
+button, and the narrow rules at 560 and at 360 pixels take the padding in
+rather than dropping anything. At 1024 pixels and over the three questions
+sit in one row above two columns — the map on the left, a 380-pixel panel on
+the right — inside a centred column of at most 1280 pixels, and the map card
+stays in view while the page scrolls past it. At 1280 and over the colour key
+moves onto the map itself, over the Arabian Sea, and the map's own fit pads
+that edge so that no forecast square is behind it.
+
+How it was checked: on my Samsung Galaxy A32 and my mother's Oppo during the
+build, in Chrome DevTools at 390 pixels wide, and by the automated browser
+checks in [`tests/test_api_consistency.py`](tests/test_api_consistency.py),
+which drive a headless Chrome over the DevTools protocol against a real
+build and measure the page at nine screen sizes: 390×664, 390×844, 360×640,
+320×568, 1440×900, 1366×768, 1366×650, 1280×720 and 1024×768.
 
 ## Limits
 
@@ -196,9 +234,10 @@ was designed and deliberately left unbuilt (see Future work).
   last day of the build on the interface.
 - **The safest window.** Which of the five days has the fewest runs bringing
   rain, for somebody planning around it.
-- **The backup daily trigger.** A Vercel cron hitting a small endpoint that
-  starts the forecast workflow when GitHub's scheduler has not, which is the
-  fix for the freshness problem above.
+- **An in-repo Vercel cron trigger, replacing the outside scheduler.** A
+  Vercel cron hitting a small endpoint that starts the forecast workflow when
+  GitHub's scheduler has not, so the daily trigger and its token live in this
+  repository rather than in cron-job.org.
 - **A larger city list, with state names in "near X" results**, so that
   "Near Budaun" can say which state Budaun is in.
 - **Calibration, tested on held-out dates**, and a winter record, which is
@@ -437,15 +476,16 @@ For the user interface I also used ChatGPT and a second Claude chat to critique 
 The decisions were mine throughout. I read every report and prompt, asked questions until I understood them, stuck to my plan where I believed it was right, and changed it when the evidence said so. There were many more such decisions; these are some of the major ones:
 
 - **Found a phone bug on my own Samsung A32** (and my mother's Oppo): the "Show the details" handle was hidden under the phone's bottom bar, so the forecast panel couldn't be opened. Desktop testing had not shown it. The cause turned out to be a layout rule, and it was fixed and tested on both phones.
+- **Chose to make the site work on phones as well as laptops,** although the brief didn't ask for it, because the people testing it used phones. I checked it on my Samsung A32 and my mother's Oppo during the build, in Chrome DevTools at 390 px wide, and on mobile data in the final check of the live site (HC10).
 - **Noticed the map didn't move to a searched place:** when I used "Use my location" or searched for Delhi, the map circled the place but didn't slide to it, so I asked for it to move there automatically.
 - **Caught that the hand checks had drifted from my original plan:** several checks I had planned (failure handling, a comparison with ECMWF's own published figure, real report-card rows, a monsoon map) had been renumbered or not done. I had them added, and one of them found a mistake in the specification.
 - **Asked for every line on the "How we checked" page to be verified against its file,** which corrected two entries (one check had run on three dates, not one; another covered five squares, not one).
 - **Found gaps in the search:** it said "town" but only knew cities, and typing a state such as West Bengal found nothing. That led to the city wording, state search and old city names.
 - **Pushed back on wording a beginner wouldn't understand:** for example "1 cm deep" for 10 mm, and "tap a square" when the squares aren't visible until you zoom in.
 - **Made sure dry places read correctly and the track record states its period:** 0 of 51 runs in Delhi in November is the right answer, not missing data, and the report card says its record comes mostly from the monsoon.
-- **Checked the GitHub scheduler myself,** found it firing late (in the evening or at night, never when the new forecast arrives around midday), ran the forecast by hand when needed, and designed a backup daily trigger, which I chose to leave as future work so the last hours went to the interface.
+- **Checked the GitHub scheduler myself,** found it firing late (in the evening or at night, never when the new forecast arrives around midday), ran the forecast by hand when needed, and set up an outside daily scheduler (cron-job.org) with a token limited to this repository's Actions, leaving an in-repo trigger as future work.
 - **Dropped the Time Machine feature** I had planned, to spend the last day on the interface after real users struggled with it.
-- **Kept the security rules myself:** I never put a password or token in a prompt; I created the secrets in the GitHub and Vercel dashboards by hand.
+- **Kept the security rules myself:** I never put a password or token in a prompt; I created the secrets by hand in the GitHub, Vercel and cron-job.org dashboards, and the scheduler's token is stored only in cron-job.org.
 
 To test the interface, I asked my mother and several friends to use the site without help and tell me what they struggled with. They all said much the same: it was hard to see where to start, there was too much text, and the numbers were hard to understand. I also asked for the site to be compared with other weather apps. That feedback is the reason for the final, simpler design.
 

@@ -2545,7 +2545,7 @@ successful publish to compare a failure against, which 20261112T00Z now is.
 
 | Setting | Value | Why |
 |---|---|---|
-| Triggers | `schedule` and `workflow_dispatch` | the cron is the normal path; the dispatch is for the first publish, after a failure, and for a run ECMWF published late |
+| Triggers | `schedule` and `workflow_dispatch`, with an optional `source` input | a cron-job.org dispatch at 13:15, 14:15, 16:15 and 19:15 IST is the normal path (DECISIONS.md); GitHub's own cron and a run started by hand are the fallbacks, and `source` is what names each of them in the run's title |
 | Concurrency | group `live`, `cancel-in-progress: false` | two overlapping publishes could interleave uploads; a queued second attempt simply finds nothing new |
 | Permissions | `contents: read` | the workflow writes nothing back to the repository |
 | Timeout | 30 minutes | the first real run took 2 min 26 s |
@@ -2820,10 +2820,12 @@ Nothing in section 8 is open.
 ## 9. Automation and failure handling
 
 Drafted here on 14 November 2026, from what was built. The daily run is
-`.github/workflows/forecast.yml`, which asks GitHub's scheduler for 23
-attempts between 06:17 and 22:23 UTC and can also be started by hand; the
-job is called `live` and its concurrency group is `live`, so two runs can
-never publish at once. Every attempt reads what the store publishes before
+`.github/workflows/forecast.yml`. It is started four times a day by a
+cron-job.org dispatch, at 13:15, 14:15, 16:15 and 19:15 IST, with GitHub's
+own scheduler -- 23 attempts between 06:17 and 22:23 UTC -- and a run
+started by hand as the fallbacks; the optional `source` input names which
+of the three it was in the run's title. The job is called `live` and its
+concurrency group is `live`, so two runs can never publish at once. Every attempt reads what the store publishes before
 it builds anything, and exits 0 when the newest complete run is already
 there, which is why 22 of a day's 23 attempts cost one listing check. A
 failure is never a half-published run: the uploads go in the order of 8.5
@@ -2832,8 +2834,9 @@ the site serves the previous run, and the site says how old what it is
 showing is and calls it old past 36 hours (11.8). The scheduler's own
 unreliability is recorded rather than worked around -- in this build not one
 scheduled attempt arrived inside the midday window and every publish so far
-was started by hand -- and the backup trigger designed for it is listed as
-future work in `README.md`. HC-FAIL is the hand check for this section: the
+was started by a dispatch -- which is why the daily trigger is an outside
+one; the in-repo Vercel cron that would replace it is listed as future work
+in `README.md`. HC-FAIL is the hand check for this section: the
 publisher broken seven ways and the run chooser given five awkward servers.
 
 ## 10. Testing strategy
